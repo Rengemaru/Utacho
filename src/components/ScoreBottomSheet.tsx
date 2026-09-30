@@ -18,7 +18,14 @@ import { insertScore, updateScore } from '../db/scores';
 import { ScoreRow, SongWithStats } from '../types';
 import { useMachine } from '../contexts/MachineContext';
 import type { Machine } from '../lib/machine';
-import { formatDateTime, nowDateTimeString } from '../lib/datetime';
+import {
+  formatDateTime,
+  nowDateTimeString,
+  datePartOf,
+  shiftDatePart,
+  isFutureDatePart,
+  todayDateString,
+} from '../lib/datetime';
 
 const MAX_SCORE = 100;
 
@@ -121,6 +128,7 @@ export function ScoreBottomSheet({ visible, song, editingScore, onClose, onSaved
   }
 
   const isEdit = !!editingScore;
+  const nextDayIsFuture = isFutureDatePart(shiftDatePart(scoredAt, 1));
   const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', '⌫'];
 
   return (
@@ -191,12 +199,33 @@ export function ScoreBottomSheet({ visible, song, editingScore, onClose, onSaved
           ))}
         </View>
 
-        {/* 記録日時の案内 */}
-        <Text style={styles.datetimeHint}>
-          {isEdit
-            ? `📅 ${formatDateTime(editingScore.scored_at)} の記録`
-            : '📅 記録した日時が自動で保存されます'}
-        </Text>
+        {/* 記録日ステッパー（未来日は選べない） */}
+        <View style={styles.dateRow}>
+          <Text style={styles.dateLabel}>記録日</Text>
+          <View style={styles.dateStepper}>
+            <TouchableOpacity
+              style={styles.dateBtn}
+              onPress={() => setScoredAt((s) => shiftDatePart(s, -1))}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Text style={styles.dateBtnText}>‹</Text>
+            </TouchableOpacity>
+            <View style={styles.dateValueWrap}>
+              <Text style={styles.dateValue}>{formatDateTime(datePartOf(scoredAt))}</Text>
+              {datePartOf(scoredAt) === todayDateString() && (
+                <Text style={styles.dateTodayTag}>今日</Text>
+              )}
+            </View>
+            <TouchableOpacity
+              style={[styles.dateBtn, nextDayIsFuture && styles.dateBtnDisabled]}
+              onPress={() => setScoredAt((s) => (isFutureDatePart(shiftDatePart(s, 1)) ? s : shiftDatePart(s, 1)))}
+              disabled={nextDayIsFuture}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Text style={[styles.dateBtnText, nextDayIsFuture && styles.dateBtnTextDisabled]}>›</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
 
         {/* 保存ボタン */}
         <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={isSaving}>
@@ -373,11 +402,65 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.text2,
   },
-  datetimeHint: {
-    fontSize: 11,
-    color: colors.text3,
+  dateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     marginBottom: 11,
-    paddingLeft: 2,
+  },
+  dateLabel: {
+    fontSize: 10,
+    color: colors.text2,
+    fontWeight: '500',
+    letterSpacing: 0.5,
+    minWidth: 32,
+  },
+  dateStepper: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: 9,
+    backgroundColor: colors.surface,
+    paddingHorizontal: 4,
+  },
+  dateBtn: {
+    width: 36,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dateBtnDisabled: {
+    opacity: 0.35,
+  },
+  dateBtnText: {
+    fontSize: 20,
+    color: colors.accent,
+    fontWeight: '700',
+  },
+  dateBtnTextDisabled: {
+    color: colors.text3,
+  },
+  dateValueWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  dateValue: {
+    fontSize: 13,
+    color: colors.text,
+    fontWeight: '600',
+  },
+  dateTodayTag: {
+    fontSize: 9,
+    color: colors.accent,
+    backgroundColor: colors.accentSoft,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 6,
+    overflow: 'hidden',
   },
   saveBtn: {
     backgroundColor: colors.accent,
