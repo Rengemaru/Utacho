@@ -114,7 +114,8 @@ export function ScoreChart({ scores }: Props) {
         maxValue={maxVal - minVal}
         yAxisOffset={minVal}
         noOfSections={3}
-        hideYAxisText
+        yAxisTextStyle={styles.yLabel}
+        yAxisLabelWidth={26}
         rulesColor={colors.border}
         xAxisColor={colors.border}
         yAxisColor="transparent"
@@ -129,9 +130,13 @@ export function ScoreChart({ scores }: Props) {
 
 const styles = StyleSheet.create({
   container: {
-    marginLeft: -14,
+    marginLeft: 0,
   },
   xLabel: {
+    fontSize: 9,
+    color: colors.text3,
+  },
+  yLabel: {
     fontSize: 9,
     color: colors.text3,
   },
