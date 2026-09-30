@@ -131,6 +131,7 @@ export function ScoreChart({ scores }: Props) {
         spacing={spacing}
         initialSpacing={20}
         endSpacing={20}
+        scrollToEnd
       />
     </View>
   );
