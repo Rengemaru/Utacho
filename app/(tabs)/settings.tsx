@@ -4,9 +4,9 @@ import { Alert, ActivityIndicator, Linking, Platform, ScrollView, StyleSheet, Te
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../../src/constants/colors';
 import { fonts } from '../../src/constants/fonts';
-import { getDb } from '../../src/db/client';
 import { getDefaultMachine, type Machine } from '../../src/lib/machine';
 import { exportBackup, readBackupFile, restoreFromBackup } from '../../src/lib/backup';
+import { deleteAllData } from '../../src/db/maintenance';
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
@@ -89,11 +89,7 @@ export default function SettingsScreen() {
               return;
             }
             try {
-              const db = getDb();
-              db.execSync('DELETE FROM scores;');
-              db.execSync('DELETE FROM song_tabs;');
-              db.execSync('DELETE FROM songs;');
-              db.execSync('DELETE FROM tabs;');
+              deleteAllData();
               Alert.alert('完了', 'すべてのデータを削除しました');
             } catch (e) {
               console.error(e);
