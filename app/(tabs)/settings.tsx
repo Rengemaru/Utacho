@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../../src/constants/colors';
 import { fonts } from '../../src/constants/fonts';
 import { getDefaultMachine, type Machine } from '../../src/lib/machine';
-import { exportBackup, readBackupFile, restoreFromBackup, isEmptyBackup } from '../../src/lib/backup';
+import { exportBackup, readBackupFile, restoreFromBackup, isEmptyBackup, buildBackupJson, type BackupData } from '../../src/lib/backup';
 import { deleteAllData, getDataCounts } from '../../src/db/maintenance';
 
 export default function SettingsScreen() {
@@ -46,10 +46,31 @@ export default function SettingsScreen() {
       const data = await readBackupFile();
       if (!data) return;
 
-      const doRestore = () => {
+      const doRestore = async () => {
         try {
+          // 復元前に現在のデータをスナップショット退避（アンドゥ用）
+          const snapshotJson = await buildBackupJson();
           restoreFromBackup(data);
-          Alert.alert('完了', 'バックアップを復元しました');
+          Alert.alert(
+            '完了',
+            'バックアップを復元しました。元のデータに戻すこともできます。',
+            [
+              { text: 'OK', style: 'cancel' },
+              {
+                text: '元に戻す',
+                style: 'destructive',
+                onPress: () => {
+                  try {
+                    restoreFromBackup(JSON.parse(snapshotJson) as BackupData);
+                    Alert.alert('完了', '元のデータに戻しました');
+                  } catch (e) {
+                    console.error(e);
+                    Alert.alert('エラー', '元に戻せませんでした');
+                  }
+                },
+              },
+            ]
+          );
         } catch (e) {
           console.error(e);
           Alert.alert('エラー', '復元に失敗しました');
