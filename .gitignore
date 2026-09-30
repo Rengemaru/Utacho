@@ -43,6 +43,10 @@ google-services-key.json
 /ios
 /android
 
+# ビルド成果物（AAB / APK・リポジトリ肥大化防止のためignore）
+*.aab
+*.apk
+
 # アイコンビルド中間ファイル・デザイン検討用素材
 assets/icon-build-*.svg
 assets/icon-build-*.svg.png
