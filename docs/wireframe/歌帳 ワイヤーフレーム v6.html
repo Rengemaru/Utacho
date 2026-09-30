@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>歌帳 ワイヤーフレーム v6</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Plus+Jakarta+Sans:wght@600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+* { box-sizing:border-box; margin:0; padding:0; }
+:root {
+  --bg-page:#f0f2f7; --bg-phone:#ffffff; --surface:#f7f8fc; --surface2:#eef0f6;
+  --border:rgba(0,0,0,0.07); --border-strong:rgba(0,0,0,0.14); --accent:#5b4cf5; --accent-soft:rgba(91,76,245,0.1);
+  --green:#00b96b; --yellow:#f59e0b; --red:#ef4444; --text:#111827; --text2:#6b7280; --text3:#9ca3af;
+  --shadow:0 2px 12px rgba(0,0,0,0.06);
+  --dam:#0066cc; --dam-soft:rgba(0,102,204,0.1); --dam-border:rgba(0,102,204,0.25);
+  --joy:#f97316; --joy-soft:rgba(249,115,22,0.1); --joy-border:rgba(249,115,22,0.25);
+}
+body { font-family:'Noto Sans JP',system-ui,sans-serif; background:var(--bg-page); color:var(--text); min-height:100vh; padding:60px 24px 80px; }
+.page-header { text-align:center; margin-bottom:28px; }
+.page-header h1 { font-family:'Plus Jakarta Sans','Noto Sans JP',sans-serif; font-size:26px; font-weight:800; letter-spacing:-0.02em; }
+.page-header h1 span { color:var(--accent); }
+.page-header p { font-size:13px; color:var(--text2); margin-top:8px; line-height:1.7; }
+.legend { display:flex; gap:16px; justify-content:center; flex-wrap:wrap; margin:0 auto 8px; font-size:12px; color:var(--text2); }
+.legend span { display:inline-flex; align-items:center; gap:6px; }
+.tag-new, .tag-change, .tag-same { color:#fff; padding:2px 7px; border-radius:4px; font-size:10px; font-weight:700; }
+.tag-new { background:var(--red); } .tag-change { background:var(--accent); } .tag-same { background:var(--text3); }
+.section { max-width:1400px; margin:48px auto 20px; padding:24px 12px 0; border-top:1px dashed var(--border-strong); }
+.section h2 { font-family:'Plus Jakarta Sans','Noto Sans JP',sans-serif; font-size:18px; font-weight:800; }
+.section p { font-size:13px; color:var(--text2); margin-top:6px; line-height:1.7; max-width:760px; }
+.flow { font-family:'DM Mono',monospace; font-size:12px; color:var(--accent); background:var(--accent-soft); border-radius:8px; padding:8px 12px; margin-top:10px; display:inline-block; }
+.grid { display:flex; flex-wrap:wrap; gap:32px; justify-content:center; max-width:1400px; margin:24px auto 0; }
+.screen-wrap { display:flex; flex-direction:column; align-items:center; gap:12px; width:300px; }
+.screen-label { font-size:12px; font-weight:700; color:var(--text); text-align:center; display:flex; align-items:center; gap:6px; }
+.screen-note { font-size:11px; color:var(--text2); line-height:1.6; width:100%; padding:0 4px; }
+.phone { width:300px; height:648px; background:var(--bg-phone); border-radius:44px; border:1.5px solid rgba(0,0,0,0.1); overflow:hidden; position:relative; box-shadow:0 0 0 6px #e4e6ed,0 24px 48px rgba(0,0,0,0.12); }
+.island { position:absolute; top:12px; left:50%; transform:translateX(-50%); width:86px; height:26px; background:#111; border-radius:20px; z-index:20; }
+.status-bar { display:flex; justify-content:space-between; align-items:center; padding:48px 20px 6px; font-size:11px; color:var(--text2); }
+.status-bar .time { font-family:'DM Mono',monospace; font-size:13px; font-weight:500; color:var(--text); }
+.screen-content { height:calc(100% - 78px); display:flex; flex-direction:column; overflow:hidden; }
+.bottom-nav { display:flex; justify-content:space-around; align-items:center; padding:10px 0 16px; border-top:1px solid var(--border); background:rgba(255,255,255,0.97); position:absolute; bottom:0; left:0; right:0; }
+.nav-item { display:flex; flex-direction:column; align-items:center; gap:3px; font-size:9px; color:var(--text3); font-weight:500; }
+.nav-item.active { color:var(--accent); }
+.nav-icon { font-size:17px; line-height:1; }
+.dim { filter:brightness(0.45); }
+
+/* 01 home */
+.title-row { display:flex; justify-content:space-between; align-items:center; padding:8px 18px 10px; }
+.app-title { font-family:'Plus Jakarta Sans','Noto Sans JP',sans-serif; font-size:22px; font-weight:800; color:var(--accent); letter-spacing:-0.02em; }
+.head-actions { display:flex; gap:8px; align-items:center; }
+.help-btn { width:34px; height:34px; border-radius:10px; background:var(--surface2); display:flex; align-items:center; justify-content:center; font-size:15px; font-weight:700; color:var(--text2); }
+.add-btn { width:34px; height:34px; background:var(--accent); border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:20px; color:#fff; box-shadow:0 4px 12px rgba(91,76,245,0.3); }
+.add-btn.pulse { box-shadow:0 0 0 4px rgba(239,68,68,0.35),0 4px 12px rgba(91,76,245,0.3); }
+.tab-row { display:flex; gap:6px; padding:0 18px 10px; overflow:hidden; }
+.tab-pill { padding:5px 12px; border-radius:20px; font-size:11px; font-weight:500; white-space:nowrap; background:var(--surface2); color:var(--text2); border:1.5px solid transparent; }
+.tab-pill.active { background:var(--accent-soft); color:var(--accent); border-color:rgba(91,76,245,0.2); }
+.search-bar { margin:0 18px 10px; background:var(--surface); border:1.5px solid var(--border); border-radius:12px; padding:9px 14px; display:flex; align-items:center; gap:8px; font-size:12px; color:var(--text3); }
+.song-list { flex:1; overflow:hidden; padding:0 18px 80px; display:flex; flex-direction:column; gap:7px; }
+.song-card { background:#fff; border:1.5px solid var(--border); border-radius:14px; padding:11px 13px; display:flex; align-items:center; gap:11px; box-shadow:var(--shadow); }
+.song-art { width:40px; height:40px; border-radius:10px; background:var(--surface2); display:flex; align-items:center; justify-content:center; font-size:17px; flex-shrink:0; }
+.song-info { flex:1; min-width:0; }
+.song-title { font-size:13px; font-weight:600; margin-bottom:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.song-artist { font-size:11px; color:var(--text2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.card-right { display:flex; align-items:center; gap:7px; flex-shrink:0; }
+.key-badge { font-family:'DM Mono',monospace; font-size:11px; font-weight:500; color:var(--text2); background:var(--surface2); border:1.5px solid var(--border); border-radius:6px; padding:2px 6px; min-width:28px; text-align:center; }
+.key-badge.pos { color:var(--green); background:rgba(0,185,107,0.08); border-color:rgba(0,185,107,0.2); }
+.key-badge.neg { color:var(--yellow); background:rgba(245,158,11,0.08); border-color:rgba(245,158,11,0.2); }
+.score-badge { font-family:'DM Mono',monospace; font-size:14px; font-weight:500; color:var(--accent); }
+.rec-btn { width:30px; height:30px; background:var(--accent-soft); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:14px; border:1.5px solid rgba(91,76,245,0.2); }
+.swipe-row { position:relative; border-radius:14px; overflow:hidden; }
+.swipe-row .song-card { transform:translateX(-88px); position:relative; z-index:1; }
+.swipe-actions { position:absolute; right:0; top:0; bottom:0; display:flex; }
+.swipe-btn { width:44px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; font-size:10px; font-weight:600; color:#fff; }
+.swipe-btn.edit { background:var(--accent); } .swipe-btn.del { background:var(--red); }
+
+/* 02 detail */
+.detail-header { display:flex; align-items:center; gap:10px; padding:6px 18px 12px; }
+.back-btn { font-size:22px; color:var(--accent); }
+.detail-title { font-size:15px; font-weight:700; }
+.detail-artist { font-size:11px; color:var(--text2); margin-top:1px; }
+.detail-scroll { flex:1; overflow:hidden; padding:0 18px 110px; display:flex; flex-direction:column; gap:13px; }
+.art-header { display:flex; align-items:center; gap:13px; }
+.art-img { width:64px; height:64px; border-radius:13px; background:var(--surface2); display:flex; align-items:center; justify-content:center; font-size:28px; flex-shrink:0; box-shadow:var(--shadow); }
+.best-card { background:#f1efff; border:1.5px solid rgba(91,76,245,0.15); border-radius:16px; padding:15px; display:flex; justify-content:space-between; align-items:center; }
+.best-card .label { font-size:10px; color:var(--text2); margin-bottom:4px; }
+.best-card .value { font-family:'Plus Jakarta Sans',sans-serif; font-size:34px; font-weight:800; color:var(--accent); line-height:1; }
+.best-card .sub { font-size:11px; color:var(--green); margin-top:3px; }
+.best-card .count { font-family:'DM Mono',monospace; font-size:22px; font-weight:500; text-align:right; }
+.sec-label { font-size:10px; color:var(--text2); margin-bottom:6px; font-weight:500; display:flex; justify-content:space-between; align-items:center; }
+.legend-dots { display:flex; gap:8px; font-size:9px; }
+.dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:3px; vertical-align:-1px; }
+.chart-area { background:var(--surface); border:1.5px solid var(--border); border-radius:12px; padding:10px; height:90px; }
+.history-item { display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--border); }
+.history-date { font-size:11px; color:var(--text3); width:46px; flex-shrink:0; }
+.history-score { font-family:'DM Mono',monospace; font-size:14px; font-weight:500; flex:1; color:var(--accent); }
+.machine-badge { font-family:'DM Mono',monospace; font-size:9px; font-weight:600; padding:3px 7px; border-radius:5px; flex-shrink:0; }
+.machine-badge.dam { background:var(--dam-soft); color:var(--dam); border:1px solid var(--dam-border); }
+.machine-badge.joy { background:var(--joy-soft); color:var(--joy); border:1px solid var(--joy-border); }
+.fixed-btn { position:absolute; bottom:58px; left:18px; right:18px; padding:13px; background:var(--accent); border-radius:13px; text-align:center; font-size:14px; font-weight:700; color:#fff; box-shadow:0 6px 18px rgba(91,76,245,0.3); }
+.fixed-btn.low { bottom:24px; }
+
+/* sheets */
+.overlay { position:absolute; inset:0; background:rgba(0,0,0,0.38); z-index:5; }
+.sheet { position:absolute; bottom:0; left:0; right:0; background:#fff; border-radius:24px 24px 0 0; z-index:10; padding:0 18px 20px; box-shadow:0 -8px 32px rgba(0,0,0,0.12); }
+.sheet-handle { width:36px; height:4px; background:var(--border-strong); border-radius:2px; margin:12px auto 14px; }
+.sheet-title { font-family:'Plus Jakarta Sans','Noto Sans JP',sans-serif; font-size:15px; font-weight:700; margin-bottom:2px; }
+.sheet-sub { font-size:11px; color:var(--text2); margin-bottom:13px; }
+.score-display { background:var(--surface); border:2px solid var(--accent); border-radius:12px; padding:9px 14px; display:flex; align-items:baseline; gap:4px; margin-bottom:9px; }
+.score-display .num { font-family:'Plus Jakarta Sans',sans-serif; font-size:28px; font-weight:800; color:var(--accent); }
+.score-display .unit { font-size:12px; color:var(--text2); }
+.toggle-row { display:flex; align-items:center; gap:6px; margin-bottom:6px; }
+.toggle-label { font-size:10px; color:var(--text2); min-width:32px; }
+.toggle { display:flex; gap:4px; flex:1; }
+.toggle-btn { flex:1; padding:6px 8px; border-radius:9px; border:1.5px solid var(--border); background:var(--surface); display:flex; align-items:center; justify-content:center; gap:4px; font-size:11px; font-weight:600; color:var(--text2); }
+.toggle-btn.sel.dam { background:var(--dam-soft); color:var(--dam); border-color:var(--dam-border); }
+.toggle-btn.sel.joy { background:var(--joy-soft); color:var(--joy); border-color:var(--joy-border); }
+.hint { font-size:9px; color:var(--text3); margin-bottom:9px; padding-left:2px; }
+.numpad { display:grid; grid-template-columns:repeat(3,1fr); gap:5px; margin-bottom:9px; }
+.num-key { height:32px; background:var(--surface); border:1.5px solid var(--border); border-radius:10px; display:flex; align-items:center; justify-content:center; font-family:'DM Mono',monospace; font-size:15px; }
+.date-row { display:flex; align-items:center; gap:6px; font-size:11px; color:var(--text2); margin-bottom:9px; }
+.date-val { font-family:'DM Mono',monospace; font-size:11px; background:var(--surface); border:1.5px solid var(--border); border-radius:8px; padding:4px 8px; }
+.sheet-btn { padding:12px; background:var(--accent); border-radius:12px; text-align:center; font-size:13px; font-weight:700; color:#fff; }
+
+/* 04 forms */
+.form-header { display:flex; align-items:center; gap:10px; padding:6px 18px 14px; }
+.close-btn { font-size:18px; color:var(--text2); width:22px; text-align:center; }
+.form-title { font-family:'Plus Jakarta Sans','Noto Sans JP',sans-serif; font-size:16px; font-weight:700; flex:1; }
+.form { flex:1; padding:0 18px 100px; overflow:hidden; display:flex; flex-direction:column; gap:14px; }
+.field { display:flex; flex-direction:column; gap:5px; }
+.field-label { font-size:11px; color:var(--text2); font-weight:500; }
+.field-input { background:var(--surface); border:1.5px solid var(--border); border-radius:11px; padding:10px 13px; font-size:13px; min-height:40px; }
+.field-input.filled { background:#fff; }
+.field-input.placeholder { color:var(--text3); }
+.art-row { display:flex; align-items:center; gap:12px; }
+.art-row .song-art { width:56px; height:56px; border-radius:12px; font-size:24px; }
+.art-caption { font-size:11px; color:var(--text2); line-height:1.5; }
+.change-btn { margin-left:auto; padding:8px 12px; border-radius:10px; border:1.5px solid rgba(91,76,245,0.3); background:var(--accent-soft); color:var(--accent); font-size:12px; font-weight:700; white-space:nowrap; }
+.tab-select { display:flex; flex-wrap:wrap; gap:6px; }
+.tab-opt { padding:6px 12px; border-radius:10px; font-size:11px; font-weight:500; border:1.5px solid var(--border); background:var(--surface); color:var(--text2); }
+.tab-opt.sel { background:var(--accent-soft); color:var(--accent); border-color:rgba(91,76,245,0.25); }
+.tab-opt.add { background:transparent; border-style:dashed; color:var(--text3); }
+.stepper { display:flex; align-items:center; gap:8px; }
+.step-btn { width:32px; height:32px; border-radius:9px; background:var(--surface2); border:1.5px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:18px; }
+.step-val { font-family:'DM Mono',monospace; font-size:18px; font-weight:600; color:var(--accent); min-width:36px; text-align:center; }
+
+/* 04a / 04b search modal */
+.modal-top { height:10px; }
+.choice-list { padding:4px 18px 0; display:flex; flex-direction:column; gap:10px; }
+.choice { background:#fff; border:1.5px solid var(--border); border-radius:14px; padding:15px 14px; display:flex; align-items:center; gap:12px; box-shadow:var(--shadow); }
+.choice-icon { width:38px; height:38px; border-radius:11px; background:var(--accent-soft); display:flex; align-items:center; justify-content:center; font-size:17px; flex-shrink:0; }
+.choice-name { font-size:14px; font-weight:600; }
+.choice-desc { font-size:10px; color:var(--text2); margin-top:2px; }
+.choice-arrow { margin-left:auto; color:var(--text3); font-size:18px; }
+.choice.manual { background:transparent; border-style:dashed; box-shadow:none; }
+.choice.manual .choice-icon { background:var(--surface2); }
+.choice.first { border-color:rgba(91,76,245,0.35); }
+.choice-hint { margin:14px 18px 0; font-size:10px; color:var(--text3); line-height:1.6; }
+.s-input { margin:0 18px 8px; background:#fff; border:1.5px solid var(--accent); border-radius:12px; padding:9px 12px; display:flex; align-items:center; gap:8px; font-size:13px; box-shadow:0 0 0 3px rgba(91,76,245,0.08); }
+.s-input .q { flex:1; }
+.s-clear { width:18px; height:18px; border-radius:50%; background:var(--text3); color:#fff; font-size:10px; display:flex; align-items:center; justify-content:center; }
+.mode-seg { display:flex; gap:4px; margin:0 18px 10px; background:var(--surface2); padding:3px; border-radius:11px; }
+.mode-seg span { flex:1; text-align:center; font-size:11px; font-weight:600; padding:6px 0; border-radius:8px; color:var(--text2); }
+.mode-seg .on { background:#fff; color:var(--accent); box-shadow:0 1px 4px rgba(0,0,0,0.08); }
+.meta-row { display:flex; justify-content:space-between; align-items:center; margin:0 18px 6px; font-size:11px; color:var(--text2); }
+.meta-row b { font-family:'DM Mono',monospace; font-weight:500; color:var(--text); }
+.sort-chip { font-size:11px; border:1.5px solid var(--border); border-radius:8px; padding:3px 8px; color:var(--text); background:#fff; }
+.sort-chip.open { border-color:rgba(91,76,245,0.35); color:var(--accent); }
+.truncate-note { margin:0 18px 8px; font-size:10px; color:var(--yellow); background:rgba(245,158,11,0.08); border-radius:8px; padding:6px 10px; }
+.results { flex:1; overflow:hidden; padding:0 18px; }
+.r-item { display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--border); }
+.r-art { width:36px; height:36px; border-radius:8px; background:var(--surface2); display:flex; align-items:center; justify-content:center; font-size:15px; flex-shrink:0; }
+.r-title { font-size:12px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.r-sub { font-size:10px; color:var(--text2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.r-info { min-width:0; flex:1; }
+.r-year { font-family:'DM Mono',monospace; font-size:10px; color:var(--text3); }
+.r-gap { text-align:center; font-size:10px; color:var(--text3); padding:6px 0; border-bottom:1px solid var(--border); }
+.more-btn { margin:10px 0 6px; text-align:center; padding:9px; border:1.5px solid var(--border-strong); border-radius:10px; font-size:11px; font-weight:600; color:var(--text); }
+.manual-link { text-align:center; font-size:11px; color:var(--accent); padding:8px 0; border:1.5px dashed rgba(91,76,245,0.3); border-radius:10px; margin-top:6px; }
+.state-box { margin:24px 18px 0; text-align:center; padding:26px 16px; border:1.5px dashed var(--border-strong); border-radius:14px; }
+.state-icon { font-size:26px; margin-bottom:8px; }
+.state-title { font-size:14px; font-weight:700; margin-bottom:4px; }
+.state-text { font-size:11px; color:var(--text2); line-height:1.6; }
+.state-actions { display:flex; flex-direction:column; gap:8px; margin:14px 18px 0; }
+.btn-primary { padding:11px; border-radius:11px; background:var(--accent); color:#fff; font-size:12px; font-weight:700; text-align:center; }
+.btn-ghost { padding:10px; border-radius:11px; border:1.5px dashed rgba(91,76,245,0.3); color:var(--accent); font-size:12px; font-weight:600; text-align:center; }
+.sort-menu { position:absolute; right:18px; top:222px; width:170px; background:#fff; border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,0.18); border:1px solid var(--border); z-index:15; overflow:hidden; }
+.sort-menu div { padding:10px 12px; font-size:12px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; }
+.sort-menu div:last-child { border-bottom:none; }
+.sort-menu .cur { color:var(--accent); font-weight:700; }
+.keyboard { position:absolute; left:0; right:0; bottom:0; height:190px; background:#d9dce3; border-top:1px solid rgba(0,0,0,0.08); z-index:8; display:grid; grid-template-columns:repeat(10,1fr); gap:5px; padding:10px 6px; align-content:start; }
+.keyboard i { height:34px; background:#fff; border-radius:6px; box-shadow:0 1px 0 rgba(0,0,0,0.2); }
+.kb-note { position:absolute; bottom:196px; left:18px; right:18px; z-index:9; font-size:10px; color:var(--text2); background:rgba(255,255,255,0.95); border-radius:8px; padding:5px 8px; text-align:center; }
+
+/* alerts */
+.alert-wrap { position:absolute; inset:0; background:rgba(0,0,0,0.42); z-index:30; display:flex; align-items:center; justify-content:center; padding:24px; }
+.alert { background:#fff; border-radius:16px; width:100%; overflow:hidden; }
+.alert-body { padding:18px 18px 14px; }
+.alert-title { font-size:15px; font-weight:700; margin-bottom:8px; }
+.alert-text { font-size:12px; color:var(--text2); line-height:1.7; }
+.alert-actions { display:flex; justify-content:flex-end; gap:20px; padding:4px 18px 14px; font-size:13px; font-weight:700; color:var(--accent); }
+
+/* settings / machine / onboarding */
+.settings-title { font-family:'Plus Jakarta Sans','Noto Sans JP',sans-serif; font-size:20px; font-weight:800; padding:8px 18px 14px; }
+.settings-scroll { flex:1; overflow:hidden; padding:0 18px 80px; display:flex; flex-direction:column; gap:16px; }
+.set-label { font-size:10px; color:var(--text3); font-weight:600; margin-bottom:6px; padding-left:2px; }
+.set-group { background:#fff; border:1.5px solid var(--border); border-radius:14px; overflow:hidden; box-shadow:var(--shadow); }
+.set-row { display:flex; align-items:center; gap:12px; padding:11px 14px; border-bottom:1px solid var(--border); }
+.set-row:last-child { border-bottom:none; }
+.set-icon { width:30px; height:30px; border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0; background:var(--accent-soft); }
+.set-icon.gray { background:var(--surface2); } .set-icon.red { background:rgba(239,68,68,0.1); } .set-icon.dam { background:var(--dam-soft); }
+.set-text { flex:1; }
+.set-name { font-size:13px; font-weight:500; }
+.set-name.danger { color:var(--red); }
+.set-sub { font-size:10px; color:var(--text3); margin-top:1px; }
+.set-val { font-size:11px; color:var(--accent); font-weight:500; }
+.set-val.dam { color:var(--dam); }
+.chev { font-size:18px; color:var(--text3); }
+.machine-list { padding:0 18px; display:flex; flex-direction:column; gap:10px; }
+.m-card { background:#fff; border:1.5px solid var(--border); border-radius:14px; padding:14px; display:flex; align-items:center; gap:12px; box-shadow:var(--shadow); }
+.m-card.sel { border-color:var(--dam); background:var(--dam-soft); }
+.m-icon { width:40px; height:40px; border-radius:11px; display:flex; align-items:center; justify-content:center; font-size:18px; font-weight:700; font-family:'Plus Jakarta Sans',sans-serif; }
+.m-icon.dam { background:var(--dam-soft); color:var(--dam); } .m-icon.joy { background:var(--joy-soft); color:var(--joy); }
+.m-name { font-size:14px; font-weight:600; } .m-desc { font-size:10px; color:var(--text2); margin-top:2px; }
+.m-check { width:22px; height:22px; border-radius:50%; margin-left:auto; display:flex; align-items:center; justify-content:center; font-size:13px; color:#fff; background:var(--dam); }
+.m-check.off { background:transparent; border:1.5px solid var(--border-strong); }
+.note-box { margin:18px; padding:12px; background:var(--surface); border:1.5px dashed var(--border-strong); border-radius:11px; font-size:11px; color:var(--text2); line-height:1.6; }
+.note-box b { color:var(--text); display:block; margin-bottom:4px; }
+
+/* change log */
+.changelog { max-width:900px; margin:56px auto 0; background:#fff; border-radius:16px; padding:20px 24px; border:1.5px solid var(--border); }
+.changelog h2 { font-size:15px; margin-bottom:10px; }
+.changelog table { width:100%; border-collapse:collapse; font-size:12px; }
+.changelog td { padding:8px 6px; border-top:1px solid var(--border); vertical-align:top; line-height:1.6; }
+.changelog td:first-child { width:110px; font-family:'DM Mono',monospace; color:var(--text2); }
+@media (prefers-reduced-motion: reduce) { * { transition:none !important; } }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1><span>歌帳</span> 画面設計 v6</h1>
+  <p>v1.1系（1.0.1 / 1.0.2 / 1.1.0）対応版。曲の追加・編集フローを検索モーダル方式に再設計。<br>仕様の詳細は <code>docs/spec/spec-1.1.0-song-flow.md</code> を参照。</p>
+</header>
+<div class="legend">
+  <span><em class="tag-new">NEW</em> v6で新規追加</span>
+  <span><em class="tag-change">CHANGE</em> v5から変更</span>
+  <span><em class="tag-same">v5</em> v5から変更なし</span>
+</div>
+
+<!-- ===================== A ===================== -->
+<section class="section">
+  <h2>A. メイン画面</h2>
+  <p>持ち歌リストと曲詳細。v5からの変更は、v1.0で追加済みのヘルプ導線（ヘッダーの「?」）の反映のみ。</p>
+</section>
+<div class="grid">
+
+  <div class="screen-wrap">
+    <div class="screen-label">01 持ち歌リスト <em class="tag-change">CHANGE</em></div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="status-bar"><span class="time">9:41</span><span>●●● 🔋</span></div>
+      <div class="screen-content">
+        <div class="title-row"><div class="app-title">歌帳</div><div class="head-actions"><div class="help-btn">?</div><div class="add-btn">＋</div></div></div>
+        <div class="tab-row"><div class="tab-pill active">すべて</div><div class="tab-pill">十八番</div><div class="tab-pill">練習中</div><div class="tab-pill">アニソン</div></div>
+        <div class="search-bar">🔍 曲名・アーティスト名で検索</div>
+        <div class="song-list">
+          <div class="song-card"><div class="song-art">🎵</div><div class="song-info"><div class="song-title">ガーネット</div><div class="song-artist">奥華子</div></div><div class="card-right"><div class="key-badge pos">+1</div><div class="score-badge">92.4</div><div class="rec-btn">✏️</div></div></div>
+          <div class="song-card"><div class="song-art">🎶</div><div class="song-info"><div class="song-title">Lemon</div><div class="song-artist">米津玄師</div></div><div class="card-right"><div class="key-badge neg">-3</div><div class="score-badge">89.1</div><div class="rec-btn">✏️</div></div></div>
+          <div class="song-card"><div class="song-art">🎤</div><div class="song-info"><div class="song-title">夜に駆ける</div><div class="song-artist">YOASOBI</div></div><div class="card-right"><div class="key-badge pos">+2</div><div class="score-badge">85.7</div><div class="rec-btn">✏️</div></div></div>
+          <div class="song-card"><div class="song-art">🎼</div><div class="song-info"><div class="song-title">カタオモイ（Album Ver.）</div><div class="song-artist">Aimer</div></div><div class="card-right"><div class="key-badge" style="visibility:hidden">+0</div><div class="score-badge">88.3</div><div class="rec-btn">✏️</div></div></div>
+        </div>
+      </div>
+      <div class="bottom-nav"><div class="nav-item active"><div class="nav-icon">♪</div>曲一覧</div><div class="nav-item"><div class="nav-icon">⚙️</div>設定</div></div>
+    </div>
+    <div class="screen-note">「＋」で曲の追加（04a）へ。「?」でヘルプ画面へ（v1.0で実装済み・ヘルプ画面本体は未作図）。</div>
+  </div>
+
+  <div class="screen-wrap">
+    <div class="screen-label">01b 曲カード 左スワイプ <em class="tag-same">v5</em></div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="status-bar"><span class="time">9:41</span><span>●●● 🔋</span></div>
+      <div class="screen-content">
+        <div class="title-row"><div class="app-title">歌帳</div><div class="head-actions"><div class="help-btn">?</div><div class="add-btn">＋</div></div></div>
+        <div class="tab-row"><div class="tab-pill active">すべて</div><div class="tab-pill">十八番</div><div class="tab-pill">練習中</div><div class="tab-pill">アニソン</div></div>
+        <div class="search-bar">🔍 曲名・アーティスト名で検索</div>
+        <div class="song-list">
+          <div class="song-card"><div class="song-art">🎵</div><div class="song-info"><div class="song-title">ガーネット</div><div class="song-artist">奥華子</div></div><div class="card-right"><div class="key-badge pos">+1</div><div class="score-badge">92.4</div><div class="rec-btn">✏️</div></div></div>
+          <div class="swipe-row">
+            <div class="song-card"><div class="song-art">🎶</div><div class="song-info"><div class="song-title">Lemon</div><div class="song-artist">米津玄師</div></div><div class="card-right"><div class="key-badge neg">-3</div><div class="score-badge">89.1</div><div class="rec-btn">✏️</div></div></div>
+            <div class="swipe-actions"><div class="swipe-btn edit">✏️<span>編集</span></div><div class="swipe-btn del">🗑<span>削除</span></div></div>
+          </div>
+          <div class="song-card"><div class="song-art">🎤</div><div class="song-info"><div class="song-title">夜に駆ける</div><div class="song-artist">YOASOBI</div></div><div class="card-right"><div class="key-badge pos">+2</div><div class="score-badge">85.7</div><div class="rec-btn">✏️</div></div></div>
+        </div>
+      </div>
+      <div class="bottom-nav"><div class="nav-item active"><div class="nav-icon">♪</div>曲一覧</div><div class="nav-item"><div class="nav-icon">⚙️</div>設定</div></div>
+    </div>
+    <div class="screen-note">「編集」で 04 編集フォームへ。</div>
+  </div>
+
+  <div class="screen-wrap">
+    <div class="screen-label">02 曲詳細 <em class="tag-same">v5</em></div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="status-bar"><span class="time">9:41</span><span>●●● 🔋</span></div>
+      <div class="screen-content">
+        <div class="detail-header"><div class="back-btn">‹</div><div><div class="detail-title">ガーネット</div><div class="detail-artist">奥華子</div></div></div>
+        <div class="detail-scroll">
+          <div class="art-header"><div class="art-img">🎵</div><div class="art-caption">アルバムアート<br>未取得時は 🎵</div></div>
+          <div class="best-card"><div><div class="label">最高スコア</div><div class="value">92.4</div><div class="sub">↑ 3.2pt 前回比</div></div><div><div class="label">記録回数</div><div class="count">8回</div></div></div>
+          <div>
+            <div class="sec-label"><span>点数推移</span><span class="legend-dots"><span><i class="dot" style="background:var(--dam)"></i>DAM</span><span><i class="dot" style="background:var(--joy)"></i>JOYSOUND</span></span></div>
+            <div class="chart-area"><svg width="100%" height="100%" viewBox="0 0 260 72" preserveAspectRatio="none"><path d="M0,52 L52,46 L104,40 L156,28 L208,18 L260,10" fill="none" stroke="#0066cc" stroke-width="2" stroke-linecap="round"/><path d="M30,58 L90,50 L150,42 L240,30" fill="none" stroke="#f97316" stroke-width="2" stroke-linecap="round"/></svg></div>
+          </div>
+          <div>
+            <div class="sec-label"><span>記録履歴（左スワイプで編集・削除）</span></div>
+            <div class="history-item"><div class="history-date">5/10</div><div class="machine-badge dam">DAM</div><div class="history-score">92.4</div></div>
+            <div class="history-item"><div class="history-date">4/22</div><div class="machine-badge joy">JOY</div><div class="history-score">89.2</div></div>
+            <div class="history-item"><div class="history-date">4/5</div><div class="machine-badge joy">JOY</div><div class="history-score" style="color:var(--yellow)">86.0</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="fixed-btn">🎤 点数を記録する</div>
+      <div class="bottom-nav"><div class="nav-item active"><div class="nav-icon">♪</div>曲一覧</div><div class="nav-item"><div class="nav-icon">⚙️</div>設定</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== B ===================== -->
+<section class="section">
+  <h2>B. 点数記録</h2>
+  <p>ボトムシートでの点数入力と編集。v5から変更なし。</p>
+</section>
+<div class="grid">
+  <div class="screen-wrap">
+    <div class="screen-label">03 点数入力 ボトムシート <em class="tag-same">v5</em></div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="status-bar dim"><span class="time">9:41</span><span>●●● 🔋</span></div>
+      <div class="screen-content dim"><div class="detail-header"><div class="back-btn">‹</div><div><div class="detail-title">ガーネット</div><div class="detail-artist">奥華子</div></div></div></div>
+      <div class="overlay"></div>
+      <div class="sheet">
+        <div class="sheet-handle"></div>
+        <div class="sheet-title">点数を記録する</div>
+        <div class="sheet-sub">ガーネット ／ 奥華子</div>
+        <div class="score-display"><div class="num">88.5</div><div class="unit">点</div></div>
+        <div class="toggle-row"><div class="toggle-label">機種</div><div class="toggle"><div class="toggle-btn sel dam"><i class="dot" style="background:var(--dam)"></i>DAM</div><div class="toggle-btn"><i class="dot" style="background:var(--joy)"></i>JOYSOUND</div></div></div>
+        <div class="hint">※ 今日中はこの機種が記憶されます</div>
+        <div class="numpad"><div class="num-key">1</div><div class="num-key">2</div><div class="num-key">3</div><div class="num-key">4</div><div class="num-key">5</div><div class="num-key">6</div><div class="num-key">7</div><div class="num-key">8</div><div class="num-key">9</div><div class="num-key">.</div><div class="num-key">0</div><div class="num-key">⌫</div></div>
+        <div class="date-row">📅 <div class="date-val">2026/05/25</div></div>
+        <div class="sheet-btn">記録する</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="screen-wrap">
+    <div class="screen-label">02b 点数編集 ボトムシート <em class="tag-same">v5</em></div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="status-bar dim"><span class="time">9:41</span><span>●●● 🔋</span></div>
+      <div class="screen-content dim"><div class="detail-header"><div class="back-btn">‹</div><div><div class="detail-title">ガーネット</div><div class="detail-artist">奥華子</div></div></div></div>
+      <div class="overlay"></div>
+      <div class="sheet">
+        <div class="sheet-handle"></div>
+        <div class="sheet-title">点数を編集する</div>
+        <div class="sheet-sub">ガーネット ／ 奥華子 ／ 4/5 の記録</div>
+        <div class="score-display"><div class="num">86.0</div><div class="unit">点</div></div>
+        <div class="toggle-row"><div class="toggle-label">機種</div><div class="toggle"><div class="toggle-btn"><i class="dot" style="background:var(--dam)"></i>DAM</div><div class="toggle-btn sel joy"><i class="dot" style="background:var(--joy)"></i>JOYSOUND</div></div></div>
+        <div class="hint">※ 既存記録の機種を表示。変更してもセッションには影響しない</div>
+        <div class="numpad"><div class="num-key">1</div><div class="num-key">2</div><div class="num-key">3</div><div class="num-key">4</div><div class="num-key">5</div><div class="num-key">6</div><div class="num-key">7</div><div class="num-key">8</div><div class="num-key">9</div><div class="num-key">.</div><div class="num-key">0</div><div class="num-key">⌫</div></div>
+        <div class="date-row">📅 <div class="date-val">2026/04/05</div></div>
+        <div class="sheet-btn">変更を保存する</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== C ===================== -->
+<section class="section">
+  <h2>C. 曲の追加・編集（1.1.0で再設計）</h2>
+  <p>検索を独立したモーダル（04a 選択画面＋04b 検索画面）に分離し、フォーム（04）は検索結果を受け取るだけにする。04a・04b は画面の上に重なるモーダルなので、下部ナビは表示しない。</p>
+  <div class="flow">新規：01「＋」→ 04a → 04b → 候補を選ぶ → モーダルを閉じる → 04（入力済み）</div>
+</section>
+
+<div class="grid">
+  <div class="screen-wrap">
+    <div class="screen-label">04a 選択画面（新規追加） <em class="tag-new">NEW</em></div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="status-bar"><span class="time">9:41</span><span>●●● 🔋</span></div>
+      <div class="screen-content">
+        <div class="form-header"><div class="close-btn">✕</div><div class="form-title">曲を追加</div></div>
+        <div class="choice-list">
+          <div class="choice first"><div class="choice-icon">🎵</div><div><div class="choice-name">曲から探す</div><div class="choice-desc">曲名で検索</div></div><div class="choice-arrow">›</div></div>
+          <div class="choice"><div class="choice-icon">🎤</div><div><div class="choice-name">アーティストから探す</div><div class="choice-desc">歌手名で検索</div></div><div class="choice-arrow">›</div></div>
+          <div class="choice"><div class="choice-icon">🔍</div><div><div class="choice-name">キーワードで探す</div><div class="choice-desc">曲名・歌手名・アルバム名から検索</div></div><div class="choice-arrow">›</div></div>
+          <div class="choice manual"><div class="choice-icon">✏️</div><div><div class="choice-name">手入力で登録</div><div class="choice-desc">検索で見つからない曲・オフライン時</div></div><div class="choice-arrow">›</div></div>
+        </div>
+        <div class="choice-hint">押したボタンが検索画面の最初のモードになります。</div>
+      </div>
+    </div>
+    <div class="screen-note">「手入力で登録」は新規追加時のみ表示。✕ でモーダルを閉じる。戻る操作でも閉じる。</div>
+  </div>
+
+  <div class="screen-wrap">
+    <div class="screen-label">04b 検索画面（結果あり） <em class="tag-new">NEW</em></div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="status-bar"><span class="time">9:41</span><span>●●● 🔋</span></div>
+      <div class="screen-content">
+        <div class="form-header"><div class="back-btn">‹</div><div class="form-title">曲を探す</div></div>
+        <div class="s-input"><span>🔍</span><span class="q">ハチ</span><span class="s-clear">✕</span></div>
+        <div class="mode-seg"><span class="on">曲から</span><span>アーティスト</span><span>キーワード</span></div>
+        <div class="meta-row"><span><b>128</b>件</span><span class="sort-chip">関連度順 ▾</span></div>
+        <div class="results">
+          <div class="r-item"><div class="r-art">🎵</div><div class="r-info"><div class="r-title">曲名A</div><div class="r-sub">歌手X</div></div><div class="r-year">2019</div></div>
+          <div class="r-item"><div class="r-art">🎶</div><div class="r-info"><div class="r-title">曲名B</div><div class="r-sub">歌手Y</div></div><div class="r-year">2021</div></div>
+          <div class="r-item"><div class="r-art">🎤</div><div class="r-info"><div class="r-title">曲名C（Live）</div><div class="r-sub">歌手X</div></div><div class="r-year">2022</div></div>
+          <div class="r-item"><div class="r-art">🎼</div><div class="r-info"><div class="r-title">曲名D</div><div class="r-sub">歌手Z</div></div><div class="r-year">2016</div></div>
+          <div class="r-gap">︙ 50件目まで表示</div>
+          <div class="more-btn">もっと見る（51〜100件）</div>
+          <div class="manual-link">見つからない場合は手入力で登録</div>
+        </div>
+      </div>
+    </div>
+    <div class="screen-note">ⓧ で入力と結果を一括クリア。モードを切り替えると同じ文字で自動再検索。最初は50件表示、「もっと見る」で50件ずつ追加（通信はしない）。‹ で 04a に戻る。</div>
+  </div>
+
+  <div class="screen-wrap">
+    <div class="screen-label">04b キーボード表示中 <em class="tag-new">NEW</em></div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="status-bar"><span class="time">9:41</span><span>●●● 🔋</span></div>
+      <div class="screen-content">
+        <div class="form-header"><div class="back-btn">‹</div><div class="form-title">曲を探す</div></div>
+        <div class="s-input"><span>🔍</span><span class="q">ハチ|</span><span class="s-clear">✕</span></div>
+        <div class="mode-seg"><span class="on">曲から</span><span>アーティスト</span><span>キーワード</span></div>
+        <div class="meta-row"><span><b>128</b>件</span><span class="sort-chip">関連度順 ▾</span></div>
+        <div class="results">
+          <div class="r-item"><div class="r-art">🎵</div><div class="r-info"><div class="r-title">曲名A</div><div class="r-sub">歌手X</div></div><div class="r-year">2019</div></div>
+          <div class="r-item"><div class="r-art">🎶</div><div class="r-info"><div class="r-title">曲名B</div><div class="r-sub">歌手Y</div></div><div class="r-year">2021</div></div>
+        </div>
+      </div>
+      <div class="kb-note">キーボード表示中もリストは最後までスクロールでき、1回目のタップで選択できる</div>
+      <div class="keyboard"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    </div>
+    <div class="screen-note">fix-F の再発防止の確認対象（仕様 8章）。</div>
+  </div>
+</div>
+
+<section class="section" style="border-top:none; margin-top:24px; padding-top:0;">
+  <h2 style="font-size:15px;">04b の表示状態</h2>
+  <p>iTunes は1回の検索で最大200件しか返さず、総ヒット数も返さない。そのため取得結果の状態を明示し、「打ち切りか・該当なしか・通信エラーか」を判断できるようにする。</p>
+</section>
+<div class="grid">
+  <div class="screen-wrap">
+    <div class="screen-label">04b 上位200件（上限到達） <em class="tag-new">NEW</em></div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="status-bar"><span class="time">9:41</span><span>●●● 🔋</span></div>
+      <div class="screen-content">
+        <div class="form-header"><div class="back-btn">‹</div><div class="form-title">曲を探す</div></div>
+        <div class="s-input"><span>🔍</span><span class="q">愛</span><span class="s-clear">✕</span></div>
+        <div class="mode-seg"><span>曲から</span><span>アーティスト</span><span class="on">キーワード</span></div>
+        <div class="meta-row"><span>上位<b>200</b>件</span><span class="sort-chip">関連度順 ▾</span></div>
+        <div class="truncate-note">結果が多いため上位200件を表示しています。キーワードを足すと絞り込めます</div>
+        <div class="results">
+          <div class="r-item"><div class="r-art">🎵</div><div class="r-info"><div class="r-title">曲名E</div><div class="r-sub">歌手Z</div></div><div class="r-year">2008</div></div>
+          <div class="r-item"><div class="r-art">🎶</div><div class="r-info"><div class="r-title">曲名F</div><div class="r-sub">歌手X</div></div><div class="r-year">2015</div></div>
+          <div class="r-item"><div class="r-art">🎤</div><div class="r-info"><div class="r-title">曲名G</div><div class="r-sub">歌手Y</div></div><div class="r-year">2020</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="screen-note">取得件数が200件ちょうどのとき。199件以下なら「N件」と表示し、それが全件。</div>
+  </div>
+
+  <div class="screen-wrap">
+    <div class="screen-label">04b 0件 <em class="tag-new">NEW</em></div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="status-bar"><span class="time">9:41</span><span>●●● 🔋</span></div>
+      <div class="screen-content">
+        <div class="form-header"><div class="back-btn">‹</div><div class="form-title">曲を探す</div></div>
+        <div class="s-input"><span>🔍</span><span class="q">あいうえおかきく</span><span class="s-clear">✕</span></div>
+        <div class="mode-seg"><span class="on">曲から</span><span>アーティスト</span><span>キーワード</span></div>
+        <div class="state-box"><div class="state-icon">🔎</div><div class="state-title">見つかりませんでした</div><div class="state-text">アーティストやキーワードでも<br>探してみてください</div></div>
+        <div class="state-actions"><div class="btn-ghost">✏️ 手入力で登録</div></div>
+      </div>
+    </div>
+    <div class="screen-note">通信は成功して0件だったとき。上のモード切り替えで別の探し方へ誘導する。</div>
+  </div>
+
+  <div class="screen-wrap">
+    <div class="screen-label">04b 通信エラー <em class="tag-new">NEW</em></div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="status-bar"><span class="time">9:41</span><span>✈️ 🔋</span></div>
+      <div class="screen-content">
+        <div class="form-header"><div class="back-btn">‹</div><div class="form-title">曲を探す</div></div>
+        <div class="s-input"><span>🔍</span><span class="q">ハチ</span><span class="s-clear">✕</span></div>
+        <div class="mode-seg"><span class="on">曲から</span><span>アーティスト</span><span>キーワード</span></div>
+        <div class="state-box"><div class="state-icon">📡</div><div class="state-title">通信できませんでした</div><div class="state-text">電波の良い場所で再試行するか、<br>手入力で登録してください</div></div>
+        <div class="state-actions"><div class="btn-primary">再試行</div><div class="btn-ghost">✏️ 手入力で登録</div></div>
+      </div>
+    </div>
+    <div class="screen-note">通信失敗を「0件」と表示しない（曲がないと誤解させないため）。</div>
+  </div>
+
+  <div class="screen-wrap">
+    <div class="screen-label">04b 並び替えメニュー <em class="tag-new">NEW</em></div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="status-bar"><span class="time">9:41</span><span>●●● 🔋</span></div>
+      <div class="screen-content">
+        <div class="form-header"><div class="back-btn">‹</div><div class="form-title">曲を探す</div></div>
+        <div class="s-input"><span>🔍</span><span class="q">ハチ</span><span class="s-clear">✕</span></div>
+        <div class="mode-seg"><span class="on">曲から</span><span>アーティスト</span><span>キーワード</span></div>
+        <div class="meta-row"><span><b>128</b>件</span><span class="sort-chip open">関連度順 ▴</span></div>
+        <div class="results">
+          <div class="r-item"><div class="r-art">🎵</div><div class="r-info"><div class="r-title">曲名A</div><div class="r-sub">歌手X</div></div><div class="r-year">2019</div></div>
+          <div class="r-item"><div class="r-art">🎶</div><div class="r-info"><div class="r-title">曲名B</div><div class="r-sub">歌手Y</div></div><div class="r-year">2021</div></div>
+          <div class="r-item"><div class="r-art">🎤</div><div class="r-info"><div class="r-title">曲名C（Live）</div><div class="r-sub">歌手X</div></div><div class="r-year">2022</div></div>
+        </div>
+      </div>
+      <div class="sort-menu">
+        <div class="cur">関連度順 <span>✓</span></div>
+        <div>発売日が新しい順</div>
+        <div>発売日が古い順</div>
+        <div>曲名順</div>
+      </div>
+    </div>
+    <div class="screen-note">取得済みの最大200件全体を並び替える。変更すると先頭50件・最上部に戻る。モーダルを開くたびに関連度順へリセット。曲名順は漢字だと完全なあいうえお順にならない。</div>
+  </div>
+</div>
+
+<section class="section" style="border-top:none; margin-top:24px; padding-top:0;">
+  <h2 style="font-size:15px;">登録フォーム</h2>
+  <p>インライン候補を廃止し、曲名・アーティスト名はサジェストなしのテキスト欄にする。検索から来た場合も入力済みの状態で編集できる。</p>
+</section>
+<div class="grid">
+  <div class="screen-wrap">
+    <div class="screen-label">04 登録フォーム（検索から） <em class="tag-change">CHANGE</em></div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="status-bar"><span class="time">9:41</span><span>●●● 🔋</span></div>
+      <div class="screen-content">
+        <div class="form-header"><div class="close-btn">✕</div><div class="form-title">曲を追加</div></div>
+        <div class="form">
+          <div class="art-row"><div class="song-art">🎵</div><div class="art-caption">アルバムアート<br>検索で選んだ曲のもの</div></div>
+          <div class="field"><div class="field-label">曲名</div><div class="field-input filled">曲名A</div></div>
+          <div class="field"><div class="field-label">アーティスト名</div><div class="field-input filled">歌手X</div></div>
+          <div class="field"><div class="field-label">タブ（カテゴリ）</div><div class="tab-select"><div class="tab-opt sel">十八番</div><div class="tab-opt">練習中</div><div class="tab-opt">アニソン</div><div class="tab-opt add">＋ 新規作成</div></div></div>
+          <div class="field"><div class="field-label">キー（音域）</div><div class="stepper"><div class="step-btn">－</div><div class="step-val">±0</div><div class="step-btn">＋</div></div></div>
+          <div class="field"><div class="field-label">メモ（任意）</div><div class="field-input placeholder">サビの入りに注意 など</div></div>
+        </div>
+      </div>
+      <div class="fixed-btn low">曲を追加する</div>
+    </div>
+    <div class="screen-note">曲名・アーティスト名は編集可（iTunesの表記を直せる）。「曲を追加する」で重複チェック（現行どおり）。</div>
+  </div>
+
+  <div class="screen-wrap">
+    <div class="screen-label">04 登録フォーム（手入力） <em class="tag-change">CHANGE</em></div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="status-bar"><span class="time">9:41</span><span>●●● 🔋</span></div>
+      <div class="screen-content">
+        <div class="form-header"><div class="close-btn">✕</div><div class="form-title">曲を追加</div></div>
+        <div class="form">
+          <div class="art-row"><div class="song-art">🎵</div><div class="art-caption">アルバムアートなし</div></div>
+          <div class="field"><div class="field-label">曲名</div><div class="field-input placeholder">曲名を入力</div></div>
+          <div class="field"><div class="field-label">アーティスト名</div><div class="field-input placeholder">アーティスト名を入力</div></div>
+          <div class="field"><div class="field-label">タブ（カテゴリ）</div><div class="tab-select"><div class="tab-opt">十八番</div><div class="tab-opt">練習中</div><div class="tab-opt">アニソン</div><div class="tab-opt add">＋ 新規作成</div></div></div>
+          <div class="field"><div class="field-label">キー（音域）</div><div class="stepper"><div class="step-btn">－</div><div class="step-val">±0</div><div class="step-btn">＋</div></div></div>
+          <div class="field"><div class="field-label">メモ（任意）</div><div class="field-input placeholder">サビの入りに注意 など</div></div>
+        </div>
+      </div>
+      <div class="fixed-btn low">曲を追加する</div>
+    </div>
+    <div class="screen-note">04a・04b どちらの「手入力で登録」からもこの状態で開く。候補は出ない。</div>
+  </div>
+</div>
+
+<section class="section" style="border-top:none; margin-top:24px; padding-top:0;">
+  <h2 style="font-size:15px;">編集と「曲を変更」</h2>
+  <p>「曲を変更」は登録ミスの修正専用。キー・メモ・タブ・点数履歴は常にすべて引き継ぐ。別の曲にしたい場合は新規追加する。</p>
+  <div class="flow">編集：04「曲を変更」→ 04a（手入力なし）→ 04b（自動検索済み）→ 確認 → 04 に反映 →「保存する」で確定</div>
+</section>
+<div class="grid">
+  <div class="screen-wrap">
+    <div class="screen-label">04 編集フォーム <em class="tag-change">CHANGE</em></div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="status-bar"><span class="time">9:41</span><span>●●● 🔋</span></div>
+      <div class="screen-content">
+        <div class="form-header"><div class="close-btn">✕</div><div class="form-title">曲を編集</div></div>
+        <div class="form">
+          <div class="art-row"><div class="song-art">🎶</div><div class="art-caption">アルバムアート</div><div class="change-btn">曲を変更</div></div>
+          <div class="field"><div class="field-label">曲名</div><div class="field-input filled">Lemon</div></div>
+          <div class="field"><div class="field-label">アーティスト名</div><div class="field-input filled">米津玄師</div></div>
+          <div class="field"><div class="field-label">タブ（カテゴリ）</div><div class="tab-select"><div class="tab-opt sel">十八番</div><div class="tab-opt">練習中</div><div class="tab-opt">アニソン</div></div></div>
+          <div class="field"><div class="field-label">キー（音域）</div><div class="stepper"><div class="step-btn">－</div><div class="step-val">-3</div><div class="step-btn">＋</div></div></div>
+          <div class="field"><div class="field-label">メモ（任意）</div><div class="field-input filled">サビ高い</div></div>
+        </div>
+      </div>
+      <div class="fixed-btn low">保存する</div>
+    </div>
+    <div class="screen-note">曲名・アーティスト名は候補の出ないテキスト欄（表記の修正用）。手で書き換えてもアートは元のまま。「保存する」で重複チェック（編集中の曲自身は比較対象外）。</div>
+  </div>
+
+  <div class="screen-wrap">
+    <div class="screen-label">04a 選択画面（曲を変更） <em class="tag-new">NEW</em></div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="status-bar"><span class="time">9:41</span><span>●●● 🔋</span></div>
+      <div class="screen-content">
+        <div class="form-header"><div class="close-btn">✕</div><div class="form-title">曲を変更</div></div>
+        <div class="choice-list">
+          <div class="choice first"><div class="choice-icon">🎵</div><div><div class="choice-name">曲から探す</div><div class="choice-desc">曲名「Lemon」で検索</div></div><div class="choice-arrow">›</div></div>
+          <div class="choice"><div class="choice-icon">🎤</div><div><div class="choice-name">アーティストから探す</div><div class="choice-desc">「米津玄師」で検索</div></div><div class="choice-arrow">›</div></div>
+          <div class="choice"><div class="choice-icon">🔍</div><div><div class="choice-name">キーワードで探す</div><div class="choice-desc">「Lemon 米津玄師」で検索</div></div><div class="choice-arrow">›</div></div>
+        </div>
+        <div class="choice-hint">手入力で直したい場合は、編集画面の曲名・アーティスト名を書き換えてください。</div>
+      </div>
+    </div>
+    <div class="screen-note">手入力ボタンは出さない（入口を編集フォームのテキスト欄に一本化）。</div>
+  </div>
+
+  <div class="screen-wrap">
+    <div class="screen-label">04b 検索画面（曲を変更） <em class="tag-new">NEW</em></div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="status-bar"><span class="time">9:41</span><span>●●● 🔋</span></div>
+      <div class="screen-content">
+        <div class="form-header"><div class="back-btn">‹</div><div class="form-title">曲を探す</div></div>
+        <div class="s-input"><span>🔍</span><span class="q">Lemon</span><span class="s-clear">✕</span></div>
+        <div class="mode-seg"><span class="on">曲から</span><span>アーティスト</span><span>キーワード</span></div>
+        <div class="meta-row"><span><b>37</b>件</span><span class="sort-chip">関連度順 ▾</span></div>
+        <div class="results">
+          <div class="r-item"><div class="r-art">🎶</div><div class="r-info"><div class="r-title">Lemon</div><div class="r-sub">米津玄師</div></div><div class="r-year">2018</div></div>
+          <div class="r-item"><div class="r-art">🎶</div><div class="r-info"><div class="r-title">Lemon（Live）</div><div class="r-sub">米津玄師</div></div><div class="r-year">2019</div></div>
+          <div class="r-item"><div class="r-art">🎵</div><div class="r-info"><div class="r-title">Lemon</div><div class="r-sub">歌手Y</div></div><div class="r-year">2020</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="screen-note">選んだモードに合わせて現在の曲情報を入力し、開いた時点で自動検索済み。手入力の導線は出さない。</div>
+  </div>
+
+  <div class="screen-wrap">
+    <div class="screen-label">確認ダイアログ（曲を変更） <em class="tag-new">NEW</em></div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="status-bar"><span class="time">9:41</span><span>●●● 🔋</span></div>
+      <div class="screen-content">
+        <div class="form-header"><div class="back-btn">‹</div><div class="form-title">曲を探す</div></div>
+        <div class="results">
+          <div class="r-item"><div class="r-art">🎶</div><div class="r-info"><div class="r-title">Lemon</div><div class="r-sub">米津玄師</div></div></div>
+          <div class="r-item"><div class="r-art">🎶</div><div class="r-info"><div class="r-title">Lemon（Live）</div><div class="r-sub">米津玄師</div></div></div>
+        </div>
+      </div>
+      <div class="alert-wrap"><div class="alert">
+        <div class="alert-body"><div class="alert-title">曲を変更しますか？</div><div class="alert-text">「Lemon（Live）（米津玄師）」に置き換えます。キー・メモ・タブ・点数はそのまま引き継がれ、「保存する」で確定します。別の曲として記録する場合は、新しく追加してください。</div></div>
+        <div class="alert-actions"><span>戻る</span><span>変更する</span></div>
+      </div></div>
+    </div>
+    <div class="screen-note">OS標準のAlert。「変更する」でフォームに反映してモーダルを閉じる（まだDBは変わらない）。「戻る」で検索画面に留まる。</div>
+  </div>
+
+  <div class="screen-wrap">
+    <div class="screen-label">重複警告ダイアログ <em class="tag-change">CHANGE</em></div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="status-bar"><span class="time">9:41</span><span>●●● 🔋</span></div>
+      <div class="screen-content">
+        <div class="form-header"><div class="close-btn">✕</div><div class="form-title">曲を編集</div></div>
+      </div>
+      <div class="alert-wrap"><div class="alert">
+        <div class="alert-body"><div class="alert-title">⚠️ タイトル・文言は現行実装に合わせる</div><div class="alert-text">夜に駆ける（YOASOBI）はすでに登録されています。それでも追加しますか？</div></div>
+        <div class="alert-actions"><span>戻る</span><span>それでも登録する</span></div>
+      </div></div>
+    </div>
+    <div class="screen-note">文言・判定は現行どおり。変更点は、編集の「保存する」でも実行すること（編集中の曲自身は除外）。⚠️ 編集時に「追加しますか？」の文言でよいかは要確認。</div>
+  </div>
+</div>
+
+<!-- ===================== D ===================== -->
+<section class="section">
+  <h2>D. 設定・機種選択・オンボーディング</h2>
+  <p>v5からの変更は、設定のアプリ情報にヘルプの入口を追加（v1.0で実装済み）し、バージョン表示を 1.1.0 にしたことのみ。</p>
+</section>
+<div class="grid">
+  <div class="screen-wrap">
+    <div class="screen-label">05 設定 <em class="tag-change">CHANGE</em></div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="status-bar"><span class="time">9:41</span><span>●●● 🔋</span></div>
+      <div class="screen-content">
+        <div class="settings-title">設定</div>
+        <div class="settings-scroll">
+          <div><div class="set-label">タブ管理</div><div class="set-group"><div class="set-row"><div class="set-icon">🗂</div><div class="set-text"><div class="set-name">タブを編集する</div><div class="set-sub">追加・名前変更・削除・並び替え</div></div><div class="chev">›</div></div></div></div>
+          <div><div class="set-label">カラオケ機種</div><div class="set-group"><div class="set-row"><div class="set-icon dam">🎤</div><div class="set-text"><div class="set-name">デフォルト機種</div><div class="set-sub">点数記録時に最初に選ばれる機種</div></div><div class="set-val dam">DAM</div><div class="chev">›</div></div></div></div>
+          <div><div class="set-label">データ管理</div><div class="set-group"><div class="set-row"><div class="set-icon">📤</div><div class="set-text"><div class="set-name">バックアップ</div><div class="set-sub">書き出し・読み込み（JSON）</div></div><div class="chev">›</div></div><div class="set-row"><div class="set-icon red">🗑</div><div class="set-text"><div class="set-name danger">すべてのデータを削除</div><div class="set-sub">この操作は取り消せません</div></div><div class="chev">›</div></div></div></div>
+          <div><div class="set-label">アプリ情報</div><div class="set-group"><div class="set-row"><div class="set-icon gray">❓</div><div class="set-text"><div class="set-name">ヘルプ</div></div><div class="chev">›</div></div><div class="set-row"><div class="set-icon gray">ℹ️</div><div class="set-text"><div class="set-name">バージョン</div></div><div class="set-val">1.1.0</div></div><div class="set-row"><div class="set-icon gray">📄</div><div class="set-text"><div class="set-name">プライバシーポリシー</div></div><div class="chev">›</div></div></div></div>
+        </div>
+      </div>
+      <div class="bottom-nav"><div class="nav-item"><div class="nav-icon">♪</div>曲一覧</div><div class="nav-item active"><div class="nav-icon">⚙️</div>設定</div></div>
+    </div>
+    <div class="screen-note">⚠️ 実装済みの設定画面と項目名・並び順が異なる場合は実装を正とし、次回改訂で揃える。</div>
+  </div>
+
+  <div class="screen-wrap">
+    <div class="screen-label">06 デフォルト機種選択 <em class="tag-same">v5</em></div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="status-bar"><span class="time">9:41</span><span>●●● 🔋</span></div>
+      <div class="screen-content">
+        <div class="detail-header"><div class="back-btn">‹</div><div><div class="detail-title">デフォルト機種</div><div class="detail-artist">点数記録時に最初に選ばれる機種</div></div></div>
+        <div class="machine-list">
+          <div class="m-card sel"><div class="m-icon dam">D</div><div><div class="m-name">DAM</div><div class="m-desc">第一興商の精密採点</div></div><div class="m-check">✓</div></div>
+          <div class="m-card"><div class="m-icon joy">J</div><div><div class="m-name">JOYSOUND</div><div class="m-desc">エクシングの分析採点マスター</div></div><div class="m-check off"></div></div>
+        </div>
+        <div class="note-box"><b>💡 セッション記憶について</b>点数記録時に機種を変更すると、その日のうちは変更後の機種が記憶されます。翌日にアプリを開くと、ここで設定したデフォルト機種に戻ります。</div>
+      </div>
+      <div class="bottom-nav"><div class="nav-item"><div class="nav-icon">♪</div>曲一覧</div><div class="nav-item active"><div class="nav-icon">⚙️</div>設定</div></div>
+    </div>
+  </div>
+
+  <div class="screen-wrap">
+    <div class="screen-label">07 初回セットアップ <em class="tag-same">v5</em></div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="status-bar"><span class="time">9:41</span><span>●●● 🔋</span></div>
+      <div class="screen-content">
+        <div style="padding:32px 24px 12px; text-align:center;"><div class="app-title" style="font-size:28px;">歌帳</div><div style="font-size:11px; color:var(--text2); margin-top:6px;">ようこそ！</div></div>
+        <div style="padding:16px 24px 8px; text-align:center;"><div style="font-family:'Plus Jakarta Sans','Noto Sans JP',sans-serif; font-size:17px; font-weight:700; line-height:1.4; margin-bottom:8px;">いつもどちらで<br>歌いますか？</div><div style="font-size:11px; color:var(--text2); line-height:1.5;">普段使う機種を選んでください。<br>あとから設定画面で変更できます。</div></div>
+        <div class="machine-list" style="padding-top:20px;">
+          <div class="m-card sel"><div class="m-icon dam">D</div><div><div class="m-name">DAM</div><div class="m-desc">第一興商の精密採点</div></div><div class="m-check">✓</div></div>
+          <div class="m-card"><div class="m-icon joy">J</div><div><div class="m-name">JOYSOUND</div><div class="m-desc">エクシングの分析採点マスター</div></div><div class="m-check off"></div></div>
+        </div>
+      </div>
+      <div class="fixed-btn low">はじめる</div>
+    </div>
+    <div class="screen-note">スキップ不可。戻る操作・下部ナビなし。</div>
+  </div>
+</div>
+
+<div class="changelog">
+  <h2>変更履歴</h2>
+  <table>
+    <tr><td>2026-09-30</td><td>v6：1.1.0 の曲の追加・編集フロー再設計を反映。04a 選択画面・04b 検索画面（結果あり／キーボード表示中／上位200件／0件／通信エラー／並び替え）・「曲を変更」の各画面と確認ダイアログを新規追加。04 登録・編集フォームのインライン候補を廃止し「曲を変更」ボタンを追加。重複警告を編集の保存時にも適用。ヘルプ導線（01の「?」・05のヘルプ）とバージョン表示 1.1.0 を反映。</td></tr>
+    <tr><td>2026-05-27</td><td>v5：機種選択機能（03・02bのトグル、02の2系列グラフと機種バッジ、05のカラオケ機種、06・07の新規画面）を追加。</td></tr>
+  </table>
+</div>
+
+</body>
+</html>
