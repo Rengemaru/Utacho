@@ -5,8 +5,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../../src/constants/colors';
 import { fonts } from '../../src/constants/fonts';
 import { getDefaultMachine, type Machine } from '../../src/lib/machine';
-import { exportBackup, readBackupFile, restoreFromBackup } from '../../src/lib/backup';
-import { deleteAllData } from '../../src/db/maintenance';
+import { exportBackup, readBackupFile, restoreFromBackup, isEmptyBackup } from '../../src/lib/backup';
+import { deleteAllData, getDataCounts } from '../../src/db/maintenance';
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
@@ -46,27 +46,45 @@ export default function SettingsScreen() {
       const data = await readBackupFile();
       if (!data) return;
 
-      const summary = `タブ ${data.tabs.length}件・曲 ${data.songs.length}件・スコア ${data.scores.length}件`;
-      Alert.alert(
-        'バックアップを読み込みますか？',
-        `${summary}\n\n現在のデータはすべて上書きされます。この操作は取り消せません。`,
-        [
-          { text: 'キャンセル', style: 'cancel' },
-          {
-            text: '読み込む',
-            style: 'destructive',
-            onPress: () => {
-              try {
-                restoreFromBackup(data);
-                Alert.alert('完了', 'バックアップを復元しました');
-              } catch (e) {
-                console.error(e);
-                Alert.alert('エラー', '復元に失敗しました');
-              }
-            },
-          },
-        ]
-      );
+      const doRestore = () => {
+        try {
+          restoreFromBackup(data);
+          Alert.alert('完了', 'バックアップを復元しました');
+        } catch (e) {
+          console.error(e);
+          Alert.alert('エラー', '復元に失敗しました');
+        }
+      };
+
+      const current = getDataCounts();
+      const diff =
+        `曲 ${current.songs} → ${data.songs.length}件\n` +
+        `スコア ${current.scores} → ${data.scores.length}件\n` +
+        `タブ ${current.tabs} → ${data.tabs.length}件`;
+
+      const confirmRestore = () => {
+        Alert.alert(
+          'バックアップを読み込みますか？',
+          `${diff}\n\n現在のデータはすべて上書きされます。この操作は取り消せません。`,
+          [
+            { text: 'キャンセル', style: 'cancel' },
+            { text: '読み込む', style: 'destructive', onPress: doRestore },
+          ]
+        );
+      };
+
+      if (isEmptyBackup(data)) {
+        Alert.alert(
+          '⚠️ 空のバックアップです',
+          `このファイルには曲・スコア・タブが含まれていません。\n復元すると現在のデータ（曲 ${current.songs}件・スコア ${current.scores}件・タブ ${current.tabs}件）がすべて消えます。\n\n本当に続けますか？`,
+          [
+            { text: 'キャンセル', style: 'cancel' },
+            { text: '続ける', style: 'destructive', onPress: confirmRestore },
+          ]
+        );
+      } else {
+        confirmRestore();
+      }
     } catch (e) {
       console.error(e);
       Alert.alert('エラー', e instanceof Error ? e.message : 'ファイルの読み込みに失敗しました');
