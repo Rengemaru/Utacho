@@ -18,7 +18,7 @@ import { insertScore, updateScore } from '../db/scores';
 import { ScoreRow, SongWithStats } from '../types';
 import { useMachine } from '../contexts/MachineContext';
 import type { Machine } from '../lib/machine';
-import { formatDateTime } from '../lib/datetime';
+import { formatDateTime, nowDateTimeString } from '../lib/datetime';
 
 const MAX_SCORE = 100;
 
@@ -50,13 +50,6 @@ export function ScoreBottomSheet({ visible, song, editingScore, onClose, onSaved
       }
     }
   }, [visible, editingScore, currentMachine]);
-
-  // 記録した瞬間の現在日時を「YYYY-MM-DDTHH:MM」（ローカル時刻・分単位）で返す
-  function nowDateTimeString() {
-    const d = new Date();
-    const pad = (n: number) => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  }
 
   function handleKey(key: string) {
     if (key === '⌫') {
