@@ -77,8 +77,15 @@ export function insertScore(songId: number, score: number, scoredAt: string, mac
   return result.lastInsertRowId;
 }
 
-// 日時はあとから編集しない方針のため、scored_at は更新対象から外す（点数・機種のみ）
-export function updateScore(id: number, score: number, machine: string): void {
+// scoredAt を渡すと記録日も更新する。省略時は従来どおり点数・機種のみ更新する
+export function updateScore(id: number, score: number, machine: string, scoredAt?: string): void {
+  if (scoredAt !== undefined) {
+    getDb().runSync(
+      'UPDATE scores SET score = ?, machine = ?, scored_at = ? WHERE id = ?',
+      [score, machine, scoredAt, id]
+    );
+    return;
+  }
   getDb().runSync(
     'UPDATE scores SET score = ?, machine = ? WHERE id = ?',
     [score, machine, id]
