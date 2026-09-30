@@ -79,9 +79,16 @@ export default function SongDetailScreen() {
     );
   }
 
-  const diff = scores.length >= 2
-    ? scores[0].score - scores[1].score
+  // 前回比は「同一機種の直近2件」で計算する。機種が違うと採点傾向が異なり比較が無意味になるため。
+  // scores は scored_at DESC 順なので、最新記録と同じ機種でフィルタした先頭2件を比較する。
+  const latestScore = scores.length > 0 ? scores[0] : null;
+  const sameMachineScores = latestScore
+    ? scores.filter((s) => s.machine === latestScore.machine)
+    : [];
+  const diff = sameMachineScores.length >= 2
+    ? sameMachineScores[0].score - sameMachineScores[1].score
     : null;
+  const diffMachine = latestScore?.machine ?? '';
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
@@ -139,7 +146,7 @@ export default function SongDetailScreen() {
                 </Text>
                 {diff != null && (
                   <Text style={[styles.bestDiff, { color: diff >= 0 ? colors.green : colors.red }]}>
-                    {diff >= 0 ? `↑ ${diff.toFixed(1)}pt` : `↓ ${Math.abs(diff).toFixed(1)}pt`} 前回比
+                    {diffMachine} {diff >= 0 ? `↑ ${diff.toFixed(1)}pt` : `↓ ${Math.abs(diff).toFixed(1)}pt`} 前回比
                   </Text>
                 )}
               </View>
