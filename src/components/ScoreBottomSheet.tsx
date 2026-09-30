@@ -35,6 +35,7 @@ export function ScoreBottomSheet({ visible, song, editingScore, onClose, onSaved
   const { currentMachine, setCurrentMachine } = useMachine();
   const [input, setInput] = useState('');
   const [machine, setMachine] = useState<Machine>(currentMachine);
+  const [scoredAt, setScoredAt] = useState<string>(nowDateTimeString());
   const [pbScore, setPbScore] = useState<number | null>(null);
   const pbAnim = useRef(new Animated.Value(0)).current;
   const [isSaving, setIsSaving] = useState(false);
@@ -44,9 +45,11 @@ export function ScoreBottomSheet({ visible, song, editingScore, onClose, onSaved
       if (editingScore) {
         setInput(String(editingScore.score));
         setMachine((editingScore.machine as Machine) || currentMachine);
+        setScoredAt(editingScore.scored_at);
       } else {
         setInput('');
         setMachine(currentMachine);
+        setScoredAt(nowDateTimeString());
       }
     }
   }, [visible, editingScore, currentMachine]);
@@ -96,11 +99,11 @@ export function ScoreBottomSheet({ visible, song, editingScore, onClose, onSaved
     try {
       setIsSaving(true);
       if (editingScore) {
-        updateScore(editingScore.id, score, machine);
+        updateScore(editingScore.id, score, machine, scoredAt);
         onSaved();
       } else {
         await setCurrentMachine(machine);
-        insertScore(song.id, score, nowDateTimeString(), machine);
+        insertScore(song.id, score, scoredAt, machine);
         const isNewPB = song.best_score === null || score > song.best_score;
         if (isNewPB) {
           pbTriggered = true; // finally での isSaving リセットをスキップ
