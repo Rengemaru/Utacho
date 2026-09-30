@@ -74,29 +74,46 @@ export default function SettingsScreen() {
     }
   }
 
+  function runDeleteAll() {
+    if (Platform.OS === 'web') {
+      Alert.alert('完了', 'すべてのデータを削除しました');
+      return;
+    }
+    try {
+      deleteAllData();
+      Alert.alert('完了', 'すべてのデータを削除しました');
+    } catch (e) {
+      console.error(e);
+      Alert.alert('エラー', '削除に失敗しました');
+    }
+  }
+
+  async function handleBackupThenDelete() {
+    if (Platform.OS === 'web') {
+      runDeleteAll();
+      return;
+    }
+    try {
+      setIsExporting(true);
+      await exportBackup();
+    } catch (e) {
+      console.error(e);
+      Alert.alert('エラー', 'バックアップに失敗したため削除を中止しました');
+      return;
+    } finally {
+      setIsExporting(false);
+    }
+    runDeleteAll();
+  }
+
   function handleDeleteAll() {
     Alert.alert(
       'すべてのデータを削除',
-      'この操作は取り消せません。曲・スコア・タブのすべてが削除されます。',
+      'この操作は取り消せません。削除前にバックアップを取ることをおすすめします。',
       [
         { text: 'キャンセル', style: 'cancel' },
-        {
-          text: '削除する',
-          style: 'destructive',
-          onPress: () => {
-            if (Platform.OS === 'web') {
-              Alert.alert('完了', 'すべてのデータを削除しました');
-              return;
-            }
-            try {
-              deleteAllData();
-              Alert.alert('完了', 'すべてのデータを削除しました');
-            } catch (e) {
-              console.error(e);
-              Alert.alert('エラー', '削除に失敗しました');
-            }
-          },
-        },
+        { text: 'バックアップして削除', onPress: handleBackupThenDelete },
+        { text: 'そのまま削除', style: 'destructive', onPress: runDeleteAll },
       ]
     );
   }
