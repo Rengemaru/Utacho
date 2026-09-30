@@ -4,9 +4,9 @@ import { Alert, ActivityIndicator, Linking, Platform, ScrollView, StyleSheet, Te
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../../src/constants/colors';
 import { fonts } from '../../src/constants/fonts';
-import { getDb } from '../../src/db/client';
 import { getDefaultMachine, type Machine } from '../../src/lib/machine';
-import { exportBackup, readBackupFile, restoreFromBackup } from '../../src/lib/backup';
+import { exportBackup, readBackupFile, restoreFromBackup, isEmptyBackup, buildBackupJson, type BackupData } from '../../src/lib/backup';
+import { deleteAllData, getDataCounts } from '../../src/db/maintenance';
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
@@ -27,6 +27,7 @@ export default function SettingsScreen() {
     try {
       setIsExporting(true);
       await exportBackup();
+      Alert.alert('完了', 'バックアップの書き出しが完了しました');
     } catch (e) {
       console.error(e);
       Alert.alert('エラー', 'バックアップの書き出しに失敗しました');
@@ -45,27 +46,66 @@ export default function SettingsScreen() {
       const data = await readBackupFile();
       if (!data) return;
 
-      const summary = `タブ ${data.tabs.length}件・曲 ${data.songs.length}件・スコア ${data.scores.length}件`;
-      Alert.alert(
-        'バックアップを読み込みますか？',
-        `${summary}\n\n現在のデータはすべて上書きされます。この操作は取り消せません。`,
-        [
-          { text: 'キャンセル', style: 'cancel' },
-          {
-            text: '読み込む',
-            style: 'destructive',
-            onPress: () => {
-              try {
-                restoreFromBackup(data);
-                Alert.alert('完了', 'バックアップを復元しました');
-              } catch (e) {
-                console.error(e);
-                Alert.alert('エラー', '復元に失敗しました');
-              }
-            },
-          },
-        ]
-      );
+      const doRestore = async () => {
+        try {
+          // 復元前に現在のデータをスナップショット退避（アンドゥ用）
+          const snapshotJson = await buildBackupJson();
+          restoreFromBackup(data);
+          Alert.alert(
+            '完了',
+            'バックアップを復元しました。元のデータに戻すこともできます。',
+            [
+              { text: 'OK', style: 'cancel' },
+              {
+                text: '元に戻す',
+                style: 'destructive',
+                onPress: () => {
+                  try {
+                    restoreFromBackup(JSON.parse(snapshotJson) as BackupData);
+                    Alert.alert('完了', '元のデータに戻しました');
+                  } catch (e) {
+                    console.error(e);
+                    Alert.alert('エラー', '元に戻せませんでした');
+                  }
+                },
+              },
+            ]
+          );
+        } catch (e) {
+          console.error(e);
+          Alert.alert('エラー', '復元に失敗しました');
+        }
+      };
+
+      const current = getDataCounts();
+      const diff =
+        `曲 ${current.songs} → ${data.songs.length}件\n` +
+        `スコア ${current.scores} → ${data.scores.length}件\n` +
+        `タブ ${current.tabs} → ${data.tabs.length}件`;
+
+      const confirmRestore = () => {
+        Alert.alert(
+          'バックアップを読み込みますか？',
+          `${diff}\n\n現在のデータはすべて上書きされます。この操作は取り消せません。`,
+          [
+            { text: 'キャンセル', style: 'cancel' },
+            { text: '読み込む', style: 'destructive', onPress: doRestore },
+          ]
+        );
+      };
+
+      if (isEmptyBackup(data)) {
+        Alert.alert(
+          '⚠️ 空のバックアップです',
+          `このファイルには曲・スコア・タブが含まれていません。\n復元すると現在のデータ（曲 ${current.songs}件・スコア ${current.scores}件・タブ ${current.tabs}件）がすべて消えます。\n\n本当に続けますか？`,
+          [
+            { text: 'キャンセル', style: 'cancel' },
+            { text: '続ける', style: 'destructive', onPress: confirmRestore },
+          ]
+        );
+      } else {
+        confirmRestore();
+      }
     } catch (e) {
       console.error(e);
       Alert.alert('エラー', e instanceof Error ? e.message : 'ファイルの読み込みに失敗しました');
@@ -74,33 +114,46 @@ export default function SettingsScreen() {
     }
   }
 
+  function runDeleteAll() {
+    if (Platform.OS === 'web') {
+      Alert.alert('完了', 'すべてのデータを削除しました');
+      return;
+    }
+    try {
+      deleteAllData();
+      Alert.alert('完了', 'すべてのデータを削除しました');
+    } catch (e) {
+      console.error(e);
+      Alert.alert('エラー', '削除に失敗しました');
+    }
+  }
+
+  async function handleBackupThenDelete() {
+    if (Platform.OS === 'web') {
+      runDeleteAll();
+      return;
+    }
+    try {
+      setIsExporting(true);
+      await exportBackup();
+    } catch (e) {
+      console.error(e);
+      Alert.alert('エラー', 'バックアップに失敗したため削除を中止しました');
+      return;
+    } finally {
+      setIsExporting(false);
+    }
+    runDeleteAll();
+  }
+
   function handleDeleteAll() {
     Alert.alert(
       'すべてのデータを削除',
-      'この操作は取り消せません。曲・スコア・タブのすべてが削除されます。',
+      'この操作は取り消せません。削除前にバックアップを取ることをおすすめします。',
       [
         { text: 'キャンセル', style: 'cancel' },
-        {
-          text: '削除する',
-          style: 'destructive',
-          onPress: () => {
-            if (Platform.OS === 'web') {
-              Alert.alert('完了', 'すべてのデータを削除しました');
-              return;
-            }
-            try {
-              const db = getDb();
-              db.execSync('DELETE FROM scores;');
-              db.execSync('DELETE FROM song_tabs;');
-              db.execSync('DELETE FROM songs;');
-              db.execSync('DELETE FROM tabs;');
-              Alert.alert('完了', 'すべてのデータを削除しました');
-            } catch (e) {
-              console.error(e);
-              Alert.alert('エラー', '削除に失敗しました');
-            }
-          },
-        },
+        { text: 'バックアップして削除', onPress: handleBackupThenDelete },
+        { text: 'そのまま削除', style: 'destructive', onPress: runDeleteAll },
       ]
     );
   }
