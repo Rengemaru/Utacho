@@ -95,12 +95,18 @@ export async function readBackupFile(): Promise<BackupData | null> {
     parsed === null ||
     !Array.isArray((parsed as BackupData).tabs) ||
     !Array.isArray((parsed as BackupData).songs) ||
+    !Array.isArray((parsed as BackupData).song_tabs) ||
     !Array.isArray((parsed as BackupData).scores)
   ) {
     throw new Error('バックアップファイルの形式が正しくありません。');
   }
 
   return parsed as BackupData;
+}
+
+/** 曲・スコア・タブがすべて空のバックアップか（＝復元すると実質全消しになる） */
+export function isEmptyBackup(data: BackupData): boolean {
+  return data.tabs.length === 0 && data.songs.length === 0 && data.scores.length === 0;
 }
 
 /** バックアップデータをDBに書き戻す（既存データはすべて上書き）*/
