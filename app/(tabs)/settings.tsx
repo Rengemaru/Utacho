@@ -27,6 +27,7 @@ export default function SettingsScreen() {
     try {
       setIsExporting(true);
       await exportBackup();
+      Alert.alert('完了', 'バックアップの書き出しが完了しました');
     } catch (e) {
       console.error(e);
       Alert.alert('エラー', 'バックアップの書き出しに失敗しました');
