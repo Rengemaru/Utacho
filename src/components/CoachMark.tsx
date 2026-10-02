@@ -40,11 +40,23 @@ export function CoachMark({ visible, onDismiss }: Props) {
 
           <View style={styles.stepRow}>
             <View style={styles.stepIcon}>
-              <Text style={styles.stepIconText}>✏️</Text>
+              <Text style={styles.stepIconText}>🎤</Text>
             </View>
             <View style={styles.stepBody}>
               <Text style={styles.stepLabel}>点数を記録する</Text>
-              <Text style={styles.stepDesc}>曲カードの ✏️ アイコンをタップ</Text>
+              <Text style={styles.stepDesc}>曲カードの 🎤 アイコンをタップ</Text>
+            </View>
+          </View>
+
+          <View style={styles.divider} />
+
+          <View style={styles.stepRow}>
+            <View style={styles.stepIcon}>
+              <Text style={styles.stepIconText}>👈</Text>
+            </View>
+            <View style={styles.stepBody}>
+              <Text style={styles.stepLabel}>編集・削除する</Text>
+              <Text style={styles.stepDesc}>曲カードを左にスワイプ</Text>
             </View>
           </View>
 

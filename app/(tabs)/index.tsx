@@ -419,6 +419,8 @@ export default function HomeScreen() {
                 <View style={styles.swipeActions}>
                   <TouchableOpacity
                     style={[styles.swipeBtn, styles.swipeEditBtn]}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${item.title}を編集`}
                     onPress={() => {
                       swipeRefs.current.get(item.id)?.close();
                       router.push(`/song/new?songId=${item.id}`);
@@ -428,6 +430,8 @@ export default function HomeScreen() {
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.swipeBtn, styles.swipeDeleteBtn]}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${item.title}を削除`}
                     onPress={() => {
                       swipeRefs.current.get(item.id)?.close();
                       handleDeleteSong(item);
