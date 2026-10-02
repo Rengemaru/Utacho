@@ -33,7 +33,7 @@ export function SongCard({ song, onPressRecord }: Props) {
           {score != null && score > 0 ? score.toFixed(1) : '—'}
         </Text>
         <TouchableOpacity style={styles.recordBtn} onPress={onPressRecord}>
-          <Text style={styles.recordBtnText}>✏️</Text>
+          <Text style={styles.recordBtnText}>🎤</Text>
         </TouchableOpacity>
       </View>
     </View>
