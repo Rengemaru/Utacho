@@ -23,7 +23,8 @@ export function useMusicSearch(query: string, debounceMs = 300, attribute?: stri
     timerRef.current = setTimeout(async () => {
       const controller = new AbortController();
       abortRef.current = controller;
-      const results = await searchMusic(query.trim(), controller.signal, 8, attribute);
+      // 候補が多いとキーボードで下が隠れて選べないため5件に絞る（#23）
+      const results = await searchMusic(query.trim(), controller.signal, 5, attribute);
       // abort済みのリクエスト結果は無視する
       if (controller.signal.aborted) return;
       setSuggestions(results);
