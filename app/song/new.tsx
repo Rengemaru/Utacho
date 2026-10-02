@@ -202,6 +202,17 @@ export default function SongFormScreen() {
             />
             {titleSuggestions.length > 0 && (
               <View style={styles.suggestBox}>
+                <View style={styles.suggestHeader}>
+                  <Text style={styles.suggestHeaderText}>候補</Text>
+                  <TouchableOpacity
+                    onPress={clearTitleSuggestions}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    accessibilityRole="button"
+                    accessibilityLabel="候補を閉じる"
+                  >
+                    <Text style={styles.suggestClose}>✕ 閉じる</Text>
+                  </TouchableOpacity>
+                </View>
                 {titleSuggestions.map((item, idx) => (
                   <TouchableOpacity
                     key={idx}
@@ -255,6 +266,17 @@ export default function SongFormScreen() {
             />
             {artistSuggestions.length > 0 && (
               <View style={styles.suggestBox}>
+                <View style={styles.suggestHeader}>
+                  <Text style={styles.suggestHeaderText}>候補</Text>
+                  <TouchableOpacity
+                    onPress={clearArtistSuggestions}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    accessibilityRole="button"
+                    accessibilityLabel="候補を閉じる"
+                  >
+                    <Text style={styles.suggestClose}>✕ 閉じる</Text>
+                  </TouchableOpacity>
+                </View>
                 {artistSuggestions.map((item, idx) => (
                   <TouchableOpacity
                     key={idx}
@@ -439,6 +461,27 @@ const styles = StyleSheet.create({
   },
   searchSpinner: {
     marginBottom: 2,
+  },
+  suggestHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  suggestHeaderText: {
+    fontSize: 10,
+    color: colors.text3,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+  },
+  suggestClose: {
+    fontSize: 11,
+    color: colors.accent,
+    fontWeight: '600',
   },
   suggestBox: {
     marginTop: 4,
