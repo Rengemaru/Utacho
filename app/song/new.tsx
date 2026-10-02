@@ -20,7 +20,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyStepper } from '../../src/components/KeyStepper';
 import { colors } from '../../src/constants/colors';
 import { insertSong, updateSong, getSongById, findDuplicateSong } from '../../src/db/songs';
-import { insertTab } from '../../src/db/tabs';
+import { insertTab, findDuplicateTab } from '../../src/db/tabs';
 import { syncTabs } from '../../src/db/songTabs';
 import { useTabs } from '../../src/hooks/useTabs';
 import { useMusicSearch } from '../../src/hooks/useMusicSearch';
@@ -104,10 +104,15 @@ export default function SongFormScreen() {
   }
 
   function handleConfirmNewTab() {
-    if (!newTabName.trim()) return;
+    const name = newTabName.trim();
+    if (!name) return;
     if (Platform.OS === 'web') { setNewTabModalVisible(false); return; }
+    if (findDuplicateTab(name)) {
+      Alert.alert('同じ名前のタブがあります', `「${name}」はすでに存在します。別の名前を入力してください。`);
+      return; // モーダルは開いたままにして入力し直せるようにする
+    }
     try {
-      const newId = insertTab(newTabName.trim());
+      const newId = insertTab(name);
       reloadTabs();
       setSelectedTabIds((prev) => [...prev, newId]);
     } catch (e) {
