@@ -32,7 +32,12 @@ export function SongCard({ song, onPressRecord }: Props) {
         <Text style={styles.score}>
           {score != null && score > 0 ? score.toFixed(1) : '—'}
         </Text>
-        <TouchableOpacity style={styles.recordBtn} onPress={onPressRecord}>
+        <TouchableOpacity
+          style={styles.recordBtn}
+          onPress={onPressRecord}
+          accessibilityRole="button"
+          accessibilityLabel={`${song.title}の点数を記録`}
+        >
           <Text style={styles.recordBtnText}>🎤</Text>
         </TouchableOpacity>
       </View>
