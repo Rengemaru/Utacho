@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../constants/colors';
 import { fonts } from '../constants/fonts';
 import { insertScore, updateScore } from '../db/scores';
+import { getSettingSync, setSettingSync } from '../db/settings';
 import { ScoreRow, SongWithStats } from '../types';
 import { useMachine } from '../contexts/MachineContext';
 import type { Machine } from '../lib/machine';
@@ -60,6 +61,19 @@ export function ScoreBottomSheet({ visible, song, editingScore, onClose, onSaved
       }
     }
   }, [visible, editingScore, currentMachine]);
+
+  // 記録時に機種を初めて切り替えたときだけ、翌日デフォルトに戻る挙動を1回案内する
+  function handleSelectMachine(m: Machine) {
+    setMachine(m);
+    if (editingScore || Platform.OS === 'web') return;
+    if (m === currentMachine) return;
+    if (getSettingSync('session_machine_hint_shown') === 'true') return;
+    setSettingSync('session_machine_hint_shown', 'true');
+    Alert.alert(
+      '機種を変更しました',
+      'この機種は今日のうちだけ記憶されます。翌日は設定したデフォルト機種に戻ります。'
+    );
+  }
 
   function handleKey(key: string) {
     if (key === '⌫') {
@@ -171,7 +185,7 @@ export function ScoreBottomSheet({ visible, song, editingScore, onClose, onSaved
                     styles.toggleBtn,
                     isSelected && (m === 'DAM' ? styles.toggleBtnDam : styles.toggleBtnJoy),
                   ]}
-                  onPress={() => setMachine(m)}
+                  onPress={() => handleSelectMachine(m)}
                 >
                   {isSelected ? (
                     <Text style={[styles.toggleCheck, { color: machineColor }]}>✓</Text>
