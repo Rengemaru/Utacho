@@ -15,7 +15,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../src/constants/colors';
 import { MAX_TAB_NAME_LENGTH } from '../src/constants/tabConfig';
-import { insertTab, updateTab, deleteTab, updateTabOrder } from '../src/db/tabs';
+import { insertTab, updateTab, deleteTab, updateTabOrder, findDuplicateTab } from '../src/db/tabs';
 import { useTabs } from '../src/hooks/useTabs';
 import { EmptyState } from '../src/components/EmptyState';
 import { TabRow } from '../src/types';
@@ -46,13 +46,20 @@ export default function TabsScreen() {
   }
 
   function handleConfirm() {
-    if (!inputName.trim()) return;
+    const name = inputName.trim();
+    if (!name) return;
     if (Platform.OS === 'web') { closeModal(); return; }
+    // リネーム時は自分自身を除外して重複判定する
+    const excludeId = modalMode === 'edit' && editingTab ? editingTab.id : undefined;
+    if (findDuplicateTab(name, excludeId)) {
+      Alert.alert('同じ名前のタブがあります', `「${name}」はすでに存在します。別の名前を入力してください。`);
+      return; // モーダルは開いたままにして入力し直せるようにする
+    }
     try {
       if (modalMode === 'add') {
-        insertTab(inputName.trim());
+        insertTab(name);
       } else if (modalMode === 'edit' && editingTab) {
-        updateTab(editingTab.id, inputName.trim());
+        updateTab(editingTab.id, name);
       }
       reload();
     } catch (e) {
