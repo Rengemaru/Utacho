@@ -20,6 +20,9 @@ import { useTabs } from '../src/hooks/useTabs';
 import { EmptyState } from '../src/components/EmptyState';
 import { TabRow } from '../src/types';
 
+// 小さいアイコンボタンのタップ領域を広げ、誤タップを減らす（推奨44pt相当を確保）
+const BTN_HIT_SLOP = { top: 10, bottom: 10, left: 8, right: 8 };
+
 export default function TabsScreen() {
   const insets = useSafeAreaInsets();
   const { tabs, reload } = useTabs();
@@ -145,6 +148,9 @@ export default function TabsScreen() {
                     style={[styles.arrowBtn, index === 0 && styles.arrowBtnDisabled]}
                     onPress={() => moveTab(index, 'up')}
                     disabled={index === 0}
+                    hitSlop={BTN_HIT_SLOP}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${tab.name}を上へ移動`}
                   >
                     <Text style={[styles.arrowText, index === 0 && styles.arrowTextDisabled]}>↑</Text>
                   </TouchableOpacity>
@@ -152,13 +158,28 @@ export default function TabsScreen() {
                     style={[styles.arrowBtn, index === tabs.length - 1 && styles.arrowBtnDisabled]}
                     onPress={() => moveTab(index, 'down')}
                     disabled={index === tabs.length - 1}
+                    hitSlop={BTN_HIT_SLOP}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${tab.name}を下へ移動`}
                   >
                     <Text style={[styles.arrowText, index === tabs.length - 1 && styles.arrowTextDisabled]}>↓</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.editBtn} onPress={() => openEditModal(tab)}>
+                  <TouchableOpacity
+                    style={styles.editBtn}
+                    onPress={() => openEditModal(tab)}
+                    hitSlop={BTN_HIT_SLOP}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${tab.name}の名前を変更`}
+                  >
                     <Text style={styles.editBtnText}>✏️</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(tab)}>
+                  <TouchableOpacity
+                    style={styles.deleteBtn}
+                    onPress={() => handleDelete(tab)}
+                    hitSlop={BTN_HIT_SLOP}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${tab.name}を削除`}
+                  >
                     <Text style={styles.deleteBtnText}>🗑</Text>
                   </TouchableOpacity>
                 </View>
