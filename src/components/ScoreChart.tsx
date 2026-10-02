@@ -13,6 +13,7 @@ type ChartPoint = {
   label?: string;
   dataPointColor?: string;
   dataPointRadius?: number;
+  dataPointText?: string;
 };
 
 /**
@@ -62,6 +63,8 @@ function buildChartData(
       label: buildLabel(scoreRows, i),
       dataPointColor,
       dataPointRadius,
+      // 乱雑さを避けるため、値ラベルは最高点・最新点だけに表示する
+      dataPointText: isMax || isLatest ? s.score.toFixed(1) : undefined,
     };
   });
 }
@@ -111,10 +114,16 @@ export function ScoreChart({ scores }: Props) {
         dataPointsColor2={colors.joy}
         dataPointsRadius={4}
         dataPointsRadius2={4}
+        textColor={colors.text2}
+        textColor2={colors.text2}
+        textFontSize={9}
+        textShiftY={-6}
+        textShiftX={-2}
         maxValue={maxVal - minVal}
         yAxisOffset={minVal}
         noOfSections={3}
-        hideYAxisText
+        yAxisTextStyle={styles.yLabel}
+        yAxisLabelWidth={26}
         rulesColor={colors.border}
         xAxisColor={colors.border}
         yAxisColor="transparent"
@@ -122,6 +131,7 @@ export function ScoreChart({ scores }: Props) {
         spacing={spacing}
         initialSpacing={20}
         endSpacing={20}
+        scrollToEnd
       />
     </View>
   );
@@ -129,9 +139,13 @@ export function ScoreChart({ scores }: Props) {
 
 const styles = StyleSheet.create({
   container: {
-    marginLeft: -14,
+    marginLeft: 0,
   },
   xLabel: {
+    fontSize: 9,
+    color: colors.text3,
+  },
+  yLabel: {
     fontSize: 9,
     color: colors.text3,
   },
