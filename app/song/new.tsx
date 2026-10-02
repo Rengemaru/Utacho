@@ -20,7 +20,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyStepper } from '../../src/components/KeyStepper';
 import { colors } from '../../src/constants/colors';
 import { insertSong, updateSong, getSongById, findDuplicateSong } from '../../src/db/songs';
-import { insertTab } from '../../src/db/tabs';
+import { insertTab, findDuplicateTab } from '../../src/db/tabs';
 import { syncTabs } from '../../src/db/songTabs';
 import { useTabs } from '../../src/hooks/useTabs';
 import { useMusicSearch } from '../../src/hooks/useMusicSearch';
@@ -104,10 +104,15 @@ export default function SongFormScreen() {
   }
 
   function handleConfirmNewTab() {
-    if (!newTabName.trim()) return;
+    const name = newTabName.trim();
+    if (!name) return;
     if (Platform.OS === 'web') { setNewTabModalVisible(false); return; }
+    if (findDuplicateTab(name)) {
+      Alert.alert('同じ名前のタブがあります', `「${name}」はすでに存在します。別の名前を入力してください。`);
+      return; // モーダルは開いたままにして入力し直せるようにする
+    }
     try {
-      const newId = insertTab(newTabName.trim());
+      const newId = insertTab(name);
       reloadTabs();
       setSelectedTabIds((prev) => [...prev, newId]);
     } catch (e) {
@@ -197,6 +202,17 @@ export default function SongFormScreen() {
             />
             {titleSuggestions.length > 0 && (
               <View style={styles.suggestBox}>
+                <View style={styles.suggestHeader}>
+                  <Text style={styles.suggestHeaderText}>候補</Text>
+                  <TouchableOpacity
+                    onPress={clearTitleSuggestions}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    accessibilityRole="button"
+                    accessibilityLabel="候補を閉じる"
+                  >
+                    <Text style={styles.suggestClose}>✕ 閉じる</Text>
+                  </TouchableOpacity>
+                </View>
                 {titleSuggestions.map((item, idx) => (
                   <TouchableOpacity
                     key={idx}
@@ -250,6 +266,17 @@ export default function SongFormScreen() {
             />
             {artistSuggestions.length > 0 && (
               <View style={styles.suggestBox}>
+                <View style={styles.suggestHeader}>
+                  <Text style={styles.suggestHeaderText}>候補</Text>
+                  <TouchableOpacity
+                    onPress={clearArtistSuggestions}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    accessibilityRole="button"
+                    accessibilityLabel="候補を閉じる"
+                  >
+                    <Text style={styles.suggestClose}>✕ 閉じる</Text>
+                  </TouchableOpacity>
+                </View>
                 {artistSuggestions.map((item, idx) => (
                   <TouchableOpacity
                     key={idx}
@@ -278,23 +305,22 @@ export default function SongFormScreen() {
           <View style={styles.fieldGroup}>
             <Text style={styles.fieldLabel}>タブ（カテゴリ）</Text>
             <View style={styles.tabSelector}>
-              {tabs.map((tab) => (
-                <TouchableOpacity
-                  key={tab.id}
-                  style={[
-                    styles.tabOption,
-                    selectedTabIds.includes(tab.id) && styles.tabOptionSelected,
-                  ]}
-                  onPress={() => toggleTab(tab.id)}
-                >
-                  <Text style={[
-                    styles.tabOptionText,
-                    selectedTabIds.includes(tab.id) && styles.tabOptionTextSelected,
-                  ]}>
-                    {truncateTabName(tab.name)}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+              {tabs.map((tab) => {
+                const isSelected = selectedTabIds.includes(tab.id);
+                return (
+                  <TouchableOpacity
+                    key={tab.id}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: isSelected }}
+                    style={[styles.tabOption, isSelected && styles.tabOptionSelected]}
+                    onPress={() => toggleTab(tab.id)}
+                  >
+                    <Text style={[styles.tabOptionText, isSelected && styles.tabOptionTextSelected]}>
+                      {isSelected ? '✓ ' : ''}{truncateTabName(tab.name)}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
               <TouchableOpacity style={styles.tabOptionAdd} onPress={handleAddNewTab}>
                 <Text style={styles.tabOptionAddText}>＋ 新規作成</Text>
               </TouchableOpacity>
@@ -436,6 +462,27 @@ const styles = StyleSheet.create({
   searchSpinner: {
     marginBottom: 2,
   },
+  suggestHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  suggestHeaderText: {
+    fontSize: 10,
+    color: colors.text3,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+  },
+  suggestClose: {
+    fontSize: 11,
+    color: colors.accent,
+    fontWeight: '600',
+  },
   suggestBox: {
     marginTop: 4,
     backgroundColor: colors.white,
@@ -531,7 +578,7 @@ const styles = StyleSheet.create({
   },
   tabOptionSelected: {
     backgroundColor: colors.accentSoft,
-    borderColor: 'rgba(91, 76, 245, 0.25)',
+    borderColor: colors.accent,
   },
   tabOptionText: {
     fontSize: 11,

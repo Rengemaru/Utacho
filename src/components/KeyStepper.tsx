@@ -1,16 +1,23 @@
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { colors } from '../constants/colors';
 
+// カラオケのキー変更の現実的な範囲（原曲比 ±7 程度）
+const MIN_KEY = -7;
+const MAX_KEY = 7;
+
 interface Props {
   value: number | null;
   onChange: (value: number | null) => void;
 }
 
 export function KeyStepper({ value, onChange }: Props) {
+  const atMin = value !== null && value <= MIN_KEY;
+  const atMax = value !== null && value >= MAX_KEY;
+
   function decrement() {
     if (value === null) {
       onChange(-1);
-    } else {
+    } else if (value > MIN_KEY) {
       onChange(value - 1);
     }
   }
@@ -18,7 +25,7 @@ export function KeyStepper({ value, onChange }: Props) {
   function increment() {
     if (value === null) {
       onChange(1);
-    } else {
+    } else if (value < MAX_KEY) {
       onChange(value + 1);
     }
   }
@@ -35,14 +42,23 @@ export function KeyStepper({ value, onChange }: Props) {
   return (
     <View style={styles.container}>
       <View style={styles.stepper}>
-        <TouchableOpacity style={styles.btn} onPress={decrement}>
+        <TouchableOpacity
+          style={[styles.btn, atMin && styles.btnDisabled]}
+          onPress={decrement}
+          disabled={atMin}
+        >
           <Text style={styles.btnText}>－</Text>
         </TouchableOpacity>
         <Text style={[styles.value, { color: valueColor }]}>{displayValue}</Text>
-        <TouchableOpacity style={styles.btn} onPress={increment}>
+        <TouchableOpacity
+          style={[styles.btn, atMax && styles.btnDisabled]}
+          onPress={increment}
+          disabled={atMax}
+        >
           <Text style={styles.btnText}>＋</Text>
         </TouchableOpacity>
       </View>
+      <Text style={styles.helperText}>＋は原曲より高く、－は低く（半音単位・±7まで）</Text>
       {value !== null && (
         <TouchableOpacity onPress={reset}>
           <Text style={styles.resetText}>未設定に戻す</Text>
@@ -71,6 +87,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  btnDisabled: {
+    opacity: 0.35,
+  },
   btnText: {
     fontSize: 18,
     color: colors.text,
@@ -83,6 +102,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     minWidth: 52,
     textAlign: 'center',
+  },
+  helperText: {
+    fontSize: 10,
+    color: colors.text3,
   },
   resetText: {
     fontSize: 10,

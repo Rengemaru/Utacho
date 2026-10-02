@@ -15,10 +15,13 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../src/constants/colors';
 import { MAX_TAB_NAME_LENGTH } from '../src/constants/tabConfig';
-import { insertTab, updateTab, deleteTab, updateTabOrder } from '../src/db/tabs';
+import { insertTab, updateTab, deleteTab, updateTabOrder, findDuplicateTab } from '../src/db/tabs';
 import { useTabs } from '../src/hooks/useTabs';
 import { EmptyState } from '../src/components/EmptyState';
 import { TabRow } from '../src/types';
+
+// 小さいアイコンボタンのタップ領域を広げ、誤タップを減らす（推奨44pt相当を確保）
+const BTN_HIT_SLOP = { top: 10, bottom: 10, left: 8, right: 8 };
 
 export default function TabsScreen() {
   const insets = useSafeAreaInsets();
@@ -46,13 +49,20 @@ export default function TabsScreen() {
   }
 
   function handleConfirm() {
-    if (!inputName.trim()) return;
+    const name = inputName.trim();
+    if (!name) return;
     if (Platform.OS === 'web') { closeModal(); return; }
+    // リネーム時は自分自身を除外して重複判定する
+    const excludeId = modalMode === 'edit' && editingTab ? editingTab.id : undefined;
+    if (findDuplicateTab(name, excludeId)) {
+      Alert.alert('同じ名前のタブがあります', `「${name}」はすでに存在します。別の名前を入力してください。`);
+      return; // モーダルは開いたままにして入力し直せるようにする
+    }
     try {
       if (modalMode === 'add') {
-        insertTab(inputName.trim());
+        insertTab(name);
       } else if (modalMode === 'edit' && editingTab) {
-        updateTab(editingTab.id, inputName.trim());
+        updateTab(editingTab.id, name);
       }
       reload();
     } catch (e) {
@@ -138,6 +148,9 @@ export default function TabsScreen() {
                     style={[styles.arrowBtn, index === 0 && styles.arrowBtnDisabled]}
                     onPress={() => moveTab(index, 'up')}
                     disabled={index === 0}
+                    hitSlop={BTN_HIT_SLOP}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${tab.name}を上へ移動`}
                   >
                     <Text style={[styles.arrowText, index === 0 && styles.arrowTextDisabled]}>↑</Text>
                   </TouchableOpacity>
@@ -145,13 +158,28 @@ export default function TabsScreen() {
                     style={[styles.arrowBtn, index === tabs.length - 1 && styles.arrowBtnDisabled]}
                     onPress={() => moveTab(index, 'down')}
                     disabled={index === tabs.length - 1}
+                    hitSlop={BTN_HIT_SLOP}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${tab.name}を下へ移動`}
                   >
                     <Text style={[styles.arrowText, index === tabs.length - 1 && styles.arrowTextDisabled]}>↓</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.editBtn} onPress={() => openEditModal(tab)}>
+                  <TouchableOpacity
+                    style={styles.editBtn}
+                    onPress={() => openEditModal(tab)}
+                    hitSlop={BTN_HIT_SLOP}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${tab.name}の名前を変更`}
+                  >
                     <Text style={styles.editBtnText}>✏️</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(tab)}>
+                  <TouchableOpacity
+                    style={styles.deleteBtn}
+                    onPress={() => handleDelete(tab)}
+                    hitSlop={BTN_HIT_SLOP}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${tab.name}を削除`}
+                  >
                     <Text style={styles.deleteBtnText}>🗑</Text>
                   </TouchableOpacity>
                 </View>
