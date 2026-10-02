@@ -13,12 +13,21 @@ export default function OnboardingScreen() {
   const { refresh } = useMachine();
   const [selected, setSelected] = useState<Machine>('DAM');
 
-  async function handleStart() {
-    await setDefaultMachine(selected);
+  async function finishOnboarding(machine: Machine) {
+    await setDefaultMachine(machine);
     await completeOnboarding();
     setSettingSync('first_launch_guide', 'pending'); // Onb-1: 初回登録ガイドを表示するフラグ
     await refresh();
     router.replace('/(tabs)');
+  }
+
+  async function handleStart() {
+    await finishOnboarding(selected);
+  }
+
+  // 機種を今決めたくない人向け。デフォルトはDAMで開始し、あとから設定で変更できる
+  async function handleLater() {
+    await finishOnboarding('DAM');
   }
 
   return (
@@ -69,6 +78,9 @@ export default function OnboardingScreen() {
       <View style={styles.btnWrap}>
         <TouchableOpacity style={styles.startBtn} onPress={handleStart}>
           <Text style={styles.startBtnText}>はじめる</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.laterBtn} onPress={handleLater}>
+          <Text style={styles.laterBtnText}>あとで決める（DAMで始める）</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -210,5 +222,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: colors.white,
+  },
+  laterBtn: {
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  laterBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.text2,
   },
 });
