@@ -283,23 +283,22 @@ export default function SongFormScreen() {
           <View style={styles.fieldGroup}>
             <Text style={styles.fieldLabel}>タブ（カテゴリ）</Text>
             <View style={styles.tabSelector}>
-              {tabs.map((tab) => (
-                <TouchableOpacity
-                  key={tab.id}
-                  style={[
-                    styles.tabOption,
-                    selectedTabIds.includes(tab.id) && styles.tabOptionSelected,
-                  ]}
-                  onPress={() => toggleTab(tab.id)}
-                >
-                  <Text style={[
-                    styles.tabOptionText,
-                    selectedTabIds.includes(tab.id) && styles.tabOptionTextSelected,
-                  ]}>
-                    {truncateTabName(tab.name)}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+              {tabs.map((tab) => {
+                const isSelected = selectedTabIds.includes(tab.id);
+                return (
+                  <TouchableOpacity
+                    key={tab.id}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: isSelected }}
+                    style={[styles.tabOption, isSelected && styles.tabOptionSelected]}
+                    onPress={() => toggleTab(tab.id)}
+                  >
+                    <Text style={[styles.tabOptionText, isSelected && styles.tabOptionTextSelected]}>
+                      {isSelected ? '✓ ' : ''}{truncateTabName(tab.name)}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
               <TouchableOpacity style={styles.tabOptionAdd} onPress={handleAddNewTab}>
                 <Text style={styles.tabOptionAddText}>＋ 新規作成</Text>
               </TouchableOpacity>
@@ -536,7 +535,7 @@ const styles = StyleSheet.create({
   },
   tabOptionSelected: {
     backgroundColor: colors.accentSoft,
-    borderColor: 'rgba(91, 76, 245, 0.25)',
+    borderColor: colors.accent,
   },
   tabOptionText: {
     fontSize: 11,
