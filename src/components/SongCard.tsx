@@ -29,9 +29,12 @@ export function SongCard({ song, onPressRecord }: Props) {
 
       <View style={styles.right}>
         <KeyBadge keyOffset={keyOffset} />
-        <Text style={styles.score}>
-          {score != null && score > 0 ? score.toFixed(1) : '—'}
-        </Text>
+        <View style={styles.scoreWrap}>
+          <Text style={styles.scoreLabel}>BEST</Text>
+          <Text style={styles.score}>
+            {score != null && score > 0 ? score.toFixed(1) : '—'}
+          </Text>
+        </View>
         <TouchableOpacity
           style={styles.recordBtn}
           onPress={onPressRecord}
@@ -153,6 +156,15 @@ const styles = StyleSheet.create({
   },
   keyBadgeTextNegative: {
     color: colors.yellow,
+  },
+  scoreWrap: {
+    alignItems: 'center',
+  },
+  scoreLabel: {
+    fontSize: 7,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    color: colors.text3,
   },
   score: {
     fontFamily: fonts.monoMedium,
