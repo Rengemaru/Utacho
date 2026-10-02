@@ -58,6 +58,7 @@ export function KeyStepper({ value, onChange }: Props) {
           <Text style={styles.btnText}>＋</Text>
         </TouchableOpacity>
       </View>
+      <Text style={styles.helperText}>＋は原曲より高く、－は低く（半音単位・±7まで）</Text>
       {value !== null && (
         <TouchableOpacity onPress={reset}>
           <Text style={styles.resetText}>未設定に戻す</Text>
@@ -101,6 +102,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     minWidth: 52,
     textAlign: 'center',
+  },
+  helperText: {
+    fontSize: 10,
+    color: colors.text3,
   },
   resetText: {
     fontSize: 10,
