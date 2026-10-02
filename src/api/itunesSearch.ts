@@ -1,6 +1,7 @@
 import { MusicSuggestion } from '../types';
 
 interface ItunesTrack {
+  trackId: number;
   trackName: string;
   artistName: string;
   artworkUrl100: string;
@@ -27,6 +28,7 @@ export async function searchMusic(
     if (!res.ok) return [];
     const data: ItunesResponse = await res.json();
     return data.results.map((item) => ({
+      trackId: item.trackId,
       trackName: item.trackName ?? '',
       artistName: item.artistName ?? '',
       artworkUrl: item.artworkUrl100

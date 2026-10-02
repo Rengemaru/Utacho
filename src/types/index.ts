@@ -1,5 +1,6 @@
 // ---- iTunes Search API のサジェスト結果 ----
 export interface MusicSuggestion {
+  trackId: number;
   trackName: string;
   artistName: string;
   artworkUrl: string | null;
