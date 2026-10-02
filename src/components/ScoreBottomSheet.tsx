@@ -158,24 +158,35 @@ export function ScoreBottomSheet({ visible, song, editingScore, onClose, onSaved
         <View style={styles.toggleRow}>
           <Text style={styles.toggleLabel}>機種</Text>
           <View style={styles.toggleBtns}>
-            {(['DAM', 'JOYSOUND'] as Machine[]).map((m) => (
-              <TouchableOpacity
-                key={m}
-                style={[
-                  styles.toggleBtn,
-                  machine === m && (m === 'DAM' ? styles.toggleBtnDam : styles.toggleBtnJoy),
-                ]}
-                onPress={() => setMachine(m)}
-              >
-                <View style={[styles.toggleDot, { backgroundColor: m === 'DAM' ? colors.dam : colors.joy }]} />
-                <Text style={[
-                  styles.toggleBtnText,
-                  machine === m && { color: m === 'DAM' ? colors.dam : colors.joy },
-                ]}>
-                  {m}
-                </Text>
-              </TouchableOpacity>
-            ))}
+            {(['DAM', 'JOYSOUND'] as Machine[]).map((m) => {
+              const isSelected = machine === m;
+              const machineColor = m === 'DAM' ? colors.dam : colors.joy;
+              return (
+                <TouchableOpacity
+                  key={m}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: isSelected }}
+                  accessibilityLabel={`機種 ${m}${isSelected ? '（選択中）' : ''}`}
+                  style={[
+                    styles.toggleBtn,
+                    isSelected && (m === 'DAM' ? styles.toggleBtnDam : styles.toggleBtnJoy),
+                  ]}
+                  onPress={() => setMachine(m)}
+                >
+                  {isSelected ? (
+                    <Text style={[styles.toggleCheck, { color: machineColor }]}>✓</Text>
+                  ) : (
+                    <View style={[styles.toggleDot, { backgroundColor: machineColor }]} />
+                  )}
+                  <Text style={[
+                    styles.toggleBtnText,
+                    isSelected && { color: machineColor, fontWeight: '700' },
+                  ]}>
+                    {m}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </View>
         <Text style={styles.sessionHint}>
@@ -354,16 +365,22 @@ const styles = StyleSheet.create({
   },
   toggleBtnDam: {
     backgroundColor: colors.damSoft,
-    borderColor: colors.damBorder,
+    borderColor: colors.dam,
+    borderWidth: 2,
   },
   toggleBtnJoy: {
     backgroundColor: colors.joySoft,
-    borderColor: colors.joyBorder,
+    borderColor: colors.joy,
+    borderWidth: 2,
   },
   toggleDot: {
     width: 7,
     height: 7,
     borderRadius: 4,
+  },
+  toggleCheck: {
+    fontSize: 12,
+    fontWeight: '700',
   },
   toggleBtnText: {
     fontSize: 11,
