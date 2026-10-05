@@ -1,0 +1,21 @@
+#!/bin/sh
+# 歌帳: コミット前の自動チェック
+# バリデーション・型安全の劣化を防ぐための機械的ゲート。
+# CLAUDE.md 7章「TypeScript strict / any禁止」を毎コミットで担保する。
+#
+# 有効化: git config core.hooksPath .githooks （初回のみ・READMEにも記載）
+# 一時的に飛ばす場合: git commit --no-verify
+
+set -e
+
+echo "▶ pre-commit: 型チェック (tsc --noEmit) を実行中..."
+
+if ! npm run --silent typecheck; then
+  echo ""
+  echo "✖ 型チェックに失敗しました。コミットを中断します。"
+  echo "  型エラーはバリデーション不備・null未処理・any混入のサインです。修正してから再コミットしてください。"
+  echo "  どうしても急ぐ場合のみ: git commit --no-verify"
+  exit 1
+fi
+
+echo "✔ 型チェック通過。コミットを続行します。"
