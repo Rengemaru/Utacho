@@ -127,7 +127,18 @@ export function deleteSong(id: number): void {
   getDb().runSync('DELETE FROM songs WHERE id = ?', [id]);
 }
 
-export function findDuplicateSong(title: string, artist: string): { id: number } | null {
+export function findDuplicateSong(
+  title: string,
+  artist: string,
+  excludeId?: number,
+): { id: number } | null {
+  // 編集時は自分自身を比較対象から除外する（除外しないと、変更なしの保存でも警告が出る）
+  if (excludeId != null) {
+    return getDb().getFirstSync<{ id: number }>(
+      `SELECT id FROM songs WHERE LOWER(TRIM(title)) = LOWER(TRIM(?)) AND LOWER(TRIM(artist)) = LOWER(TRIM(?)) AND id != ? LIMIT 1`,
+      [title, artist, excludeId]
+    );
+  }
   return getDb().getFirstSync<{ id: number }>(
     `SELECT id FROM songs WHERE LOWER(TRIM(title)) = LOWER(TRIM(?)) AND LOWER(TRIM(artist)) = LOWER(TRIM(?)) LIMIT 1`,
     [title, artist]
