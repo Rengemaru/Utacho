@@ -49,7 +49,7 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={styles.root}>
-      <StatusBar style="dark" backgroundColor="#f0f2f7" translucent={false} />
+      <StatusBar style="dark" />
       <MachineProvider>
         <Stack>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
