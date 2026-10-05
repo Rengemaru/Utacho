@@ -459,45 +459,6 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 4,
   },
-  suggestRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  suggestRowLast: {
-    borderBottomWidth: 0,
-  },
-  suggestArt: {
-    width: 40,
-    height: 40,
-    borderRadius: 6,
-  },
-  suggestArtPlaceholder: {
-    backgroundColor: colors.surface2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  suggestArtPlaceholderText: {
-    fontSize: 16,
-    color: colors.text3,
-  },
-  suggestInfo: {
-    flex: 1,
-  },
-  suggestTitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  suggestArtist: {
-    fontSize: 11,
-    color: colors.text2,
-    marginTop: 2,
-  },
   artworkPreviewRow: {
     flexDirection: 'row',
     alignItems: 'center',
