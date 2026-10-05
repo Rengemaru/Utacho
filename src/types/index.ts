@@ -15,8 +15,13 @@ export interface SongRow {
   key_offset: number | null;
   artwork_url: string | null;
   memo: string;
+  title_reading: string;   // 曲名の読み（手入力・任意・空可）
+  artist_reading: string;  // アーティストの読み（手入力・任意・空可）
   created_at: string;
 }
+
+// ---- ローカル持ち歌検索の照合モード（1.1.0 の iTunes 用 SearchMode とは別物） ----
+export type SearchMatchMode = 'prefix' | 'partial';
 
 export interface TabRow {
   id: number;

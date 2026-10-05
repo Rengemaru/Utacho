@@ -11,6 +11,8 @@ export const schema = `
     key_offset  INTEGER,
     artwork_url TEXT,
     memo        TEXT    NOT NULL DEFAULT '',
+    title_reading  TEXT NOT NULL DEFAULT '',
+    artist_reading TEXT NOT NULL DEFAULT '',
     created_at  TEXT    NOT NULL
   );
   CREATE TABLE IF NOT EXISTS song_tabs (
