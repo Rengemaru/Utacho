@@ -130,7 +130,7 @@ export function restoreFromBackup(data: BackupData): void {
 
     for (const song of data.songs) {
       db.runSync(
-        'INSERT INTO songs (id, title, artist, key_offset, artwork_url, memo, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        'INSERT INTO songs (id, title, artist, key_offset, artwork_url, memo, title_reading, artist_reading, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
         [
           song.id as number,
           song.title as string,
@@ -138,6 +138,9 @@ export function restoreFromBackup(data: BackupData): void {
           (song.key_offset as number | null) ?? null,
           (song.artwork_url as string | null) ?? null,
           (song.memo as string) ?? '',
+          // 旧バックアップ（読み列なし）は '' フォールバック
+          (song.title_reading as string | undefined) ?? '',
+          (song.artist_reading as string | undefined) ?? '',
           song.created_at as string,
         ]
       );
