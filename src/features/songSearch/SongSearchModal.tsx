@@ -418,14 +418,15 @@ function StateBox({
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.bg },
+  // 登録フォーム（new.tsx）と同じ白地に揃える
+  root: { flex: 1, backgroundColor: colors.white },
   flex: { flex: 1 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
     paddingHorizontal: 18,
-    paddingBottom: 12,
+    paddingBottom: 16,
   },
   headerClose: { fontSize: 18, color: colors.text2 },
   headerBack: { fontSize: 26, color: colors.text2, lineHeight: 26 },
@@ -433,23 +434,19 @@ const styles = StyleSheet.create({
 
   // 04a
   choiceList: { paddingHorizontal: 18, paddingTop: 4, gap: 10 },
+  // フォームのフィールドと同じ塗りカード（surface＋細ボーダー、影なし）
   choice: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderWidth: 1.5,
     borderColor: colors.border,
-    borderRadius: 14,
+    borderRadius: 11,
     padding: 14,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 2,
   },
   choiceFirst: { borderColor: 'rgba(91,76,245,0.35)' },
-  choiceManual: { backgroundColor: 'transparent', borderStyle: 'dashed', shadowOpacity: 0, elevation: 0 },
+  choiceManual: { backgroundColor: 'transparent', borderStyle: 'dashed' },
   choiceIcon: {
     width: 38,
     height: 38,
@@ -466,16 +463,16 @@ const styles = StyleSheet.create({
   choiceArrow: { fontSize: 18, color: colors.text3 },
   choiceHint: { marginHorizontal: 18, marginTop: 14, fontSize: 10, color: colors.text3, lineHeight: 16 },
 
-  // 04b 検索欄
+  // 04b 検索欄（フォームの fieldInput と同じ surface 塗り＋細ボーダー）
   sInput: {
     marginHorizontal: 18,
     marginBottom: 8,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderWidth: 1.5,
-    borderColor: colors.accent,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
+    borderColor: colors.border,
+    borderRadius: 11,
+    paddingHorizontal: 13,
+    paddingVertical: 11,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
