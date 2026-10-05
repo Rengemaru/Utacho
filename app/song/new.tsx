@@ -45,6 +45,8 @@ export default function SongFormScreen() {
 
   // 新規追加は検索モーダル（04a）から開始する。編集は「曲を変更」押下で開く
   const [searchVisible, setSearchVisible] = useState(!isEdit);
+  // 新規追加で初回の検索を抜けたか（選択 or 手入力）。初回キャンセルのみホームに戻すために使う
+  const [addStarted, setAddStarted] = useState(false);
 
   useEffect(() => {
     if (!isEdit) return;
@@ -89,19 +91,22 @@ export default function SongFormScreen() {
       );
     } else {
       applyCandidate(c);
+      setAddStarted(true);
       setSearchVisible(false);
     }
   }
 
   // 「手入力で登録」（新規のみ）。空のフォームのまま進む
   function handleSearchManual() {
+    setAddStarted(true);
     setSearchVisible(false);
   }
 
-  // モーダルを閉じる（✕・戻る）。新規でキャンセルしたらホームに戻る
+  // モーダルを閉じる（✕・戻る）。新規の初回検索をキャンセルしたときだけホームに戻す。
+  // フォーム表示後に「曲を変更」から開いた検索をキャンセルしても、入力を失わずフォームに留まる。
   function handleSearchClose() {
     setSearchVisible(false);
-    if (!isEdit) router.back();
+    if (!isEdit && !addStarted) router.back();
   }
 
   function toggleTab(tabId: number) {
@@ -227,37 +232,23 @@ export default function SongFormScreen() {
             />
           </View>
 
-          {/* アルバムアート + 「曲を変更」（編集時は常に表示、新規は取得済みのみ） */}
-          {isEdit ? (
-            <View style={styles.songRow}>
-              {artworkUrl ? (
-                <Image source={{ uri: artworkUrl }} style={styles.songArt} />
-              ) : (
-                <View style={[styles.songArt, styles.songArtPlaceholder]}>
-                  <Text style={styles.songArtPlaceholderText}>🎵</Text>
-                </View>
-              )}
-              <View style={styles.songRowInfo}>
-                <Text style={styles.songRowLabel}>アルバムアート</Text>
-                <Text style={styles.songRowSub}>{artworkUrl ? '検索で選んだ曲のもの' : '未設定'}</Text>
+          {/* アルバムアート + 「曲を変更」（新規・編集とも表示。検索をやり直せる） */}
+          <View style={styles.songRow}>
+            {artworkUrl ? (
+              <Image source={{ uri: artworkUrl }} style={styles.songArt} />
+            ) : (
+              <View style={[styles.songArt, styles.songArtPlaceholder]}>
+                <Text style={styles.songArtPlaceholderText}>🎵</Text>
               </View>
-              <TouchableOpacity style={styles.changeBtn} onPress={() => setSearchVisible(true)} accessibilityRole="button">
-                <Text style={styles.changeBtnText}>曲を変更</Text>
-              </TouchableOpacity>
+            )}
+            <View style={styles.songRowInfo}>
+              <Text style={styles.songRowLabel}>アルバムアート</Text>
+              <Text style={styles.songRowSub}>{artworkUrl ? '検索で選んだ曲のもの' : '未設定'}</Text>
             </View>
-          ) : (
-            artworkUrl && (
-              <View style={styles.artworkPreviewRow}>
-                <Image source={{ uri: artworkUrl }} style={styles.artworkPreview} />
-                <View style={styles.artworkPreviewInfo}>
-                  <Text style={styles.artworkPreviewLabel}>アルバムアート取得済み</Text>
-                  <TouchableOpacity onPress={() => setArtworkUrl(null)}>
-                    <Text style={styles.artworkPreviewRemove}>削除</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )
-          )}
+            <TouchableOpacity style={styles.changeBtn} onPress={() => setSearchVisible(true)} accessibilityRole="button">
+              <Text style={styles.changeBtnText}>曲を変更</Text>
+            </TouchableOpacity>
+          </View>
 
           {/* タブ選択 */}
           <View style={styles.fieldGroup}>
@@ -471,34 +462,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: colors.accent,
-  },
-  artworkPreviewRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: colors.surface,
-    borderWidth: 1.5,
-    borderColor: 'rgba(91, 76, 245, 0.2)',
-    borderRadius: 11,
-    padding: 10,
-  },
-  artworkPreview: {
-    width: 48,
-    height: 48,
-    borderRadius: 8,
-  },
-  artworkPreviewInfo: {
-    flex: 1,
-    gap: 4,
-  },
-  artworkPreviewLabel: {
-    fontSize: 11,
-    color: colors.accent,
-    fontWeight: '500',
-  },
-  artworkPreviewRemove: {
-    fontSize: 11,
-    color: colors.red,
   },
   tabSelector: {
     flexDirection: 'row',
