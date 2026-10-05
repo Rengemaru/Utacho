@@ -74,7 +74,7 @@ mykara/
 │   │   ├── useSongs.ts           # 曲一覧取得フック
 │   │   ├── useSongDetail.ts      # 曲詳細・スコア取得フック
 │   │   ├── useTabs.ts            # タブ一覧取得フック
-│   │   └── useMusicSearch.ts     # iTunes検索フック（1文字以上で発火）
+│   │   └── useMusicSearch.ts     # 【レガシー】1.0.x のインライン候補用。1.1.0 で検索モーダルに移行し未使用
 │   ├── contexts/
 │   │   └── MachineContext.tsx    # 現在機種のReact Context
 │   ├── constants/
@@ -84,9 +84,19 @@ mykara/
 │   │   ├── machine.ts            # 機種ロジック・セッション管理・オンボーディング
 │   │   └── backup.ts             # バックアップJSON構築・共有シート起動・インポート復元
 │   ├── api/
-│   │   └── itunesSearch.ts       # iTunes Search API クライアント
+│   │   └── itunesSearch.ts       # 【レガシー】1.0.x のクライアント。1.1.0 は features/songSearch/itunes.ts を使用
+│   ├── features/
+│   │   └── songSearch/           # 1.1.0 曲検索モーダル（検索フロー再設計）
+│   │       ├── types.ts          # SearchMode / SortKey / SearchStatus / SongCandidate / SearchResult
+│   │       ├── constants.ts      # FETCH_LIMIT=200 / PAGE_SIZE=50 / DEBOUNCE_MS=300 / country=JP / lang=ja_jp
+│   │       ├── itunes.ts         # iTunes 検索（成功/失敗を型で返す）
+│   │       ├── logic.ts          # 純粋関数（状態判定・並び替え・ページング・初期クエリ）
+│   │       ├── logic.test.ts     # 純粋関数の単体テスト（Jest）
+│   │       ├── useSongSearch.ts  # 検索状態フック（デバウンス・stale防止・retry）
+│   │       └── SongSearchModal.tsx # 検索モーダル本体（04a 選択・04b 検索）
 │   └── components/
 │       ├── SongCard.tsx          # 曲カード（ホーム用）
+│       ├── SearchResultList.tsx  # 検索候補の汎用リスト（FlatList・toRowで任意型対応）
 │       ├── ScoreBottomSheet.tsx  # 点数入力・編集ボトムシート（機種トグル付き）
 │       ├── ScoreChart.tsx        # 折れ線グラフ（gifted-charts、DAM/JOYSOUND 2系列）
 │       ├── KeyStepper.tsx        # キー（音域）ステッパー
@@ -504,11 +514,15 @@ const colors = {
 
 #### 04 曲登録・編集（共通フォーム）
 
+> 1.1.0 で曲の追加・編集フローを検索モーダル方式に再設計。新規追加は「＋」→ 検索モーダル（04a 選択 / 04b 検索）→ フォーム。フォームの曲名・アーティストは**サジェストなしのテキスト欄**（インライン候補は廃止）。詳細は `docs/spec~1.1.0/spec-1.1.0-song-flow.md`。
+
 - 入力項目:
-  1. 曲名（テキスト入力・Phase 2でiTunesサジェスト追加予定）
+  1. 曲名（テキスト入力。検索モーダルで選ぶと自動入力される）
   2. アーティスト名（テキスト入力）
   3. タブ選択（複数選択可。選択済みはアクセント色。「＋ 新規作成」も表示）
   4. キー（音域）ステッパー: `－` / 値 / `＋`。未設定可能
+- 編集フォームには「曲を変更」ボタン（別の曲へ差し替え。キー・メモ・タブ・点数は引き継ぐ）
+- 保存時に重複登録チェック（新規・編集とも。編集は自分自身を除外）
 - 下部固定ボタン: 新規→「曲を追加する」、編集→「変更を保存する」
 
 #### 05 設定
@@ -1081,10 +1095,10 @@ eas submit --platform android --profile production
 
 | 機能 | 実装内容 |
 |---|---|
-| iTunes Search API連携 | 曲名・アーティスト名補完、アルバムアート取得（1文字以上で発火） |
+| 曲検索モーダル（1.1.0） | 「＋」→ 検索モーダル。曲/アーティスト/キーワードの3モード・並び替え・ページング・4状態表示。候補選択で曲名/アーティスト/アート取り込み。アルバムアート取得（iTunes Search API） |
 | 機種選択（DAM / JOYSOUND） | オンボーディング・記録時・設定画面で選択可。セッション記憶付き |
 | メモ機能 | 曲登録・編集フォームに自由入力欄。詳細画面に表示 |
-| 重複登録チェック | 同名曲登録時に確認ダイアログ（大文字小文字・スペース無視） |
+| 重複登録チェック | 新規・編集の保存時に確認ダイアログ（大文字小文字・スペース無視。編集は自身を除外） |
 | バックアップ（JSONエクスポート） | 全テーブルをJSON書き出し・共有シートで保存先選択 |
 | バックアップ（JSONインポート） | DocumentPickerでファイル選択・バリデーション・トランザクション復元 |
 | 詳細画面アートワーク | 曲詳細にiTunesアートワーク64x64表示（fallback: 🎵） |
@@ -1122,11 +1136,12 @@ const score = song.best_score;
 ```
 > スコアの小数桁は全画面で統一して3桁表示（曲一覧カード・曲詳細の履歴/最高スコア/前回比/削除ダイアログ・グラフの点ラベル・記録シートの自己ベスト）。
 
-### iTunes Search API
-- 曲名フィールド: `attribute=songTerm` で検索
-- アーティスト名フィールド: `attribute=artistTerm` で検索
-- サジェスト選択後の再検索防止: `pausedRef` フラグで制御
-- abort 競合対策: ローカル変数 `controller` で管理
+### iTunes Search API（1.1.0 検索モーダル）
+- 実装: `src/features/songSearch/itunes.ts` の `searchSongs(term, mode)`
+- モード別 attribute: 曲から=`songTerm` / アーティスト=`artistTerm` / キーワード=指定なし
+- `limit=200` / `country=JP` / `lang=ja_jp`。例外を投げず成功/失敗を型で返し、通信失敗(network/http/parse)と0件を区別
+- デバウンス 300ms。古い結果が新しい結果を上書きしないよう seq で最新優先（`useSongSearch`）
+- 【レガシー】1.0.x のインライン候補（`src/hooks/useMusicSearch.ts` / `src/api/itunesSearch.ts`・`pausedRef`/abort 制御）は 1.1.0 で未使用
 
 ### Android 対応（実装済み）
 - ステータスバー制御
