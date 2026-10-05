@@ -64,7 +64,7 @@ function buildChartData(
       dataPointColor,
       dataPointRadius,
       // 乱雑さを避けるため、値ラベルは最高点・最新点だけに表示する
-      dataPointText: isMax || isLatest ? s.score.toFixed(1) : undefined,
+      dataPointText: isMax || isLatest ? s.score.toFixed(3) : undefined,
     };
   });
 }

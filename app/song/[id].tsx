@@ -36,7 +36,7 @@ export default function SongDetailScreen() {
   function handleDeleteScore(score: ScoreRow) {
     Alert.alert(
       'スコアを削除',
-      `${formatDateTime(score.scored_at)}  ${score.score.toFixed(1)}点\nこの記録を削除しますか？`,
+      `${formatDateTime(score.scored_at)}  ${score.score.toFixed(3)}点\nこの記録を削除しますか？`,
       [
         { text: 'キャンセル', style: 'cancel' },
         {
@@ -142,11 +142,11 @@ export default function SongDetailScreen() {
               <View>
                 <Text style={styles.bestLabel}>最高スコア</Text>
                 <Text style={styles.bestValue}>
-                  {song.best_score != null && song.best_score > 0 ? song.best_score.toFixed(1) : '—'}
+                  {song.best_score != null && song.best_score > 0 ? song.best_score.toFixed(3) : '—'}
                 </Text>
                 {diff != null && (
                   <Text style={[styles.bestDiff, { color: diff >= 0 ? colors.green : colors.red }]}>
-                    {diffMachine} {diff >= 0 ? `↑ ${diff.toFixed(1)}pt` : `↓ ${Math.abs(diff).toFixed(1)}pt`} 前回比
+                    {diffMachine} {diff >= 0 ? `↑ ${diff.toFixed(3)}pt` : `↓ ${Math.abs(diff).toFixed(3)}pt`} 前回比
                   </Text>
                 )}
               </View>
@@ -283,7 +283,7 @@ function HistoryRow({ score, onEdit, onDelete }: HistoryRowProps) {
             {score.machine === 'DAM' ? 'DAM' : 'JOY'}
           </Text>
         </View>
-        <Text style={styles.historyScore}>{score.score.toFixed(1)}</Text>
+        <Text style={styles.historyScore}>{score.score.toFixed(3)}</Text>
       </View>
     </Swipeable>
   );
