@@ -1,69 +1,97 @@
 import { ComponentProps } from 'react';
-import { FlatList, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  FlatList,
+  Image,
+  StyleProp,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  ViewStyle,
+} from 'react-native';
 import { colors } from '../constants/colors';
-import { MusicSuggestion } from '../types';
 
-// 候補が多くてもキーボードで隠れずスクロールできるよう、リストの高さを制限して内部スクロールさせる
-const DEFAULT_MAX_HEIGHT = 240;
+// 1行に表示する正規化済みデータ。呼び出し側が toRow で任意の型から変換する
+export interface SearchResultRow {
+  key: string;
+  title: string;
+  artist: string;
+  artworkUrl: string | null;
+  meta?: string | null; // 右端の補助表示（発売年など）。任意
+}
 
-interface Props {
-  items: MusicSuggestion[];
-  onSelect: (item: MusicSuggestion) => void;
+interface Props<T> {
+  items: T[];
+  toRow: (item: T) => SearchResultRow;
+  onSelect: (item: T) => void;
+  // 指定時はその高さで内部スクロール（インライン表示用）。未指定は親に合わせて伸縮（モーダル用）
   maxHeight?: number;
-  // 1.1.0 の検索モーダルで件数表示・「もっと見る」を差し込むための拡張口
+  style?: StyleProp<ViewStyle>;
   ListHeaderComponent?: ComponentProps<typeof FlatList>['ListHeaderComponent'];
   ListFooterComponent?: ComponentProps<typeof FlatList>['ListFooterComponent'];
+  ListEmptyComponent?: ComponentProps<typeof FlatList>['ListEmptyComponent'];
 }
 
 /**
- * iTunes 検索候補の一覧。中身は FlatList で、親の ScrollView と入れ子にしても
- * keyboardShouldPersistTaps と nestedScrollEnabled で最後までスクロール・タップ選択できる。
- * fix-F（候補が View+map で見切れてスクロール不可）の修正用部品。1.1.0 の検索モーダルでも流用する。
+ * iTunes 検索候補の一覧。中身は FlatList（仮想化）で、キーボード表示中も
+ * keyboardShouldPersistTaps で最後までスクロール・タップ選択できる。
+ * 1.0.1 のインライン候補と 1.1.0 の検索モーダルの両方で流用する汎用部品。
  */
-export function SearchResultList({
+export function SearchResultList<T>({
   items,
+  toRow,
   onSelect,
-  maxHeight = DEFAULT_MAX_HEIGHT,
+  maxHeight,
+  style,
   ListHeaderComponent,
   ListFooterComponent,
-}: Props) {
+  ListEmptyComponent,
+}: Props<T>) {
   return (
     <FlatList
-      style={{ maxHeight }}
+      style={[maxHeight != null ? { maxHeight } : styles.fill, style]}
       data={items}
-      keyExtractor={(item, index) => `${item.trackId}-${index}`}
+      keyExtractor={(item) => toRow(item).key}
       keyboardShouldPersistTaps="handled"
       nestedScrollEnabled
       showsVerticalScrollIndicator
       ListHeaderComponent={ListHeaderComponent}
       ListFooterComponent={ListFooterComponent}
+      ListEmptyComponent={ListEmptyComponent}
       ItemSeparatorComponent={() => <View style={styles.separator} />}
-      renderItem={({ item }) => (
-        <TouchableOpacity
-          style={styles.row}
-          onPress={() => onSelect(item)}
-          activeOpacity={0.7}
-          accessibilityRole="button"
-          accessibilityLabel={`${item.trackName} ${item.artistName} を選択`}
-        >
-          {item.artworkUrl ? (
-            <Image source={{ uri: item.artworkUrl }} style={styles.art} />
-          ) : (
-            <View style={[styles.art, styles.artPlaceholder]}>
-              <Text style={styles.artPlaceholderText}>♪</Text>
+      renderItem={({ item }) => {
+        const row = toRow(item);
+        return (
+          <TouchableOpacity
+            style={styles.row}
+            onPress={() => onSelect(item)}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={`${row.title} ${row.artist} を選択`}
+          >
+            {row.artworkUrl ? (
+              <Image source={{ uri: row.artworkUrl }} style={styles.art} />
+            ) : (
+              <View style={[styles.art, styles.artPlaceholder]}>
+                <Text style={styles.artPlaceholderText}>♪</Text>
+              </View>
+            )}
+            <View style={styles.info}>
+              <Text style={styles.title} numberOfLines={1}>{row.title}</Text>
+              <Text style={styles.artist} numberOfLines={1}>{row.artist}</Text>
             </View>
-          )}
-          <View style={styles.info}>
-            <Text style={styles.title} numberOfLines={1}>{item.trackName}</Text>
-            <Text style={styles.artist} numberOfLines={1}>{item.artistName}</Text>
-          </View>
-        </TouchableOpacity>
-      )}
+            {row.meta ? <Text style={styles.meta}>{row.meta}</Text> : null}
+          </TouchableOpacity>
+        );
+      }}
     />
   );
 }
 
 const styles = StyleSheet.create({
+  fill: {
+    flex: 1,
+  },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -101,5 +129,9 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.text2,
     marginTop: 2,
+  },
+  meta: {
+    fontSize: 10,
+    color: colors.text3,
   },
 });
