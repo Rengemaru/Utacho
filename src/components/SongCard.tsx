@@ -32,7 +32,7 @@ export function SongCard({ song, onPressRecord }: Props) {
         <View style={styles.scoreWrap}>
           <Text style={styles.scoreLabel}>BEST</Text>
           <Text style={styles.score}>
-            {score != null && score > 0 ? score.toFixed(1) : '—'}
+            {score != null && score > 0 ? score.toFixed(3) : '—'}
           </Text>
         </View>
         <TouchableOpacity

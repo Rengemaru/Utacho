@@ -1115,10 +1115,12 @@ eas submit --platform android --profile production
 
 ### 曲カードのスコア表示ルール（確定仕様）
 ```typescript
-// best_score のみ表示。0点は「—」表示（仕様通り・変更禁止）
+// best_score のみ表示。0点は「—」表示（0点→「—」ルールは変更禁止）
+// スコアは小数第3位まで表示（DAM/JOYSOUND の精密採点に合わせる。オーナー指示で toFixed(1)→toFixed(3) に変更）
 const score = song.best_score;
-{score != null && score > 0 ? score.toFixed(1) : '—'}
+{score != null && score > 0 ? score.toFixed(3) : '—'}
 ```
+> スコアの小数桁は全画面で統一して3桁表示（曲一覧カード・曲詳細の履歴/最高スコア/前回比/削除ダイアログ・グラフの点ラベル・記録シートの自己ベスト）。
 
 ### iTunes Search API
 - 曲名フィールド: `attribute=songTerm` で検索
