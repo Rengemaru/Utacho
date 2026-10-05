@@ -45,6 +45,20 @@ export const MIGRATIONS: Migration[] = [
       }
     },
   },
+  {
+    version: 4,
+    description: 'add reading columns to songs (title_reading / artist_reading)',
+    up: async (db) => {
+      const cols = await db.getAllAsync<{ name: string }>('PRAGMA table_info(songs)');
+      // 既存行は DEFAULT '' で埋まるため非破壊
+      if (!cols.some((c) => c.name === 'title_reading')) {
+        await db.execAsync(`ALTER TABLE songs ADD COLUMN title_reading TEXT NOT NULL DEFAULT ''`);
+      }
+      if (!cols.some((c) => c.name === 'artist_reading')) {
+        await db.execAsync(`ALTER TABLE songs ADD COLUMN artist_reading TEXT NOT NULL DEFAULT ''`);
+      }
+    },
+  },
 ];
 
 export async function runMigrations(db: SQLite.SQLiteDatabase): Promise<void> {

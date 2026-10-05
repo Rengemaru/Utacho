@@ -100,11 +100,13 @@ export function insertSong(
   artist: string,
   keyOffset: number | null,
   artworkUrl?: string | null,
-  memo: string = ''
+  memo: string = '',
+  titleReading: string = '',
+  artistReading: string = ''
 ): number {
   const result = getDb().runSync(
-    'INSERT INTO songs (title, artist, key_offset, artwork_url, memo, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-    [title, artist, keyOffset, artworkUrl ?? null, memo, new Date().toISOString()]
+    'INSERT INTO songs (title, artist, key_offset, artwork_url, memo, title_reading, artist_reading, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    [title, artist, keyOffset, artworkUrl ?? null, memo, titleReading, artistReading, new Date().toISOString()]
   );
   return result.lastInsertRowId;
 }
@@ -115,11 +117,13 @@ export function updateSong(
   artist: string,
   keyOffset: number | null,
   artworkUrl?: string | null,
-  memo: string = ''
+  memo: string = '',
+  titleReading: string = '',
+  artistReading: string = ''
 ): void {
   getDb().runSync(
-    'UPDATE songs SET title = ?, artist = ?, key_offset = ?, artwork_url = ?, memo = ? WHERE id = ?',
-    [title, artist, keyOffset, artworkUrl ?? null, memo, id]
+    'UPDATE songs SET title = ?, artist = ?, key_offset = ?, artwork_url = ?, memo = ?, title_reading = ?, artist_reading = ? WHERE id = ?',
+    [title, artist, keyOffset, artworkUrl ?? null, memo, titleReading, artistReading, id]
   );
 }
 

@@ -130,6 +130,8 @@ CREATE TABLE IF NOT EXISTS songs (
   key_offset  INTEGER,                    -- NULL=未設定、+2、-1 など整数
   artwork_url TEXT,                       -- iTunes APIから取得
   memo        TEXT    NOT NULL DEFAULT '', -- メモ（自由入力）
+  title_reading  TEXT NOT NULL DEFAULT '', -- 曲名の読み（手入力・任意・ローカル検索用）
+  artist_reading TEXT NOT NULL DEFAULT '', -- アーティストの読み（手入力・任意）
   created_at  TEXT    NOT NULL            -- ISO8601（例: "2026-05-25T21:00:00"）
 );
 
@@ -171,6 +173,7 @@ CREATE TABLE IF NOT EXISTS db_version (
 | `onboarding_completed` | オンボーディング完了フラグ（`"true"`） | 初回起動後に書き込み |
 | `session_machine` | セッション中の機種 | バックアップ対象外 |
 | `session_date` | セッション日付（ローカル日付 YYYY-MM-DD） | バックアップ対象外 |
+| `search_match_mode` | ローカル持ち歌検索の照合（`prefix`/`partial`、既定`partial`） | 前方/部分一致トグル |
 
 ### 3-2. マイグレーション機構
 
@@ -178,7 +181,7 @@ CREATE TABLE IF NOT EXISTS db_version (
 - `db_version` テーブルで適用済みバージョンを追跡
 - `initDatabase()` 呼び出し時に未適用のマイグレーションを自動実行
 - **新しいカラム/テーブルを追加する際は必ずマイグレーションを追加する**
-- 現在のマイグレーション：v1（memo列）→ v2（settingsテーブル）→ v3（machine列）
+- 現在のマイグレーション：v1（memo列）→ v2（settingsテーブル）→ v3（machine列）→ v4（title_reading/artist_reading列）
 
 ### 3-3. 設計方針
 
@@ -206,8 +209,13 @@ export interface SongRow {
   key_offset: number | null;
   artwork_url: string | null;
   memo: string;
+  title_reading: string;   // 曲名の読み（手入力・任意・空可）
+  artist_reading: string;  // アーティストの読み（手入力・任意・空可）
   created_at: string;
 }
+
+// ローカル持ち歌検索の照合モード（1.1.0 の iTunes 用 SearchMode とは別物）
+export type SearchMatchMode = 'prefix' | 'partial';
 
 export interface TabRow {
   id: number;
@@ -281,6 +289,8 @@ export const schema = `
     key_offset  INTEGER,
     artwork_url TEXT,
     memo        TEXT    NOT NULL DEFAULT '',
+    title_reading  TEXT NOT NULL DEFAULT '',
+    artist_reading TEXT NOT NULL DEFAULT '',
     created_at  TEXT    NOT NULL
   );
   CREATE TABLE IF NOT EXISTS song_tabs (
@@ -346,11 +356,13 @@ export function insertSong(
   artist: string,
   keyOffset: number | null,
   artworkUrl?: string | null,
-  memo: string = ''
+  memo: string = '',
+  titleReading: string = '',
+  artistReading: string = ''
 ): number {
   const result = getDb().runSync(
-    `INSERT INTO songs (title, artist, key_offset, artwork_url, memo, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
-    [title, artist, keyOffset, artworkUrl ?? null, memo, new Date().toISOString()]
+    `INSERT INTO songs (title, artist, key_offset, artwork_url, memo, title_reading, artist_reading, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [title, artist, keyOffset, artworkUrl ?? null, memo, titleReading, artistReading, new Date().toISOString()]
   );
   return result.lastInsertRowId;
 }
