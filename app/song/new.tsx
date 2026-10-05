@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyStepper } from '../../src/components/KeyStepper';
+import { SearchResultList } from '../../src/components/SearchResultList';
 import { colors } from '../../src/constants/colors';
 import { insertSong, updateSong, getSongById, findDuplicateSong } from '../../src/db/songs';
 import { insertTab, findDuplicateTab } from '../../src/db/tabs';
@@ -213,26 +214,7 @@ export default function SongFormScreen() {
                     <Text style={styles.suggestClose}>✕ 閉じる</Text>
                   </TouchableOpacity>
                 </View>
-                {titleSuggestions.map((item, idx) => (
-                  <TouchableOpacity
-                    key={idx}
-                    style={[styles.suggestRow, idx === titleSuggestions.length - 1 && styles.suggestRowLast]}
-                    onPress={() => handleSelectSuggestion(item)}
-                    activeOpacity={0.7}
-                  >
-                    {item.artworkUrl ? (
-                      <Image source={{ uri: item.artworkUrl }} style={styles.suggestArt} />
-                    ) : (
-                      <View style={[styles.suggestArt, styles.suggestArtPlaceholder]}>
-                        <Text style={styles.suggestArtPlaceholderText}>♪</Text>
-                      </View>
-                    )}
-                    <View style={styles.suggestInfo}>
-                      <Text style={styles.suggestTitle} numberOfLines={1}>{item.trackName}</Text>
-                      <Text style={styles.suggestArtist} numberOfLines={1}>{item.artistName}</Text>
-                    </View>
-                  </TouchableOpacity>
-                ))}
+                <SearchResultList items={titleSuggestions} onSelect={handleSelectSuggestion} />
               </View>
             )}
           </View>
@@ -277,26 +259,7 @@ export default function SongFormScreen() {
                     <Text style={styles.suggestClose}>✕ 閉じる</Text>
                   </TouchableOpacity>
                 </View>
-                {artistSuggestions.map((item, idx) => (
-                  <TouchableOpacity
-                    key={idx}
-                    style={[styles.suggestRow, idx === artistSuggestions.length - 1 && styles.suggestRowLast]}
-                    onPress={() => handleSelectSuggestion(item)}
-                    activeOpacity={0.7}
-                  >
-                    {item.artworkUrl ? (
-                      <Image source={{ uri: item.artworkUrl }} style={styles.suggestArt} />
-                    ) : (
-                      <View style={[styles.suggestArt, styles.suggestArtPlaceholder]}>
-                        <Text style={styles.suggestArtPlaceholderText}>♪</Text>
-                      </View>
-                    )}
-                    <View style={styles.suggestInfo}>
-                      <Text style={styles.suggestTitle} numberOfLines={1}>{item.trackName}</Text>
-                      <Text style={styles.suggestArtist} numberOfLines={1}>{item.artistName}</Text>
-                    </View>
-                  </TouchableOpacity>
-                ))}
+                <SearchResultList items={artistSuggestions} onSelect={handleSelectSuggestion} />
               </View>
             )}
           </View>
