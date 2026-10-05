@@ -76,6 +76,26 @@ eas submit --platform android --profile production
 
 ---
 
+## API 36 対応（#34）の充足状況
+SDK57 アップグレード（PR #43）により、1.0.2 で予定していた targetSdk 36 対応は 1.1.0 に同梱される。単独の 1.0.2 リリースは行わない。
+
+**D1 調査結果**
+- Expo 57.0.26 / RN 0.86.3
+- targetSdk / compileSdk：当初 app.json に明示指定なし。gradle の既定は参照箇所により 36/35 が混在し**静的には断定不可**だったため、**`expo-build-properties` で `targetSdkVersion: 36` / `compileSdkVersion: 36` を明示固定**（D2）
+- `BackHandler` は未使用。`predictiveBackGestureEnabled: false`（手動 back なしのため標準動作で可）（D3）
+- edge-to-edge：全画面が safe-area 対応済み（`paddingTop: insets.top` ／ タブバー・固定ボタン・ボトムシートは `insets.bottom`）（D3）
+- 確定条件：**EAS Build で生成される AAB の targetSdk が 36** であること（＝実ビルドで最終確認）。残りは実機回帰（D4）と配布（C）
+
+**D4 実機回帰（API36 挙動変更の確認・Android 16 実機/エミュレータ）**
+- [ ] ステータスバー／ナビゲーションバーと各画面のヘッダー・下部ナビ・固定ボタンが重ならない
+- [ ] ボトムシート（点数入力・セットリスト・ランダム選曲）が下端バーと重ならない
+- [ ] 戻る操作（端末の戻る／ジェスチャ）が 1.0.1 と同じ挙動（検索モーダルは 04b→04a→閉じる）
+- [ ] キーボード表示時にレイアウトが崩れない
+- [ ] 旧 Android（API 35 以前）でも上記が崩れない
+
+---
+
 ## 残作業メモ
 - C2/C3 はオーナー実施（EAS ビルド → クローズドテスト配布 → テスター連絡）
 - テストログに変更点を残す（製品版アクセス申請の材料）
+- API36（#34）は 1.1.0 に同梱。D4 回帰確認後に #34 をクローズ
