@@ -39,6 +39,8 @@ export default function SongFormScreen() {
   const [keyOffset, setKeyOffset] = useState<number | null>(null);
   const [artworkUrl, setArtworkUrl] = useState<string | null>(null);
   const [memo, setMemo] = useState('');
+  const [titleReading, setTitleReading] = useState('');
+  const [artistReading, setArtistReading] = useState('');
   const [selectedTabIds, setSelectedTabIds] = useState<number[]>([]);
   const [newTabModalVisible, setNewTabModalVisible] = useState(false);
   const [newTabName, setNewTabName] = useState('');
@@ -60,6 +62,8 @@ export default function SongFormScreen() {
       setKeyOffset(song.key_offset);
       setArtworkUrl(song.artwork_url);
       setMemo(song.memo);
+      setTitleReading(song.title_reading ?? '');
+      setArtistReading(song.artist_reading ?? '');
       setSelectedTabIds(song.tabs?.map((t) => t.id) ?? []);
     } catch (e) {
       console.error(e);
@@ -150,10 +154,10 @@ export default function SongFormScreen() {
     function doSave() {
       try {
         if (isEdit) {
-          updateSong(Number(songId), title.trim(), artist.trim(), keyOffset, artworkUrl, memo);
+          updateSong(Number(songId), title.trim(), artist.trim(), keyOffset, artworkUrl, memo, titleReading.trim(), artistReading.trim());
           syncTabs(Number(songId), selectedTabIds);
         } else {
-          const newId = insertSong(title.trim(), artist.trim(), keyOffset, artworkUrl, memo);
+          const newId = insertSong(title.trim(), artist.trim(), keyOffset, artworkUrl, memo, titleReading.trim(), artistReading.trim());
           syncTabs(newId, selectedTabIds);
         }
         router.back();
@@ -219,6 +223,19 @@ export default function SongFormScreen() {
             />
           </View>
 
+          {/* 曲名の読み（任意・ローカル検索用 #42） */}
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>曲名の読み（任意）</Text>
+            <TextInput
+              style={styles.fieldInput}
+              value={titleReading}
+              onChangeText={setTitleReading}
+              placeholder="れい：よるにかける"
+              placeholderTextColor={colors.text3}
+              returnKeyType="next"
+            />
+          </View>
+
           {/* アーティスト名（サジェストなしのテキスト欄） */}
           <View style={styles.fieldGroup}>
             <Text style={styles.fieldLabel}>アーティスト名</Text>
@@ -227,6 +244,19 @@ export default function SongFormScreen() {
               value={artist}
               onChangeText={setArtist}
               placeholder="アーティスト名"
+              placeholderTextColor={colors.text3}
+              returnKeyType="next"
+            />
+          </View>
+
+          {/* アーティストの読み（任意・ローカル検索用 #42） */}
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>アーティストの読み（任意）</Text>
+            <TextInput
+              style={styles.fieldInput}
+              value={artistReading}
+              onChangeText={setArtistReading}
+              placeholder="れい：よあそび"
               placeholderTextColor={colors.text3}
               returnKeyType="done"
             />
