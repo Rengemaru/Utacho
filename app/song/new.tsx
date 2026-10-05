@@ -1,8 +1,9 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  findNodeHandle,
   Image,
   Keyboard,
   KeyboardAvoidingView,
@@ -29,6 +30,12 @@ import { MOCK_SONGS } from '../../src/db/mockData';
 import { MusicSuggestion } from '../../src/types';
 
 import { MAX_TAB_NAME_LENGTH, truncateTabName } from '../../src/constants/tabConfig';
+
+// 候補オーバーレイを入力欄の真下に重ねるための位置情報（formArea 基準）
+type SuggestAnchor = { top: number; left: number; width: number };
+
+// 入力欄とオーバーレイの間隔
+const SUGGEST_GAP = 4;
 
 export default function SongFormScreen() {
   const insets = useSafeAreaInsets();
@@ -58,6 +65,39 @@ export default function SongFormScreen() {
     clearSuggestions: clearArtistSuggestions,
     resumeSearch: resumeArtistSearch,
   } = useMusicSearch(artist, 300, 'artistTerm');
+
+  // 候補リストは ScrollView の入れ子を避けるため、ScrollView の外（formArea 直下）に
+  // 絶対配置でオーバーレイ表示する。各入力欄の位置を measureLayout で測って重ねる。
+  const formAreaRef = useRef<View>(null);
+  const titleFieldRef = useRef<View>(null);
+  const artistFieldRef = useRef<View>(null);
+  const [titleAnchor, setTitleAnchor] = useState<SuggestAnchor | null>(null);
+  const [artistAnchor, setArtistAnchor] = useState<SuggestAnchor | null>(null);
+
+  const measureAnchor = useCallback((
+    fieldRef: React.RefObject<View | null>,
+    setAnchor: (anchor: SuggestAnchor) => void,
+  ) => {
+    const field = fieldRef.current;
+    const container = formAreaRef.current;
+    if (!field || !container) return;
+    const containerHandle = findNodeHandle(container);
+    if (containerHandle == null) return;
+    field.measureLayout(
+      containerHandle,
+      (left, top, width, height) => setAnchor({ top: top + height + SUGGEST_GAP, left, width }),
+      () => {},
+    );
+  }, []);
+
+  // 候補が開いた瞬間に現在の表示位置を測り直す（スクロール位置を反映）
+  useEffect(() => {
+    if (titleSuggestions.length > 0) measureAnchor(titleFieldRef, setTitleAnchor);
+  }, [titleSuggestions.length, measureAnchor]);
+
+  useEffect(() => {
+    if (artistSuggestions.length > 0) measureAnchor(artistFieldRef, setArtistAnchor);
+  }, [artistSuggestions.length, measureAnchor]);
 
   useEffect(() => {
     if (!isEdit) return;
@@ -180,15 +220,20 @@ export default function SongFormScreen() {
           <Text style={styles.headerTitle}>{isEdit ? '曲を編集' : '曲を追加'}</Text>
         </View>
 
-        {/* フォーム */}
+        {/* フォーム（候補オーバーレイの位置基準を兼ねる） */}
+        <View style={styles.formArea} ref={formAreaRef}>
         <ScrollView
           style={styles.flex}
           contentContainerStyle={[styles.form, { paddingBottom: insets.bottom + 100 }]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* 曲名 + サジェスト */}
-          <View style={styles.fieldGroup}>
+          {/* 曲名（候補は ScrollView 外にオーバーレイ表示） */}
+          <View
+            style={styles.fieldGroup}
+            ref={titleFieldRef}
+            onLayout={() => { if (titleSuggestions.length > 0) measureAnchor(titleFieldRef, setTitleAnchor); }}
+          >
             <View style={styles.fieldLabelRow}>
               <Text style={styles.fieldLabel}>曲名</Text>
               {isTitleSearching && <ActivityIndicator size="small" color={colors.accent} style={styles.searchSpinner} />}
@@ -201,22 +246,6 @@ export default function SongFormScreen() {
               placeholderTextColor={colors.text3}
               returnKeyType="next"
             />
-            {titleSuggestions.length > 0 && (
-              <View style={styles.suggestBox}>
-                <View style={styles.suggestHeader}>
-                  <Text style={styles.suggestHeaderText}>候補</Text>
-                  <TouchableOpacity
-                    onPress={clearTitleSuggestions}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    accessibilityRole="button"
-                    accessibilityLabel="候補を閉じる"
-                  >
-                    <Text style={styles.suggestClose}>✕ 閉じる</Text>
-                  </TouchableOpacity>
-                </View>
-                <SearchResultList items={titleSuggestions} onSelect={handleSelectSuggestion} />
-              </View>
-            )}
           </View>
 
           {/* アートワークプレビュー（サジェスト選択時のみ表示） */}
@@ -232,8 +261,12 @@ export default function SongFormScreen() {
             </View>
           )}
 
-          {/* アーティスト名 + サジェスト */}
-          <View style={styles.fieldGroup}>
+          {/* アーティスト名（候補は ScrollView 外にオーバーレイ表示） */}
+          <View
+            style={styles.fieldGroup}
+            ref={artistFieldRef}
+            onLayout={() => { if (artistSuggestions.length > 0) measureAnchor(artistFieldRef, setArtistAnchor); }}
+          >
             <View style={styles.fieldLabelRow}>
               <Text style={styles.fieldLabel}>アーティスト名</Text>
               {isArtistSearching && <ActivityIndicator size="small" color={colors.accent} style={styles.searchSpinner} />}
@@ -246,22 +279,6 @@ export default function SongFormScreen() {
               placeholderTextColor={colors.text3}
               returnKeyType="done"
             />
-            {artistSuggestions.length > 0 && (
-              <View style={styles.suggestBox}>
-                <View style={styles.suggestHeader}>
-                  <Text style={styles.suggestHeaderText}>候補</Text>
-                  <TouchableOpacity
-                    onPress={clearArtistSuggestions}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    accessibilityRole="button"
-                    accessibilityLabel="候補を閉じる"
-                  >
-                    <Text style={styles.suggestClose}>✕ 閉じる</Text>
-                  </TouchableOpacity>
-                </View>
-                <SearchResultList items={artistSuggestions} onSelect={handleSelectSuggestion} />
-              </View>
-            )}
           </View>
 
           {/* タブ選択 */}
@@ -311,6 +328,43 @@ export default function SongFormScreen() {
             />
           </View>
         </ScrollView>
+
+          {/* 曲名の候補オーバーレイ（ScrollView の外・入力欄の真下に重ねる） */}
+          {titleSuggestions.length > 0 && titleAnchor && (
+            <View style={[styles.suggestOverlay, { top: titleAnchor.top, left: titleAnchor.left, width: titleAnchor.width }]}>
+              <View style={styles.suggestHeader}>
+                <Text style={styles.suggestHeaderText}>候補</Text>
+                <TouchableOpacity
+                  onPress={clearTitleSuggestions}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  accessibilityRole="button"
+                  accessibilityLabel="候補を閉じる"
+                >
+                  <Text style={styles.suggestClose}>✕ 閉じる</Text>
+                </TouchableOpacity>
+              </View>
+              <SearchResultList items={titleSuggestions} onSelect={handleSelectSuggestion} />
+            </View>
+          )}
+
+          {/* アーティスト名の候補オーバーレイ（ScrollView の外・入力欄の真下に重ねる） */}
+          {artistSuggestions.length > 0 && artistAnchor && (
+            <View style={[styles.suggestOverlay, { top: artistAnchor.top, left: artistAnchor.left, width: artistAnchor.width }]}>
+              <View style={styles.suggestHeader}>
+                <Text style={styles.suggestHeaderText}>候補</Text>
+                <TouchableOpacity
+                  onPress={clearArtistSuggestions}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  accessibilityRole="button"
+                  accessibilityLabel="候補を閉じる"
+                >
+                  <Text style={styles.suggestClose}>✕ 閉じる</Text>
+                </TouchableOpacity>
+              </View>
+              <SearchResultList items={artistSuggestions} onSelect={handleSelectSuggestion} />
+            </View>
+          )}
+        </View>
 
         {/* 新規タブ作成モーダル */}
         <Modal visible={newTabModalVisible} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setNewTabModalVisible(false)}>
@@ -390,6 +444,10 @@ const styles = StyleSheet.create({
     color: colors.text,
     flex: 1,
   },
+  formArea: {
+    flex: 1,
+    position: 'relative',
+  },
   form: {
     paddingHorizontal: 18,
     gap: 16,
@@ -446,8 +504,9 @@ const styles = StyleSheet.create({
     color: colors.accent,
     fontWeight: '600',
   },
-  suggestBox: {
-    marginTop: 4,
+  suggestOverlay: {
+    position: 'absolute',
+    zIndex: 1000,
     backgroundColor: colors.white,
     borderWidth: 1.5,
     borderColor: colors.border,
@@ -457,7 +516,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 12,
-    elevation: 4,
+    elevation: 12,
   },
   artworkPreviewRow: {
     flexDirection: 'row',
