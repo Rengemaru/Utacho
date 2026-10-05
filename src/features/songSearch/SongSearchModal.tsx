@@ -92,8 +92,9 @@ export function SongSearchModal({ visible, purpose, currentSong, onSelect, onMan
       onRequestClose={handleBack}
       onDismiss={() => { if (visible) onClose(); }}
     >
-      {/* 登録フォームと同じネイティブのシート表示（pageSheet）で上部の見た目を完全一致させる */}
-      <View style={styles.sheet}>
+      {/* 登録フォームと同じネイティブのシート表示（pageSheet）で上部の見た目を完全一致させる。
+          上余白も new.tsx と同じ insets.top + 6 に揃える */}
+      <View style={[styles.sheet, { paddingTop: insets.top + 6 }]}>
         {screen === 'select' ? (
           <SelectScreen
             purpose={purpose}
@@ -426,11 +427,10 @@ function StateBox({
 
 const styles = StyleSheet.create({
   // pageSheet の内側。角丸・上部余白・背景の縮小はOSが付与するので白地のみ。
-  // ヘッダーが上端に寄りすぎないよう少し余白を持たせる
+  // 上余白は呼び出し側で insets.top + 6（new.tsx と同一）を指定する
   sheet: {
     flex: 1,
     backgroundColor: colors.white,
-    paddingTop: 20,
   },
   flex: { flex: 1 },
   header: {
