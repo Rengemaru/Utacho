@@ -11,6 +11,7 @@ export const colors = {
   surface:    '#f7f8fc',
   surface2:   '#eef0f6',
   border:     'rgba(0, 0, 0, 0.07)',
+  borderStrong: 'rgba(0, 0, 0, 0.14)',
   white:      '#ffffff',
   dam:        '#0066cc',
   damSoft:    'rgba(0, 102, 204, 0.10)',

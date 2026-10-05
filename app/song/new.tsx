@@ -343,7 +343,12 @@ export default function SongFormScreen() {
                   <Text style={styles.suggestClose}>✕ 閉じる</Text>
                 </TouchableOpacity>
               </View>
-              <SearchResultList items={titleSuggestions} onSelect={handleSelectSuggestion} />
+              <SearchResultList
+                items={titleSuggestions}
+                toRow={(s) => ({ key: String(s.trackId), title: s.trackName, artist: s.artistName, artworkUrl: s.artworkUrl })}
+                onSelect={handleSelectSuggestion}
+                maxHeight={240}
+              />
             </View>
           )}
 
@@ -361,7 +366,12 @@ export default function SongFormScreen() {
                   <Text style={styles.suggestClose}>✕ 閉じる</Text>
                 </TouchableOpacity>
               </View>
-              <SearchResultList items={artistSuggestions} onSelect={handleSelectSuggestion} />
+              <SearchResultList
+                items={artistSuggestions}
+                toRow={(s) => ({ key: String(s.trackId), title: s.trackName, artist: s.artistName, artworkUrl: s.artworkUrl })}
+                onSelect={handleSelectSuggestion}
+                maxHeight={240}
+              />
             </View>
           )}
         </View>
