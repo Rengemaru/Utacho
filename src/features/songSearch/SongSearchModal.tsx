@@ -425,11 +425,12 @@ function StateBox({
 }
 
 const styles = StyleSheet.create({
-  // pageSheet の内側。角丸・上部余白・背景の縮小はOSが付与するので白地のみ
+  // pageSheet の内側。角丸・上部余白・背景の縮小はOSが付与するので白地のみ。
+  // ヘッダーが上端に寄りすぎないよう少し余白を持たせる
   sheet: {
     flex: 1,
     backgroundColor: colors.white,
-    paddingTop: 8,
+    paddingTop: 20,
   },
   flex: { flex: 1 },
   header: {
