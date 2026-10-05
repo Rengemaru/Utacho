@@ -1,9 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
-  findNodeHandle,
   Image,
   Keyboard,
   KeyboardAvoidingView,
@@ -19,23 +17,16 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyStepper } from '../../src/components/KeyStepper';
-import { SearchResultList } from '../../src/components/SearchResultList';
 import { colors } from '../../src/constants/colors';
 import { insertSong, updateSong, getSongById, findDuplicateSong } from '../../src/db/songs';
 import { insertTab, findDuplicateTab } from '../../src/db/tabs';
 import { syncTabs } from '../../src/db/songTabs';
 import { useTabs } from '../../src/hooks/useTabs';
-import { useMusicSearch } from '../../src/hooks/useMusicSearch';
 import { MOCK_SONGS } from '../../src/db/mockData';
-import { MusicSuggestion } from '../../src/types';
+import { SongSearchModal } from '../../src/features/songSearch/SongSearchModal';
+import { SongCandidate } from '../../src/features/songSearch/types';
 
 import { MAX_TAB_NAME_LENGTH, truncateTabName } from '../../src/constants/tabConfig';
-
-// 候補オーバーレイを入力欄の真下に重ねるための位置情報（formArea 基準）
-type SuggestAnchor = { top: number; left: number; width: number };
-
-// 入力欄とオーバーレイの間隔
-const SUGGEST_GAP = 4;
 
 export default function SongFormScreen() {
   const insets = useSafeAreaInsets();
@@ -52,57 +43,11 @@ export default function SongFormScreen() {
   const [newTabModalVisible, setNewTabModalVisible] = useState(false);
   const [newTabName, setNewTabName] = useState('');
 
-  const {
-    suggestions: titleSuggestions,
-    isSearching: isTitleSearching,
-    clearSuggestions: clearTitleSuggestions,
-    resumeSearch: resumeTitleSearch,
-  } = useMusicSearch(title, 300, 'songTerm');
-
-  const {
-    suggestions: artistSuggestions,
-    isSearching: isArtistSearching,
-    clearSuggestions: clearArtistSuggestions,
-    resumeSearch: resumeArtistSearch,
-  } = useMusicSearch(artist, 300, 'artistTerm');
-
-  // 候補リストは ScrollView の入れ子を避けるため、ScrollView の外（formArea 直下）に
-  // 絶対配置でオーバーレイ表示する。各入力欄の位置を measureLayout で測って重ねる。
-  const formAreaRef = useRef<View>(null);
-  const titleFieldRef = useRef<View>(null);
-  const artistFieldRef = useRef<View>(null);
-  const [titleAnchor, setTitleAnchor] = useState<SuggestAnchor | null>(null);
-  const [artistAnchor, setArtistAnchor] = useState<SuggestAnchor | null>(null);
-
-  const measureAnchor = useCallback((
-    fieldRef: React.RefObject<View | null>,
-    setAnchor: (anchor: SuggestAnchor) => void,
-  ) => {
-    const field = fieldRef.current;
-    const container = formAreaRef.current;
-    if (!field || !container) return;
-    const containerHandle = findNodeHandle(container);
-    if (containerHandle == null) return;
-    field.measureLayout(
-      containerHandle,
-      (left, top, width, height) => setAnchor({ top: top + height + SUGGEST_GAP, left, width }),
-      () => {},
-    );
-  }, []);
-
-  // 候補が開いた瞬間に現在の表示位置を測り直す（スクロール位置を反映）
-  useEffect(() => {
-    if (titleSuggestions.length > 0) measureAnchor(titleFieldRef, setTitleAnchor);
-  }, [titleSuggestions.length, measureAnchor]);
-
-  useEffect(() => {
-    if (artistSuggestions.length > 0) measureAnchor(artistFieldRef, setArtistAnchor);
-  }, [artistSuggestions.length, measureAnchor]);
+  // 新規追加は検索モーダル（04a）から開始する。編集は「曲を変更」押下で開く
+  const [searchVisible, setSearchVisible] = useState(!isEdit);
 
   useEffect(() => {
     if (!isEdit) return;
-    resumeTitleSearch();
-    resumeArtistSearch();
     try {
       const song = Platform.OS === 'web'
         ? MOCK_SONGS.find(s => s.id === Number(songId)) ?? null
@@ -125,12 +70,38 @@ export default function SongFormScreen() {
     setSelectedTabIds((prev) => prev.filter((id) => tabs.some((t) => t.id === id)));
   }, [tabs, isEdit]);
 
-  function handleSelectSuggestion(item: MusicSuggestion) {
-    setTitle(item.trackName);
-    setArtist(item.artistName);
-    setArtworkUrl(item.artworkUrl);
-    clearTitleSuggestions();
-    clearArtistSuggestions();
+  function applyCandidate(c: SongCandidate) {
+    setTitle(c.title);
+    setArtist(c.artist);
+    setArtworkUrl(c.artworkUrl);
+  }
+
+  // 検索モーダルで候補を選んだとき。編集時は確認ダイアログを挟む（§5.9）
+  function handleSearchSelect(c: SongCandidate) {
+    if (isEdit) {
+      Alert.alert(
+        '曲を変更しますか？',
+        `「${c.title}（${c.artist}）」に置き換えます。キー・メモ・タブ・点数はそのまま引き継がれ、「変更を保存する」で確定します。別の曲として記録する場合は、新しく追加してください。`,
+        [
+          { text: '戻る', style: 'cancel' },
+          { text: '変更する', onPress: () => { applyCandidate(c); setSearchVisible(false); } },
+        ]
+      );
+    } else {
+      applyCandidate(c);
+      setSearchVisible(false);
+    }
+  }
+
+  // 「手入力で登録」（新規のみ）。空のフォームのまま進む
+  function handleSearchManual() {
+    setSearchVisible(false);
+  }
+
+  // モーダルを閉じる（✕・戻る）。新規でキャンセルしたらホームに戻る
+  function handleSearchClose() {
+    setSearchVisible(false);
+    if (!isEdit) router.back();
   }
 
   function toggleTab(tabId: number) {
@@ -187,20 +158,23 @@ export default function SongFormScreen() {
       }
     }
 
-    if (!isEdit) {
-      const duplicate = findDuplicateSong(title.trim(), artist.trim());
-      if (duplicate) {
-        const artistLabel = artist.trim() ? `（${artist.trim()}）` : '';
-        Alert.alert(
-          '重複登録',
-          `「${title.trim()}」${artistLabel}はすでに登録されています。それでも追加しますか？`,
-          [
-            { text: '戻る', style: 'cancel' },
-            { text: 'それでも登録する', onPress: doSave },
-          ]
-        );
-        return;
-      }
+    // 重複登録チェック（新規・編集とも）。編集時は自分自身を除外する（§5.10）
+    const duplicate = findDuplicateSong(
+      title.trim(),
+      artist.trim(),
+      isEdit ? Number(songId) : undefined,
+    );
+    if (duplicate) {
+      const artistLabel = artist.trim() ? `（${artist.trim()}）` : '';
+      Alert.alert(
+        '重複登録',
+        `「${title.trim()}」${artistLabel}はすでに登録されています。それでも${isEdit ? '保存' : '追加'}しますか？`,
+        [
+          { text: '戻る', style: 'cancel' },
+          { text: `それでも${isEdit ? '保存' : '登録'}する`, onPress: doSave },
+        ]
+      );
+      return;
     }
 
     doSave();
@@ -220,66 +194,70 @@ export default function SongFormScreen() {
           <Text style={styles.headerTitle}>{isEdit ? '曲を編集' : '曲を追加'}</Text>
         </View>
 
-        {/* フォーム（候補オーバーレイの位置基準を兼ねる） */}
-        <View style={styles.formArea} ref={formAreaRef}>
+        {/* フォーム */}
         <ScrollView
           style={styles.flex}
           contentContainerStyle={[styles.form, { paddingBottom: insets.bottom + 100 }]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* 曲名（候補は ScrollView 外にオーバーレイ表示） */}
-          <View
-            style={styles.fieldGroup}
-            ref={titleFieldRef}
-            onLayout={() => { if (titleSuggestions.length > 0) measureAnchor(titleFieldRef, setTitleAnchor); }}
-          >
-            <View style={styles.fieldLabelRow}>
-              <Text style={styles.fieldLabel}>曲名</Text>
-              {isTitleSearching && <ActivityIndicator size="small" color={colors.accent} style={styles.searchSpinner} />}
-            </View>
+          {/* 曲名（サジェストなしのテキスト欄・§5.8/5.9） */}
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>曲名</Text>
             <TextInput
               style={styles.fieldInput}
               value={title}
-              onChangeText={(v) => { setTitle(v); setArtworkUrl(null); resumeTitleSearch(); }}
-              placeholder="曲名で検索"
+              onChangeText={setTitle}
+              placeholder="曲名"
               placeholderTextColor={colors.text3}
               returnKeyType="next"
             />
           </View>
 
-          {/* アートワークプレビュー（サジェスト選択時のみ表示） */}
-          {artworkUrl && (
-            <View style={styles.artworkPreviewRow}>
-              <Image source={{ uri: artworkUrl }} style={styles.artworkPreview} />
-              <View style={styles.artworkPreviewInfo}>
-                <Text style={styles.artworkPreviewLabel}>アルバムアート取得済み</Text>
-                <TouchableOpacity onPress={() => setArtworkUrl(null)}>
-                  <Text style={styles.artworkPreviewRemove}>削除</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
-
-          {/* アーティスト名（候補は ScrollView 外にオーバーレイ表示） */}
-          <View
-            style={styles.fieldGroup}
-            ref={artistFieldRef}
-            onLayout={() => { if (artistSuggestions.length > 0) measureAnchor(artistFieldRef, setArtistAnchor); }}
-          >
-            <View style={styles.fieldLabelRow}>
-              <Text style={styles.fieldLabel}>アーティスト名</Text>
-              {isArtistSearching && <ActivityIndicator size="small" color={colors.accent} style={styles.searchSpinner} />}
-            </View>
+          {/* アーティスト名（サジェストなしのテキスト欄） */}
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>アーティスト名</Text>
             <TextInput
               style={styles.fieldInput}
               value={artist}
-              onChangeText={(v) => { setArtist(v); resumeArtistSearch(); }}
-              placeholder="アーティスト名で検索"
+              onChangeText={setArtist}
+              placeholder="アーティスト名"
               placeholderTextColor={colors.text3}
               returnKeyType="done"
             />
           </View>
+
+          {/* アルバムアート + 「曲を変更」（編集時は常に表示、新規は取得済みのみ） */}
+          {isEdit ? (
+            <View style={styles.songRow}>
+              {artworkUrl ? (
+                <Image source={{ uri: artworkUrl }} style={styles.songArt} />
+              ) : (
+                <View style={[styles.songArt, styles.songArtPlaceholder]}>
+                  <Text style={styles.songArtPlaceholderText}>🎵</Text>
+                </View>
+              )}
+              <View style={styles.songRowInfo}>
+                <Text style={styles.songRowLabel}>アルバムアート</Text>
+                <Text style={styles.songRowSub}>{artworkUrl ? '検索で選んだ曲のもの' : '未設定'}</Text>
+              </View>
+              <TouchableOpacity style={styles.changeBtn} onPress={() => setSearchVisible(true)} accessibilityRole="button">
+                <Text style={styles.changeBtnText}>曲を変更</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            artworkUrl && (
+              <View style={styles.artworkPreviewRow}>
+                <Image source={{ uri: artworkUrl }} style={styles.artworkPreview} />
+                <View style={styles.artworkPreviewInfo}>
+                  <Text style={styles.artworkPreviewLabel}>アルバムアート取得済み</Text>
+                  <TouchableOpacity onPress={() => setArtworkUrl(null)}>
+                    <Text style={styles.artworkPreviewRemove}>削除</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )
+          )}
 
           {/* タブ選択 */}
           <View style={styles.fieldGroup}>
@@ -329,53 +307,6 @@ export default function SongFormScreen() {
           </View>
         </ScrollView>
 
-          {/* 曲名の候補オーバーレイ（ScrollView の外・入力欄の真下に重ねる） */}
-          {titleSuggestions.length > 0 && titleAnchor && (
-            <View style={[styles.suggestOverlay, { top: titleAnchor.top, left: titleAnchor.left, width: titleAnchor.width }]}>
-              <View style={styles.suggestHeader}>
-                <Text style={styles.suggestHeaderText}>候補</Text>
-                <TouchableOpacity
-                  onPress={clearTitleSuggestions}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  accessibilityRole="button"
-                  accessibilityLabel="候補を閉じる"
-                >
-                  <Text style={styles.suggestClose}>✕ 閉じる</Text>
-                </TouchableOpacity>
-              </View>
-              <SearchResultList
-                items={titleSuggestions}
-                toRow={(s) => ({ key: String(s.trackId), title: s.trackName, artist: s.artistName, artworkUrl: s.artworkUrl })}
-                onSelect={handleSelectSuggestion}
-                maxHeight={240}
-              />
-            </View>
-          )}
-
-          {/* アーティスト名の候補オーバーレイ（ScrollView の外・入力欄の真下に重ねる） */}
-          {artistSuggestions.length > 0 && artistAnchor && (
-            <View style={[styles.suggestOverlay, { top: artistAnchor.top, left: artistAnchor.left, width: artistAnchor.width }]}>
-              <View style={styles.suggestHeader}>
-                <Text style={styles.suggestHeaderText}>候補</Text>
-                <TouchableOpacity
-                  onPress={clearArtistSuggestions}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  accessibilityRole="button"
-                  accessibilityLabel="候補を閉じる"
-                >
-                  <Text style={styles.suggestClose}>✕ 閉じる</Text>
-                </TouchableOpacity>
-              </View>
-              <SearchResultList
-                items={artistSuggestions}
-                toRow={(s) => ({ key: String(s.trackId), title: s.trackName, artist: s.artistName, artworkUrl: s.artworkUrl })}
-                onSelect={handleSelectSuggestion}
-                maxHeight={240}
-              />
-            </View>
-          )}
-        </View>
-
         {/* 新規タブ作成モーダル */}
         <Modal visible={newTabModalVisible} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setNewTabModalVisible(false)}>
           <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
@@ -416,6 +347,16 @@ export default function SongFormScreen() {
           </KeyboardAvoidingView>
         </Modal>
 
+        {/* 曲検索モーダル（新規=手入力あり / 編集=手入力なし） */}
+        <SongSearchModal
+          visible={searchVisible}
+          purpose={isEdit ? 'change' : 'add'}
+          currentSong={isEdit ? { title, artist } : undefined}
+          onSelect={handleSearchSelect}
+          onManual={isEdit ? undefined : handleSearchManual}
+          onClose={handleSearchClose}
+        />
+
         {/* 保存ボタン */}
         <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
           <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
@@ -454,10 +395,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     flex: 1,
   },
-  formArea: {
-    flex: 1,
-    position: 'relative',
-  },
   form: {
     paddingHorizontal: 18,
     gap: 16,
@@ -485,48 +422,55 @@ const styles = StyleSheet.create({
     minHeight: 72,
     paddingTop: 11,
   },
-  fieldLabelRow: {
+  // アルバムアート + 「曲を変更」行（編集時）
+  songRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-  },
-  searchSpinner: {
-    marginBottom: 2,
-  },
-  suggestHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    gap: 12,
     backgroundColor: colors.surface,
-  },
-  suggestHeaderText: {
-    fontSize: 10,
-    color: colors.text3,
-    fontWeight: '600',
-    letterSpacing: 0.5,
-  },
-  suggestClose: {
-    fontSize: 11,
-    color: colors.accent,
-    fontWeight: '600',
-  },
-  suggestOverlay: {
-    position: 'absolute',
-    zIndex: 1000,
-    backgroundColor: colors.white,
     borderWidth: 1.5,
     borderColor: colors.border,
     borderRadius: 11,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 12,
+    padding: 10,
+  },
+  songArt: {
+    width: 48,
+    height: 48,
+    borderRadius: 8,
+  },
+  songArtPlaceholder: {
+    backgroundColor: colors.surface2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  songArtPlaceholderText: {
+    fontSize: 20,
+  },
+  songRowInfo: {
+    flex: 1,
+  },
+  songRowLabel: {
+    fontSize: 11,
+    color: colors.text2,
+    fontWeight: '500',
+  },
+  songRowSub: {
+    fontSize: 10,
+    color: colors.text3,
+    marginTop: 2,
+  },
+  changeBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 9,
+    borderWidth: 1.5,
+    borderColor: colors.accent,
+    backgroundColor: colors.accentSoft,
+  },
+  changeBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.accent,
   },
   artworkPreviewRow: {
     flexDirection: 'row',
