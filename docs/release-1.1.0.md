@@ -81,10 +81,10 @@ SDK57 アップグレード（PR #43）により、1.0.2 で予定していた t
 
 **D1 調査結果**
 - Expo 57.0.26 / RN 0.86.3
-- targetSdk / compileSdk：app.json に明示指定なし → Expo SDK 57 の既定で **36（Android 16）**。D2（targetSdk 36化）は達成済み
-- `BackHandler` は未使用。`predictiveBackGestureEnabled: false`（手動 back なしのため標準動作で可）
-- edge-to-edge：全画面が safe-area 対応済み（`paddingTop: insets.top` ／ タブバー・固定ボタン・ボトムシートは `insets.bottom`）
-- 結論：**コード変更は不要**。残りは実機回帰（D4）のみ
+- targetSdk / compileSdk：当初 app.json に明示指定なし。gradle の既定は参照箇所により 36/35 が混在し**静的には断定不可**だったため、**`expo-build-properties` で `targetSdkVersion: 36` / `compileSdkVersion: 36` を明示固定**（D2）
+- `BackHandler` は未使用。`predictiveBackGestureEnabled: false`（手動 back なしのため標準動作で可）（D3）
+- edge-to-edge：全画面が safe-area 対応済み（`paddingTop: insets.top` ／ タブバー・固定ボタン・ボトムシートは `insets.bottom`）（D3）
+- 確定条件：**EAS Build で生成される AAB の targetSdk が 36** であること（＝実ビルドで最終確認）。残りは実機回帰（D4）と配布（C）
 
 **D4 実機回帰（API36 挙動変更の確認・Android 16 実機/エミュレータ）**
 - [ ] ステータスバー／ナビゲーションバーと各画面のヘッダー・下部ナビ・固定ボタンが重ならない
