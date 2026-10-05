@@ -85,28 +85,31 @@ export function SongSearchModal({ visible, purpose, currentSong, onSelect, onMan
   }
 
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={handleBack}>
-      <View style={[styles.root, { paddingTop: insets.top + 6 }]}>
-        {screen === 'select' ? (
-          <SelectScreen
-            purpose={purpose}
-            currentSong={currentSong}
-            onPickMode={openSearch}
-            onManual={onManual}
-            onClose={onClose}
-          />
-        ) : (
-          <SearchScreen
-            purpose={purpose}
-            search={search}
-            sortMenuOpen={sortMenuOpen}
-            setSortMenuOpen={setSortMenuOpen}
-            onBack={() => setScreen('select')}
-            onSelect={onSelect}
-            onManual={onManual}
-            bottomInset={insets.bottom}
-          />
-        )}
+    <Modal visible={visible} transparent statusBarTranslucent animationType="slide" onRequestClose={handleBack}>
+      {/* 登録フォームと同じシート表示に合わせ、上部に余白を空けて角を丸める */}
+      <View style={styles.backdrop}>
+        <View style={[styles.sheet, { marginTop: insets.top + 10 }]}>
+          {screen === 'select' ? (
+            <SelectScreen
+              purpose={purpose}
+              currentSong={currentSong}
+              onPickMode={openSearch}
+              onManual={onManual}
+              onClose={onClose}
+            />
+          ) : (
+            <SearchScreen
+              purpose={purpose}
+              search={search}
+              sortMenuOpen={sortMenuOpen}
+              setSortMenuOpen={setSortMenuOpen}
+              onBack={() => setScreen('select')}
+              onSelect={onSelect}
+              onManual={onManual}
+              bottomInset={insets.bottom}
+            />
+          )}
+        </View>
       </View>
     </Modal>
   );
@@ -418,8 +421,17 @@ function StateBox({
 }
 
 const styles = StyleSheet.create({
-  // 登録フォーム（new.tsx）と同じ白地に揃える
-  root: { flex: 1, backgroundColor: colors.white },
+  // 背後をうっすら暗転（シートの外側）
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.25)' },
+  // 登録フォームと同じシート表示（白地・上端角丸・上部に余白）
+  sheet: {
+    flex: 1,
+    backgroundColor: colors.white,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    overflow: 'hidden',
+    paddingTop: 8,
+  },
   flex: { flex: 1 },
   header: {
     flexDirection: 'row',
