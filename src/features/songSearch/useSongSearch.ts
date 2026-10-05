@@ -14,6 +14,7 @@ export function useSongSearch(initialMode: SearchMode = 'song') {
   const [isLoading, setIsLoading] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>('relevance');
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [retryNonce, setRetryNonce] = useState(0); // 「再試行」で同じ条件を再検索するためのトリガ
 
   // 最新検索の識別子。実行のたびに増やし、古い非同期結果を破棄する
   const seqRef = useRef(0);
@@ -46,7 +47,7 @@ export function useSongSearch(initialMode: SearchMode = 'song') {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [query, mode]);
+  }, [query, mode, retryNonce]);
 
   // 並び替え変更 → 表示件数を先頭50件に戻す（§5.6）
   const changeSort = useCallback((key: SortKey) => {
@@ -57,6 +58,11 @@ export function useSongSearch(initialMode: SearchMode = 'song') {
   // 「もっと見る」→ 表示件数を1ページ分増やす（通信はしない・§5.5）
   const showMore = useCallback(() => {
     setVisibleCount((c) => c + PAGE_SIZE);
+  }, []);
+
+  // 「再試行」→ 現在の条件のまま再検索する（§5.4 通信エラー時）
+  const retry = useCallback(() => {
+    setRetryNonce((n) => n + 1);
   }, []);
 
   // §5.7 リセット：モーダルを開くたびに初期状態へ
@@ -89,6 +95,7 @@ export function useSongSearch(initialMode: SearchMode = 'song') {
     totalCount: allItems.length,
     hasMore,
     showMore,
+    retry,
     reset,
   };
 }
