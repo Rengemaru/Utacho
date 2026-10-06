@@ -366,6 +366,18 @@ export default function HomeScreen() {
             value={query}
             onChangeText={setQuery}
           />
+          {query.length > 0 && (
+            <TouchableOpacity
+              onPress={() => setQuery('')}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel="検索をクリア"
+            >
+              <View style={styles.searchClear}>
+                <Text style={styles.searchClearText}>✕</Text>
+              </View>
+            </TouchableOpacity>
+          )}
         </View>
         {hasAnySong && (
           <TouchableOpacity
@@ -700,6 +712,15 @@ const styles = StyleSheet.create({
   },
   searchIcon: { fontSize: 12 },
   searchInput: { flex: 1, fontSize: 12, color: colors.text },
+  searchClear: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: colors.text3,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  searchClearText: { color: colors.white, fontSize: 10 },
   diceBtn: {
     width: 36,
     height: 36,
