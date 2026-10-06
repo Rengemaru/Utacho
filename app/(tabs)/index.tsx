@@ -31,39 +31,59 @@ import { useTabs } from '../../src/hooks/useTabs';
 import { SongWithStats } from '../../src/types';
 import { normalizeForSearch } from '../../src/lib/text';
 
-type SortKey = 'created_at' | 'best_score' | 'score_count' | 'latest_scored_at' | 'improvement';
+type SortKey = 'created_at' | 'best_score' | 'score_count' | 'latest_scored_at' | 'improvement' | 'title' | 'artist';
+type SortDir = 'asc' | 'desc';
 
 import { truncateTabName } from '../../src/constants/tabConfig';
 
+// ラベルから方向語は外し、方向は昇順/降順トグルで示す
 const SORT_OPTIONS: { key: SortKey; label: string }[] = [
-  { key: 'created_at',      label: '登録日（新しい順）' },
-  { key: 'best_score',      label: '最高スコア順' },
-  { key: 'score_count',     label: '記録回数順' },
-  { key: 'latest_scored_at', label: '最終記録日（古い順）' },
-  { key: 'improvement',     label: 'スコア伸び率順' },
+  { key: 'created_at',      label: '登録日' },
+  { key: 'best_score',      label: '最高スコア' },
+  { key: 'score_count',     label: '記録回数' },
+  { key: 'latest_scored_at', label: '最終記録日' },
+  { key: 'improvement',     label: 'スコア伸び率' },
+  { key: 'title',           label: '曲名' },
+  { key: 'artist',          label: 'アーティスト' },
 ];
 
-function sortSongs(songs: SongWithStats[], key: SortKey): SongWithStats[] {
-  if (key === 'created_at') return songs;
-  return [...songs].sort((a, b) => {
-    switch (key) {
-      case 'best_score':
-        return (b.best_score ?? -1) - (a.best_score ?? -1);
-      case 'score_count':
-        return b.score_count - a.score_count;
-      case 'latest_scored_at': {
-        if (!a.latest_scored_at && !b.latest_scored_at) return 0;
-        if (!a.latest_scored_at) return 1;
-        if (!b.latest_scored_at) return -1;
-        return a.latest_scored_at.localeCompare(b.latest_scored_at);
-      }
-      case 'improvement': {
-        const ai = a.latest_score != null && a.first_score != null ? a.latest_score - a.first_score : -999;
-        const bi = b.latest_score != null && b.first_score != null ? b.latest_score - b.first_score : -999;
-        return bi - ai;
-      }
+// 曲名/アーティスト順の日本語照合
+const jaCollator = new Intl.Collator('ja');
+const MISSING = -1e9; // 数値系の欠損用センチネル（昇順で先頭・降順で末尾）
+
+// 昇順の比較値を返す（降順は呼び出し側で符号反転）
+function compareAsc(a: SongWithStats, b: SongWithStats, key: SortKey): number {
+  switch (key) {
+    case 'created_at':
+      return a.created_at.localeCompare(b.created_at);
+    case 'best_score':
+      return (a.best_score ?? MISSING) - (b.best_score ?? MISSING);
+    case 'score_count':
+      return a.score_count - b.score_count;
+    case 'latest_scored_at':
+      return (a.latest_scored_at ?? '').localeCompare(b.latest_scored_at ?? '');
+    case 'improvement': {
+      const ai = a.latest_score != null && a.first_score != null ? a.latest_score - a.first_score : MISSING;
+      const bi = b.latest_score != null && b.first_score != null ? b.latest_score - b.first_score : MISSING;
+      return ai - bi;
     }
-  });
+    case 'title':
+      // 読み優先（無ければ曲名）。かな正規化してから日本語照合
+      return jaCollator.compare(
+        normalizeForSearch(a.title_reading || a.title),
+        normalizeForSearch(b.title_reading || b.title),
+      );
+    case 'artist':
+      return jaCollator.compare(
+        normalizeForSearch(a.artist_reading || a.artist),
+        normalizeForSearch(b.artist_reading || b.artist),
+      );
+  }
+}
+
+function sortSongs(songs: SongWithStats[], key: SortKey, dir: SortDir): SongWithStats[] {
+  const sign = dir === 'asc' ? 1 : -1;
+  return [...songs].sort((a, b) => sign * compareAsc(a, b, key));
 }
 
 function localDateString(): string {
@@ -82,6 +102,7 @@ export default function HomeScreen() {
   const [activeTabId, setActiveTabId] = useState<number>(ALL_TAB.id);
   const [query, setQuery] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('created_at');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [sortModalVisible, setSortModalVisible] = useState(false);
   const [setlistIds, setSetlistIds] = useState<number[]>([]);
   const [setlistModalVisible, setSetlistModalVisible] = useState(false);
@@ -231,8 +252,8 @@ export default function HomeScreen() {
           return fields.some((f) => f.includes(q));
         })
       : songs;
-    return sortSongs(base, sortKey);
-  }, [songs, query, sortKey]);
+    return sortSongs(base, sortKey, sortDir);
+  }, [songs, query, sortKey, sortDir]);
 
   // セットリストタブを先頭に追加（今日の分が存在する場合）
   const visibleTabs = useMemo(() => {
@@ -245,7 +266,9 @@ export default function HomeScreen() {
     return tabsWithAll;
   }, [tabsWithAll, setlistIds]);
 
-  const currentSortLabel = SORT_OPTIONS.find((o) => o.key === sortKey)?.label ?? '';
+  const isDefaultSort = sortKey === 'created_at' && sortDir === 'desc';
+  const currentSortLabel =
+    (SORT_OPTIONS.find((o) => o.key === sortKey)?.label ?? '') + (sortDir === 'asc' ? ' ↑' : ' ↓');
   // 登録曲が1件もないときはランダム選曲ボタンを出さない
   const hasAnySong = (tabsWithAll.find((t) => t.id === ALL_TAB.id)?.song_count ?? 0) > 0;
 
@@ -389,15 +412,15 @@ export default function HomeScreen() {
           </TouchableOpacity>
         )}
         <TouchableOpacity
-          style={[styles.sortBtn, sortKey !== 'created_at' && styles.sortBtnActive]}
+          style={[styles.sortBtn, !isDefaultSort && styles.sortBtnActive]}
           onPress={() => setSortModalVisible(true)}
         >
-          <Text style={[styles.sortBtnText, sortKey !== 'created_at' && styles.sortBtnTextActive]}>⇅</Text>
+          <Text style={[styles.sortBtnText, !isDefaultSort && styles.sortBtnTextActive]}>⇅</Text>
         </TouchableOpacity>
       </View>
 
       {/* ソートラベル（デフォルト以外の時のみ） */}
-      {sortKey !== 'created_at' && (
+      {!isDefaultSort && (
         <Text style={styles.sortLabel}>{currentSortLabel}</Text>
       )}
 
@@ -498,6 +521,25 @@ export default function HomeScreen() {
         >
           <View style={styles.sortSheet}>
             <Text style={styles.sortSheetTitle}>並び替え</Text>
+            {/* 昇順/降順トグル（全ての並び順に適用） */}
+            <View style={styles.sortDirRow}>
+              <TouchableOpacity
+                style={[styles.sortDirBtn, sortDir === 'asc' && styles.sortDirBtnActive]}
+                onPress={() => setSortDir('asc')}
+                accessibilityRole="button"
+                accessibilityState={{ selected: sortDir === 'asc' }}
+              >
+                <Text style={[styles.sortDirText, sortDir === 'asc' && styles.sortDirTextActive]}>昇順 ↑</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.sortDirBtn, sortDir === 'desc' && styles.sortDirBtnActive]}
+                onPress={() => setSortDir('desc')}
+                accessibilityRole="button"
+                accessibilityState={{ selected: sortDir === 'desc' }}
+              >
+                <Text style={[styles.sortDirText, sortDir === 'desc' && styles.sortDirTextActive]}>降順 ↓</Text>
+              </TouchableOpacity>
+            </View>
             {SORT_OPTIONS.map((opt) => (
               <TouchableOpacity
                 key={opt.key}
@@ -791,6 +833,26 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     textAlign: 'center',
   },
+  sortDirRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginBottom: 10,
+  },
+  sortDirBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+  },
+  sortDirBtnActive: {
+    backgroundColor: colors.accentSoft,
+    borderColor: 'rgba(91, 76, 245, 0.3)',
+  },
+  sortDirText: { fontSize: 13, fontWeight: '600', color: colors.text2 },
+  sortDirTextActive: { color: colors.accent },
   sortOption: {
     flexDirection: 'row',
     alignItems: 'center',
