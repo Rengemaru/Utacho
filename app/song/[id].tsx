@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Alert,
   FlatList,
@@ -34,7 +34,12 @@ export default function SongDetailScreen() {
   const { defaultMachine } = useMachine();
   // 最高点・グラフ・前回比・記録回数は機種別に表示。初期はデフォルト機種（#71）
   const [selectedMachine, setSelectedMachine] = useState<Machine>(defaultMachine);
-  useEffect(() => { setSelectedMachine(defaultMachine); }, [defaultMachine]);
+  // ユーザーが手動でトグルしたら、以降はデフォルト機種の変化で上書きしない（#83）。
+  // 未操作のうちは非同期ロードされたデフォルト機種に追従する。
+  const userPickedMachineRef = useRef(false);
+  useEffect(() => {
+    if (!userPickedMachineRef.current) setSelectedMachine(defaultMachine);
+  }, [defaultMachine]);
   const [sheetVisible, setSheetVisible] = useState(false);
   const [editingScore, setEditingScore] = useState<ScoreRow | null>(null);
   const [artworkError, setArtworkError] = useState(false);
@@ -144,7 +149,7 @@ export default function SongDetailScreen() {
                   <TouchableOpacity
                     key={m}
                     style={[styles.machineToggleBtn, on && styles.machineToggleBtnOn]}
-                    onPress={() => setSelectedMachine(m)}
+                    onPress={() => { userPickedMachineRef.current = true; setSelectedMachine(m); }}
                     accessibilityRole="button"
                     accessibilityState={{ selected: on }}
                   >
