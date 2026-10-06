@@ -20,9 +20,6 @@ export interface SongRow {
   created_at: string;
 }
 
-// ---- ローカル持ち歌検索の照合モード（1.1.0 の iTunes 用 SearchMode とは別物） ----
-export type SearchMatchMode = 'prefix' | 'partial';
-
 export interface TabRow {
   id: number;
   name: string;

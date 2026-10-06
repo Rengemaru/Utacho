@@ -173,7 +173,6 @@ CREATE TABLE IF NOT EXISTS db_version (
 | `onboarding_completed` | オンボーディング完了フラグ（`"true"`） | 初回起動後に書き込み |
 | `session_machine` | セッション中の機種 | バックアップ対象外 |
 | `session_date` | セッション日付（ローカル日付 YYYY-MM-DD） | バックアップ対象外 |
-| `search_match_mode` | ローカル持ち歌検索の照合（`prefix`/`partial`、既定`partial`） | 前方/部分一致トグル |
 
 ### 3-2. マイグレーション機構
 
@@ -213,9 +212,6 @@ export interface SongRow {
   artist_reading: string;  // アーティストの読み（手入力・任意・空可）
   created_at: string;
 }
-
-// ローカル持ち歌検索の照合モード（1.1.0 の iTunes 用 SearchMode とは別物）
-export type SearchMatchMode = 'prefix' | 'partial';
 
 export interface TabRow {
   id: number;

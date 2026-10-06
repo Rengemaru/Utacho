@@ -28,11 +28,8 @@ import { getSessionSummary, getMonthlyStats, SessionSummary, MonthlyStats } from
 import { getSetlistSongIds, saveSetlistSongIds, getSettingSync, setSettingSync } from '../../src/db/settings';
 import { useSongs, ALL_TAB, SETLIST_TAB } from '../../src/hooks/useSongs';
 import { useTabs } from '../../src/hooks/useTabs';
-import { SearchMatchMode, SongWithStats } from '../../src/types';
+import { SongWithStats } from '../../src/types';
 import { normalizeForSearch } from '../../src/lib/text';
-
-// ローカル持ち歌検索の照合モードを保存する settings キー
-const SEARCH_MATCH_MODE_KEY = 'search_match_mode';
 
 type SortKey = 'created_at' | 'best_score' | 'score_count' | 'latest_scored_at' | 'improvement';
 
@@ -84,14 +81,6 @@ export default function HomeScreen() {
   const { tabsWithAll, reload: reloadTabs } = useTabs();
   const [activeTabId, setActiveTabId] = useState<number>(ALL_TAB.id);
   const [query, setQuery] = useState('');
-  // 前方/部分一致の切替。settings から初期値を読む（既定は現行挙動の部分一致）
-  const [matchMode, setMatchMode] = useState<SearchMatchMode>(() => {
-    try {
-      return getSettingSync(SEARCH_MATCH_MODE_KEY) === 'prefix' ? 'prefix' : 'partial';
-    } catch {
-      return 'partial';
-    }
-  });
   const [sortKey, setSortKey] = useState<SortKey>('created_at');
   const [sortModalVisible, setSortModalVisible] = useState(false);
   const [setlistIds, setSetlistIds] = useState<number[]>([]);
@@ -233,29 +222,17 @@ export default function HomeScreen() {
     );
   }
 
-  function toggleMatchMode() {
-    const next: SearchMatchMode = matchMode === 'partial' ? 'prefix' : 'partial';
-    setMatchMode(next);
-    try {
-      setSettingSync(SEARCH_MATCH_MODE_KEY, next);
-    } catch {
-      // web など DB 未初期化環境では保存をスキップ（状態のみ切替）
-    }
-  }
-
   const filtered = useMemo(() => {
-    // 入力・対象の両側をかな正規化し、4フィールド（曲名/アーティスト/各読み）で照合する
+    // 入力・対象の両側をかな正規化し、4フィールド（曲名/アーティスト/各読み）で部分一致照合する
     const q = normalizeForSearch(query);
     const base = q
       ? songs.filter((s) => {
           const fields = [s.title, s.artist, s.title_reading, s.artist_reading].map(normalizeForSearch);
-          return matchMode === 'prefix'
-            ? fields.some((f) => f.startsWith(q))
-            : fields.some((f) => f.includes(q));
+          return fields.some((f) => f.includes(q));
         })
       : songs;
     return sortSongs(base, sortKey);
-  }, [songs, query, matchMode, sortKey]);
+  }, [songs, query, sortKey]);
 
   // セットリストタブを先頭に追加（今日の分が存在する場合）
   const visibleTabs = useMemo(() => {
@@ -390,16 +367,6 @@ export default function HomeScreen() {
             onChangeText={setQuery}
           />
         </View>
-        <TouchableOpacity
-          style={[styles.matchBtn, matchMode === 'prefix' && styles.matchBtnActive]}
-          onPress={toggleMatchMode}
-          accessibilityRole="button"
-          accessibilityLabel={`検索の一致方式：現在は${matchMode === 'prefix' ? '前方一致' : '部分一致'}。タップで切替`}
-        >
-          <Text style={[styles.matchBtnText, matchMode === 'prefix' && styles.matchBtnTextActive]}>
-            {matchMode === 'prefix' ? '前方' : '部分'}
-          </Text>
-        </TouchableOpacity>
         {hasAnySong && (
           <TouchableOpacity
             style={styles.diceBtn}
@@ -760,22 +727,6 @@ const styles = StyleSheet.create({
   },
   sortBtnText: { fontSize: 16, color: colors.text2 },
   sortBtnTextActive: { color: colors.accent },
-  matchBtn: {
-    height: 36,
-    paddingHorizontal: 10,
-    backgroundColor: colors.surface,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  matchBtnActive: {
-    backgroundColor: colors.accentSoft,
-    borderColor: 'rgba(91, 76, 245, 0.3)',
-  },
-  matchBtnText: { fontSize: 12, fontWeight: '600', color: colors.text2 },
-  matchBtnTextActive: { color: colors.accent },
   sortLabel: {
     fontSize: 10,
     color: colors.accent,
