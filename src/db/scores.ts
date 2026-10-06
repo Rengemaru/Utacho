@@ -69,6 +69,15 @@ export function getScoresBySong(songId: number): ScoreRow[] {
   );
 }
 
+/** 指定機種での最高スコアを返す（自己ベスト判定用・#71）。記録が無ければ null */
+export function getBestScore(songId: number, machine: string): number | null {
+  const row = getDb().getFirstSync<{ best: number | null }>(
+    'SELECT MAX(score) AS best FROM scores WHERE song_id = ? AND machine = ?',
+    [songId, machine]
+  );
+  return row?.best ?? null;
+}
+
 export function insertScore(songId: number, score: number, scoredAt: string, machine: string): number {
   const result = getDb().runSync(
     'INSERT INTO scores (song_id, score, scored_at, machine) VALUES (?, ?, ?, ?)',

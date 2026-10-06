@@ -14,7 +14,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../constants/colors';
 import { fonts } from '../constants/fonts';
-import { insertScore, updateScore } from '../db/scores';
+import { insertScore, updateScore, getBestScore } from '../db/scores';
 import { getSettingSync, setSettingSync } from '../db/settings';
 import { ScoreRow, SongWithStats } from '../types';
 import { useMachine } from '../contexts/MachineContext';
@@ -124,8 +124,10 @@ export function ScoreBottomSheet({ visible, song, editingScore, onClose, onSaved
         onSaved();
       } else {
         await setCurrentMachine(machine);
+        // 自己ベストは「記録した機種」の最高点と比較する（DAM/JOYSOUND 完全分離 #71）
+        const prevBest = getBestScore(song.id, machine);
         insertScore(song.id, score, scoredAt, machine);
-        const isNewPB = song.best_score === null || score > song.best_score;
+        const isNewPB = prevBest === null || score > prevBest;
         if (isNewPB) {
           pbTriggered = true; // finally での isSaving リセットをスキップ
           showPBBanner(score);
