@@ -1,15 +1,35 @@
 import { getDb } from './client';
 import { SongRow, SongWithStats, TabRow } from '../types';
+import type { Machine } from '../lib/machine';
 
-const STATS_SUBQUERIES = `
-  MAX(sc.score) AS best_score,
-  (SELECT score FROM scores WHERE song_id = s.id ORDER BY scored_at DESC, id DESC LIMIT 1) AS latest_score,
-  (SELECT score FROM scores WHERE song_id = s.id ORDER BY scored_at ASC,  id ASC  LIMIT 1) AS first_score,
-  (SELECT scored_at FROM scores WHERE song_id = s.id ORDER BY scored_at DESC, id DESC LIMIT 1) AS latest_scored_at,
-  COUNT(sc.id) AS score_count
-`;
+// machine を渡すとその機種だけで集計する（DAM/JOYSOUND 完全分離 #71）。
+// Machine は 'DAM'|'JOYSOUND' の型安全な enum なので SQL への直接埋め込みは安全。
+function statsSelect(machine?: Machine): string {
+  const m = machine ? ` AND machine = '${machine}'` : '';
+  return `
+    MAX(sc.score) AS best_score,
+    (SELECT score FROM scores WHERE song_id = s.id${m} ORDER BY scored_at DESC, id DESC LIMIT 1) AS latest_score,
+    (SELECT score FROM scores WHERE song_id = s.id${m} ORDER BY scored_at ASC,  id ASC  LIMIT 1) AS first_score,
+    (SELECT scored_at FROM scores WHERE song_id = s.id${m} ORDER BY scored_at DESC, id DESC LIMIT 1) AS latest_scored_at,
+    COUNT(sc.id) AS score_count
+  `;
+}
 
-function attachTabs(songs: (SongRow & { best_score: number | null; latest_score: number | null; first_score: number | null; latest_scored_at: string | null; score_count: number })[]): SongWithStats[] {
+function scoresJoin(machine?: Machine): string {
+  return machine
+    ? `LEFT JOIN scores sc ON sc.song_id = s.id AND sc.machine = '${machine}'`
+    : `LEFT JOIN scores sc ON sc.song_id = s.id`;
+}
+
+type SongStatsRow = SongRow & {
+  best_score: number | null;
+  latest_score: number | null;
+  first_score: number | null;
+  latest_scored_at: string | null;
+  score_count: number;
+};
+
+function attachTabs(songs: SongStatsRow[]): SongWithStats[] {
   return songs.map((song) => ({
     ...song,
     tabs: getDb().getAllSync<TabRow>(
@@ -39,23 +59,23 @@ export function getRandomSongId(tabId: number | null): number | null {
   return row?.id ?? null;
 }
 
-export function getAllSongs(): SongWithStats[] {
-  const songs = getDb().getAllSync<SongRow & { best_score: number | null; latest_score: number | null; first_score: number | null; latest_scored_at: string | null; score_count: number }>(`
-    SELECT s.*, ${STATS_SUBQUERIES}
+export function getAllSongs(machine?: Machine): SongWithStats[] {
+  const songs = getDb().getAllSync<SongStatsRow>(`
+    SELECT s.*, ${statsSelect(machine)}
     FROM songs s
-    LEFT JOIN scores sc ON sc.song_id = s.id
+    ${scoresJoin(machine)}
     GROUP BY s.id
     ORDER BY s.created_at DESC
   `);
   return attachTabs(songs);
 }
 
-export function getSongsByTab(tabId: number): SongWithStats[] {
-  const songs = getDb().getAllSync<SongRow & { best_score: number | null; latest_score: number | null; first_score: number | null; latest_scored_at: string | null; score_count: number }>(`
-    SELECT s.*, ${STATS_SUBQUERIES}
+export function getSongsByTab(tabId: number, machine?: Machine): SongWithStats[] {
+  const songs = getDb().getAllSync<SongStatsRow>(`
+    SELECT s.*, ${statsSelect(machine)}
     FROM songs s
     JOIN song_tabs st ON st.song_id = s.id
-    LEFT JOIN scores sc ON sc.song_id = s.id
+    ${scoresJoin(machine)}
     WHERE st.tab_id = ?
     GROUP BY s.id
     ORDER BY s.created_at DESC
@@ -63,13 +83,13 @@ export function getSongsByTab(tabId: number): SongWithStats[] {
   return attachTabs(songs);
 }
 
-export function getSongsByIds(ids: number[]): SongWithStats[] {
+export function getSongsByIds(ids: number[], machine?: Machine): SongWithStats[] {
   if (ids.length === 0) return [];
   const placeholders = ids.map(() => '?').join(',');
-  const songs = getDb().getAllSync<SongRow & { best_score: number | null; latest_score: number | null; first_score: number | null; latest_scored_at: string | null; score_count: number }>(`
-    SELECT s.*, ${STATS_SUBQUERIES}
+  const songs = getDb().getAllSync<SongStatsRow>(`
+    SELECT s.*, ${statsSelect(machine)}
     FROM songs s
-    LEFT JOIN scores sc ON sc.song_id = s.id
+    ${scoresJoin(machine)}
     WHERE s.id IN (${placeholders})
     GROUP BY s.id
     ORDER BY s.created_at DESC
@@ -78,10 +98,10 @@ export function getSongsByIds(ids: number[]): SongWithStats[] {
 }
 
 export function getSongById(id: number): SongWithStats | null {
-  const song = getDb().getFirstSync<SongRow & { best_score: number | null; latest_score: number | null; first_score: number | null; latest_scored_at: string | null; score_count: number }>(`
-    SELECT s.*, ${STATS_SUBQUERIES}
+  const song = getDb().getFirstSync<SongStatsRow>(`
+    SELECT s.*, ${statsSelect()}
     FROM songs s
-    LEFT JOIN scores sc ON sc.song_id = s.id
+    ${scoresJoin()}
     WHERE s.id = ?
     GROUP BY s.id
   `, [id]);

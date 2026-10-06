@@ -507,9 +507,10 @@ const colors = {
 #### 02 曲詳細
 
 - ヘッダー: 戻るボタン + 曲名 + アーティスト名
-- 最高スコアカード: 最高スコア（34px）+ 前回比（±pt）+ 記録回数
-- 点数推移グラフ: Victory Native の `VictoryLine`（折れ線）
-- 記録履歴リスト: 日付・スコア。左スワイプで `[✏️ 編集]` `[🗑 削除]`
+- DAM/JOYSOUND トグル: 最高点カード・グラフの対象機種を切替（初期＝デフォルト機種・#71）
+- 最高スコアカード: 選択機種の最高スコア + 前回比（±pt）+ 記録回数（すべて機種別）
+- 点数推移グラフ: 選択機種の1系列（gifted-charts。2件以上で表示）
+- 記録履歴リスト: 日付・スコア（全機種・機種バッジ付き）。左スワイプで `[✏️ 編集]` `[🗑 削除]`
 - 下部固定: `🎤 点数を記録する` ボタン（accent色）
 
 #### 03 点数入力ボトムシート（新規）/ 02b 点数編集ボトムシート（編集）
@@ -1110,7 +1111,8 @@ eas submit --platform android --profile production
 | バックアップ（JSONエクスポート） | 全テーブルをJSON書き出し・共有シートで保存先選択 |
 | バックアップ（JSONインポート） | DocumentPickerでファイル選択・バリデーション・トランザクション復元 |
 | 詳細画面アートワーク | 曲詳細にiTunesアートワーク64x64表示（fallback: 🎵） |
-| グラフ（DAM/JOYSOUND 2系列） | gifted-charts の data/data2 でマシン別色分け折れ線 |
+| グラフ（DAM/JOYSOUND 機種別） | 曲詳細のトグルで選択した機種の1系列を表示（#71 で2系列同時表示から変更） |
+| DAM/JOYSOUND 完全分離（#71） | 最高点・グラフ・集計・並び替え・自己ベストを機種別に。一覧/並び替えはデフォルト機種基準、詳細はトグル切替 |
 
 ## 12. 今後の対応候補
 
@@ -1137,12 +1139,19 @@ eas submit --platform android --profile production
 
 ### 曲カードのスコア表示ルール（確定仕様）
 ```typescript
-// best_score のみ表示。0点は「—」表示（0点→「—」ルールは変更禁止）
-// スコアは小数第3位まで表示（DAM/JOYSOUND の精密採点に合わせる。オーナー指示で toFixed(1)→toFixed(3) に変更）
-const score = song.best_score;
+// best_score は「デフォルト機種」の最高点（DAM/JOYSOUND 完全分離 #71）。0点は「—」表示（0点→「—」ルールは変更禁止）
+// ラベルはデフォルト機種に応じて DAM BEST / JOY BEST。スコアは小数第3位まで表示
+const score = song.best_score; // useSongs(tabId, defaultMachine) で機種別集計済み
 {score != null && score > 0 ? score.toFixed(3) : '—'}
 ```
 > スコアの小数桁は全画面で統一して3桁表示（曲一覧カード・曲詳細の履歴/最高スコア/前回比/削除ダイアログ・グラフの点ラベル・記録シートの自己ベスト）。
+
+### DAM/JOYSOUND スコア完全分離（#71・確定仕様）
+- 最高点・グラフ・記録回数・最新・最終記録日・伸び率の集計は**機種別**（`scores.machine` で絞る）。DBスキーマ変更なし
+- 曲一覧カード・並び替え：**デフォルト機種（`default_machine`）**の値を使用。変更すると追従。無記録は「—」。ラベルは `DAM BEST`/`JOY BEST`
+- 曲詳細：DAM/JOYSOUND トグルで最高点カード（＋前回比・記録回数）とグラフを切替。**初期＝デフォルト機種**。グラフは選択機種1系列。**記録履歴リストは全機種**（機種バッジで区別）
+- 自己ベスト更新バナー：**記録した機種**の最高点と比較して判定（`getBestScore(songId, machine)`）
+- `getAllSongs/getSongsByTab/getSongsByIds` は任意引数 `machine` で機種別集計（未指定は合算）
 
 ### iTunes Search API（1.1.0 検索モーダル）
 - 実装: `src/features/songSearch/itunes.ts` の `searchSongs(term, mode)`
