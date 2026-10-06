@@ -9,6 +9,9 @@ const SETTINGS_WHITELIST = ['default_machine', 'onboarding_completed'] as const;
 
 type BackupRow = Record<string, unknown>;
 
+// 現行DBスキーマのバージョン（migrations の最新。これより新しいバックアップは一部復元されない可能性）
+const CURRENT_SCHEMA_VERSION = 4;
+
 export type BackupData = {
   version: string;
   schemaVersion: number;
@@ -101,7 +104,34 @@ export async function readBackupFile(): Promise<BackupData | null> {
     throw new Error('バックアップファイルの形式が正しくありません。');
   }
 
-  return parsed as BackupData;
+  const data = parsed as BackupData;
+
+  // 各レコードの必須フィールドを検証（壊れた/他アプリ由来のJSONを弾き、原因を具体的に伝える）
+  const str = (v: unknown) => typeof v === 'string';
+  const num = (v: unknown) => typeof v === 'number' && !Number.isNaN(v);
+  const isStr = (v: unknown) => str(v) && (v as string).trim().length > 0;
+
+  if (data.songs.some((s) => !isStr((s as BackupRow).title) || !isStr((s as BackupRow).created_at))) {
+    throw new Error('バックアップの曲データに不足があります（曲名・登録日が必要です）。歌帳が書き出したファイルかご確認ください。');
+  }
+  if (data.tabs.some((t) => !num((t as BackupRow).id) || !isStr((t as BackupRow).name))) {
+    throw new Error('バックアップのタブデータに不足があります。');
+  }
+  if (data.scores.some((sc) => !num((sc as BackupRow).song_id) || !num((sc as BackupRow).score) || !isStr((sc as BackupRow).scored_at) || !isStr((sc as BackupRow).machine))) {
+    throw new Error('バックアップの点数データに不足があります。');
+  }
+  if (data.song_tabs.some((st) => !num((st as BackupRow).song_id) || !num((st as BackupRow).tab_id))) {
+    throw new Error('バックアップのタブ紐づけデータに不足があります。');
+  }
+
+  // より新しい歌帳で書き出したバックアップは、現行スキーマに無いデータが復元されない可能性
+  if (num(data.schemaVersion) && data.schemaVersion > CURRENT_SCHEMA_VERSION) {
+    console.warn(
+      `バックアップの schemaVersion(${data.schemaVersion}) が現在(${CURRENT_SCHEMA_VERSION})より新しいため、一部データは復元されない可能性があります。`
+    );
+  }
+
+  return data;
 }
 
 /** 曲・スコア・タブがすべて空のバックアップか（＝復元すると実質全消しになる） */
