@@ -2,15 +2,18 @@ import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { colors } from '../constants/colors';
 import { fonts } from '../constants/fonts';
 import { SongWithStats } from '../types';
+import type { Machine } from '../lib/machine';
 
 interface Props {
   song: SongWithStats;
+  machine: Machine; // best_score はこの機種での最高点。ラベルに機種名を出す（#71）
   onPressRecord: () => void;
 }
 
-export function SongCard({ song, onPressRecord }: Props) {
+export function SongCard({ song, machine, onPressRecord }: Props) {
   const keyOffset = song.key_offset;
   const score = song.best_score;
+  const bestLabel = machine === 'JOYSOUND' ? 'JOY BEST' : 'DAM BEST';
 
   return (
     <View style={styles.card}>
@@ -30,7 +33,7 @@ export function SongCard({ song, onPressRecord }: Props) {
       <View style={styles.right}>
         <KeyBadge keyOffset={keyOffset} />
         <View style={styles.scoreWrap}>
-          <Text style={styles.scoreLabel}>BEST</Text>
+          <Text style={styles.scoreLabel}>{bestLabel}</Text>
           <Text style={styles.score}>
             {score != null && score > 0 ? score.toFixed(3) : '—'}
           </Text>

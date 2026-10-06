@@ -28,6 +28,7 @@ import { getSessionSummary, getMonthlyStats, SessionSummary, MonthlyStats } from
 import { getSetlistSongIds, saveSetlistSongIds, getSettingSync, setSettingSync } from '../../src/db/settings';
 import { useSongs, ALL_TAB, SETLIST_TAB } from '../../src/hooks/useSongs';
 import { useTabs } from '../../src/hooks/useTabs';
+import { useMachine } from '../../src/contexts/MachineContext';
 import { SongWithStats } from '../../src/types';
 import { normalizeForSearch } from '../../src/lib/text';
 
@@ -98,6 +99,7 @@ function currentYearMonth(): string {
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
+  const { defaultMachine, refresh: refreshMachine } = useMachine();
   const { tabsWithAll, reload: reloadTabs } = useTabs();
   const [activeTabId, setActiveTabId] = useState<number>(ALL_TAB.id);
   const [query, setQuery] = useState('');
@@ -113,7 +115,7 @@ export default function HomeScreen() {
   const [coachMarkVisible, setCoachMarkVisible] = useState(false);
   const [randomModalVisible, setRandomModalVisible] = useState(false);
 
-  const { songs, loading, error, reload } = useSongs(activeTabId);
+  const { songs, loading, error, reload } = useSongs(activeTabId, defaultMachine);
 
   const swipeRefs = useRef<Map<number, Swipeable | null>>(new Map());
   const [scoringSong, setScoringsSong] = useState<SongWithStats | null>(null);
@@ -145,6 +147,7 @@ export default function HomeScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      refreshMachine(); // デフォルト機種が設定で変わっていれば反映（一覧・カードが追従）
       reloadTabs();
       reload();
       reloadExtras();
@@ -159,7 +162,7 @@ export default function HomeScreen() {
           if (coachShown !== 'true') setCoachMarkVisible(true);
         }
       }
-    }, [reloadTabs, reload])
+    }, [reloadTabs, reload, refreshMachine])
   );
 
   function handleFirstLaunchRegister() {
@@ -485,6 +488,7 @@ export default function HomeScreen() {
               <TouchableOpacity onPress={() => router.push(`/song/${item.id}`)}>
                 <SongCard
                   song={item}
+                  machine={defaultMachine}
                   onPressRecord={() => setScoringsSong(item)}
                 />
               </TouchableOpacity>
