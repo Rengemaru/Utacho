@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   FlatList,
@@ -19,6 +19,8 @@ import { fonts } from '../../src/constants/fonts';
 import { deleteScore } from '../../src/db/scores';
 import { formatDateTime } from '../../src/lib/datetime';
 import { useSongDetail } from '../../src/hooks/useSongDetail';
+import { useMachine } from '../../src/contexts/MachineContext';
+import { MACHINES, type Machine } from '../../src/lib/machine';
 import { ScoreRow } from '../../src/types';
 import { ScoreBottomSheet } from '../../src/components/ScoreBottomSheet';
 import { ScoreChart } from '../../src/components/ScoreChart';
@@ -29,6 +31,10 @@ export default function SongDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const songId = Number(id);
   const { song, scores, loading, error, reload } = useSongDetail(songId);
+  const { defaultMachine } = useMachine();
+  // 最高点・グラフ・前回比・記録回数は機種別に表示。初期はデフォルト機種（#71）
+  const [selectedMachine, setSelectedMachine] = useState<Machine>(defaultMachine);
+  useEffect(() => { setSelectedMachine(defaultMachine); }, [defaultMachine]);
   const [sheetVisible, setSheetVisible] = useState(false);
   const [editingScore, setEditingScore] = useState<ScoreRow | null>(null);
   const [artworkError, setArtworkError] = useState(false);
@@ -79,16 +85,13 @@ export default function SongDetailScreen() {
     );
   }
 
-  // 前回比は「同一機種の直近2件」で計算する。機種が違うと採点傾向が異なり比較が無意味になるため。
-  // scores は scored_at DESC 順なので、最新記録と同じ機種でフィルタした先頭2件を比較する。
-  const latestScore = scores.length > 0 ? scores[0] : null;
-  const sameMachineScores = latestScore
-    ? scores.filter((s) => s.machine === latestScore.machine)
-    : [];
-  const diff = sameMachineScores.length >= 2
-    ? sameMachineScores[0].score - sameMachineScores[1].score
-    : null;
-  const diffMachine = latestScore?.machine ?? '';
+  // 選択中の機種だけで最高点・記録回数・前回比・グラフを出す（DAM/JOYSOUND 完全分離 #71）。
+  // scores は scored_at DESC 順。機種で絞った先頭2件で前回比を計算する。
+  const machineScores = scores.filter((s) => s.machine === selectedMachine);
+  const bestForMachine = machineScores.length > 0 ? Math.max(...machineScores.map((s) => s.score)) : null;
+  const countForMachine = machineScores.length;
+  const diff = machineScores.length >= 2 ? machineScores[0].score - machineScores[1].score : null;
+  const diffMachine = selectedMachine === 'DAM' ? 'DAM' : 'JOY';
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
@@ -132,7 +135,26 @@ export default function SongDetailScreen() {
               </View>
             </View>
 
-            {/* 最高スコアカード */}
+            {/* 機種切替トグル（最高点・グラフを DAM/JOYSOUND で切替・#71） */}
+            <View style={styles.machineToggle}>
+              {MACHINES.map((m) => {
+                const on = m === selectedMachine;
+                const label = m === 'DAM' ? 'DAM' : 'JOYSOUND';
+                return (
+                  <TouchableOpacity
+                    key={m}
+                    style={[styles.machineToggleBtn, on && styles.machineToggleBtnOn]}
+                    onPress={() => setSelectedMachine(m)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: on }}
+                  >
+                    <Text style={[styles.machineToggleText, on && styles.machineToggleTextOn]}>{label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {/* 最高スコアカード（選択中の機種） */}
             <LinearGradient
               colors={['#ede9fe', '#f5f3ff']}
               start={{ x: 0, y: 0 }}
@@ -140,43 +162,27 @@ export default function SongDetailScreen() {
               style={styles.bestCard}
             >
               <View>
-                <Text style={styles.bestLabel}>最高スコア</Text>
+                <Text style={styles.bestLabel}>{diffMachine} 最高スコア</Text>
                 <Text style={styles.bestValue}>
-                  {song.best_score != null && song.best_score > 0 ? song.best_score.toFixed(3) : '—'}
+                  {bestForMachine != null && bestForMachine > 0 ? bestForMachine.toFixed(3) : '—'}
                 </Text>
                 {diff != null && (
                   <Text style={[styles.bestDiff, { color: diff >= 0 ? colors.green : colors.red }]}>
-                    {diffMachine} {diff >= 0 ? `↑ ${diff.toFixed(3)}pt` : `↓ ${Math.abs(diff).toFixed(3)}pt`} 前回比
+                    {diff >= 0 ? `↑ ${diff.toFixed(3)}pt` : `↓ ${Math.abs(diff).toFixed(3)}pt`} 前回比
                   </Text>
                 )}
               </View>
               <View>
                 <Text style={styles.bestLabel}>記録回数</Text>
-                <Text style={styles.countValue}>{song.score_count}回</Text>
+                <Text style={styles.countValue}>{countForMachine}回</Text>
               </View>
             </LinearGradient>
 
-            {/* グラフ（スコアが2件以上あるとき表示） */}
-            {scores.length >= 2 && (
+            {/* グラフ（選択中の機種の記録が2件以上あるとき表示） */}
+            {machineScores.length >= 2 && (
               <View style={styles.chartSection}>
-                <View style={styles.chartLabelRow}>
-                  <Text style={styles.sectionLabel}>点数推移</Text>
-                  <View style={styles.legend}>
-                    {scores.some((s) => s.machine === 'DAM') && (
-                      <View style={styles.legendItem}>
-                        <View style={[styles.legendDot, { backgroundColor: colors.dam }]} />
-                        <Text style={styles.legendLabel}>DAM</Text>
-                      </View>
-                    )}
-                    {scores.some((s) => s.machine === 'JOYSOUND') && (
-                      <View style={styles.legendItem}>
-                        <View style={[styles.legendDot, { backgroundColor: colors.joy }]} />
-                        <Text style={styles.legendLabel}>JOYSOUND</Text>
-                      </View>
-                    )}
-                  </View>
-                </View>
-                <ScoreChart scores={scores} />
+                <Text style={styles.sectionLabel}>点数推移（{diffMachine}）</Text>
+                <ScoreChart scores={machineScores} />
               </View>
             )}
 
@@ -424,29 +430,35 @@ const styles = StyleSheet.create({
   chartSection: {
     gap: 6,
   },
-  chartLabelRow: {
+  // 機種切替トグル（記録シートの DAM/JOYSOUND トグルと同系統の見た目）
+  machineToggle: {
     flexDirection: 'row',
+    gap: 4,
+    backgroundColor: colors.surface2,
+    padding: 3,
+    borderRadius: 11,
+  },
+  machineToggleBtn: {
+    flex: 1,
+    paddingVertical: 7,
+    borderRadius: 8,
     alignItems: 'center',
-    justifyContent: 'space-between',
   },
-  legend: {
-    flexDirection: 'row',
-    gap: 8,
+  machineToggleBtnOn: {
+    backgroundColor: colors.white,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 1,
   },
-  legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-  },
-  legendDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  legendLabel: {
-    fontSize: 9,
-    fontWeight: '500',
+  machineToggleText: {
+    fontSize: 12,
+    fontWeight: '600',
     color: colors.text2,
+  },
+  machineToggleTextOn: {
+    color: colors.accent,
   },
   sectionLabel: {
     fontSize: 10,
