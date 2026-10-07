@@ -62,6 +62,16 @@ export function ScoreBottomSheet({ visible, song, editingScore, onClose, onSaved
     }
   }, [visible, editingScore, currentMachine]);
 
+  // #77: 閉じたら PB バナーのアニメを止めて状態をリセット（アンマウント後の setState や
+  // 次回開いたときのバナー残り・isSaving 引き継ぎを防ぐ）
+  useEffect(() => {
+    if (!visible) {
+      pbAnim.stopAnimation();
+      setPbScore(null);
+      setIsSaving(false);
+    }
+  }, [visible, pbAnim]);
+
   // 記録時に機種を初めて切り替えたときだけ、翌日デフォルトに戻る挙動を1回案内する
   function handleSelectMachine(m: Machine) {
     setMachine(m);
@@ -123,10 +133,11 @@ export function ScoreBottomSheet({ visible, song, editingScore, onClose, onSaved
         updateScore(editingScore.id, score, machine, scoredAt);
         onSaved();
       } else {
-        await setCurrentMachine(machine);
         // 自己ベストは「記録した機種」の最高点と比較する（DAM/JOYSOUND 完全分離 #71）
         const prevBest = getBestScore(song.id, machine);
         insertScore(song.id, score, scoredAt, machine);
+        // 保存が成功してからセッション機種を更新する（#78: 失敗時に機種だけ変わるのを防ぐ）
+        await setCurrentMachine(machine);
         const isNewPB = prevBest === null || score > prevBest;
         if (isNewPB) {
           pbTriggered = true; // finally での isSaving リセットをスキップ
