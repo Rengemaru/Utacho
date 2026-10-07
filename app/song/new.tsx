@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Image,
@@ -28,6 +28,10 @@ import { SongCandidate } from '../../src/features/songSearch/types';
 
 import { MAX_TAB_NAME_LENGTH, truncateTabName } from '../../src/constants/tabConfig';
 
+// 入力の最大文字数（長文貼り付けによるレイアウト崩壊を防ぐ）
+const MAX_NAME_LENGTH = 200;   // 曲名・アーティスト・各読み
+const MAX_MEMO_LENGTH = 1000;  // メモ
+
 export default function SongFormScreen() {
   const insets = useSafeAreaInsets();
   const { songId } = useLocalSearchParams<{ songId?: string }>();
@@ -49,6 +53,8 @@ export default function SongFormScreen() {
   const [searchVisible, setSearchVisible] = useState(!isEdit);
   // 新規追加で初回の検索を抜けたか（選択 or 手入力）。初回キャンセルのみホームに戻すために使う
   const [addStarted, setAddStarted] = useState(false);
+  // onClose が ✕/戻る と onDismiss(iOS) で二重に呼ばれても router.back() を1回に抑える
+  const canceledToHomeRef = useRef(false);
 
   useEffect(() => {
     if (!isEdit) return;
@@ -110,7 +116,11 @@ export default function SongFormScreen() {
   // フォーム表示後に「曲を変更」から開いた検索をキャンセルしても、入力を失わずフォームに留まる。
   function handleSearchClose() {
     setSearchVisible(false);
-    if (!isEdit && !addStarted) router.back();
+    // 新規の初回検索キャンセルのみホームへ。二重発火でも1回だけ戻す（戻ると画面はアンマウントされる）
+    if (!isEdit && !addStarted && !canceledToHomeRef.current) {
+      canceledToHomeRef.current = true;
+      router.back();
+    }
   }
 
   function toggleTab(tabId: number) {
@@ -217,6 +227,7 @@ export default function SongFormScreen() {
               style={styles.fieldInput}
               value={title}
               onChangeText={setTitle}
+              maxLength={MAX_NAME_LENGTH}
               placeholder="曲名"
               placeholderTextColor={colors.text3}
               returnKeyType="next"
@@ -230,6 +241,7 @@ export default function SongFormScreen() {
               style={styles.fieldInput}
               value={titleReading}
               onChangeText={setTitleReading}
+              maxLength={MAX_NAME_LENGTH}
               placeholder="れい：よるにかける"
               placeholderTextColor={colors.text3}
               returnKeyType="next"
@@ -243,6 +255,7 @@ export default function SongFormScreen() {
               style={styles.fieldInput}
               value={artist}
               onChangeText={setArtist}
+              maxLength={MAX_NAME_LENGTH}
               placeholder="アーティスト名"
               placeholderTextColor={colors.text3}
               returnKeyType="next"
@@ -256,6 +269,7 @@ export default function SongFormScreen() {
               style={styles.fieldInput}
               value={artistReading}
               onChangeText={setArtistReading}
+              maxLength={MAX_NAME_LENGTH}
               placeholder="れい：よあそび"
               placeholderTextColor={colors.text3}
               returnKeyType="done"
@@ -319,6 +333,7 @@ export default function SongFormScreen() {
               style={[styles.fieldInput, styles.memoInput]}
               value={memo}
               onChangeText={setMemo}
+              maxLength={MAX_MEMO_LENGTH}
               placeholder="メモ（自由入力）"
               placeholderTextColor={colors.text3}
               multiline
