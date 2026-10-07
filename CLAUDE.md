@@ -4,8 +4,9 @@
 > 開発者（オーナー）はExpo学習を兼ねて個人開発しています。
 > 実装の前に必ずこのファイル全体を読んでから作業を開始してください。
 
-> **ワイヤーフレーム参照**: `docs/wireframes/歌帳 ワイヤーフレーム v5.html`
+> **ワイヤーフレーム参照（正）**: `docs/wireframe/歌帳 ワイヤーフレーム v6.html`
 > UI実装時は必ずこのワイヤーフレームをデザイン基準として参照すること。
+> ※ 旧版 `docs/wireframes/`（v3 / v5）はアーカイブ。正は v6（`docs/wireframe/`）。
 
 ---
 
@@ -17,7 +18,7 @@
 | 概要 | カラオケの持ち歌・点数を管理するモバイルアプリ |
 | 現在のターゲット | **Google Play（Android）で先行公開** |
 | 将来のターゲット | App Store（iOS）※後続フェーズで対応 |
-| 開発OS | Windows |
+| 開発OS | Windows / macOS（両方で開発） |
 | 開発者スキル | Expo初学者・React Native未経験 |
 | 優先順位 | 品質 > 納期 > コスト |
 
@@ -27,14 +28,14 @@
 
 | 役割 | 選定 | 理由 |
 |---|---|---|
-| フレームワーク | React Native + Expo (SDK 54) | Windows環境でiOSビルド可能 |
-| 画面遷移 | expo-router v3 | ファイルベースルーティング |
+| フレームワーク | React Native 0.86 + Expo (SDK 57) | クラウドビルド（EAS）でOSを問わずビルドできる |
+| 画面遷移 | expo-router (SDK 57 準拠・`~57.0.x`) | ファイルベースルーティング |
 | ローカルDB | expo-sqlite | SQL・多対多・CASCADE削除が必要なため |
 | グラフ | react-native-gifted-charts | 点数推移の折れ線グラフ（data/data2で2系列対応） |
 | 曲情報補完 | iTunes Search API | 無料・申請不要（MVP実装済み） |
 | ファイル共有 | expo-sharing + expo-file-system | バックアップJSON書き出し |
-| ビルド | EAS Build | Mac不要・クラウドビルド |
-| 提出 | EAS Submit | Windowsから申請可能 |
+| ビルド | EAS Build | クラウドビルド（ローカルOSを問わない） |
+| 提出 | EAS Submit | 開発OS（Windows / macOS）いずれからも申請可能 |
 | 言語 | TypeScript（strict mode） | 型安全を最重視 |
 
 ---
@@ -42,9 +43,10 @@
 ## 2. ディレクトリ構成
 
 ```
-mykara/
+Utacho/                           # リポジトリルート（アプリ slug / scheme は旧名 mykara のまま。§4 報告参照）
 ├── app/                          # expo-router のルート（画面ファイル）
 │   ├── (tabs)/
+│   │   ├── _layout.tsx           # タブナビゲーションのレイアウト
 │   │   ├── index.tsx             # 01 ホーム（曲一覧）
 │   │   └── settings.tsx          # 05 設定
 │   ├── song/
@@ -53,6 +55,7 @@ mykara/
 │   ├── settings/
 │   │   └── machine.tsx           # デフォルト機種選択
 │   ├── tabs.tsx                  # タブ管理
+│   ├── help.tsx                  # ヘルプ画面（helpContent.ts を表示）
 │   ├── onboarding.tsx            # 初回オンボーディング
 │   └── _layout.tsx               # ルートレイアウト（MachineProvider・オンボーディングガード）
 ├── src/
@@ -66,6 +69,7 @@ mykara/
 │   │   ├── scores.ts             # Score CRUD関数
 │   │   ├── songTabs.ts           # song_tabs 操作関数
 │   │   ├── settings.ts           # settings テーブルCRUD（AsyncStorage不使用）
+│   │   ├── maintenance.ts        # データ保守（全削除・復元時のトランザクション処理など）
 │   │   ├── mockData.ts           # 開発用モックデータ
 │   │   └── seed.ts               # 開発用seedデータ
 │   ├── types/
@@ -79,10 +83,16 @@ mykara/
 │   │   └── MachineContext.tsx    # 現在機種のReact Context
 │   ├── constants/
 │   │   ├── colors.ts             # デザイントークン（カラー定義）
-│   │   └── fonts.ts              # デザイントークン（フォント定義）
+│   │   ├── fonts.ts              # デザイントークン（フォント定義）
+│   │   └── tabConfig.ts          # タブ関連の定数（「すべて」「今日」タブ等）
+│   ├── data/
+│   │   └── helpContent.ts        # ヘルプ画面の文言データ（セクション・エントリ）
 │   ├── lib/
 │   │   ├── machine.ts            # 機種ロジック・セッション管理・オンボーディング
-│   │   └── backup.ts             # バックアップJSON構築・共有シート起動・インポート復元
+│   │   ├── backup.ts             # バックアップJSON構築・共有シート起動・インポート復元
+│   │   ├── text.ts               # かな正規化（ひらがな/カタカナ・全角半角・大文字小文字）ローカル検索用
+│   │   ├── text.test.ts          # text.ts の単体テスト（Jest）
+│   │   └── datetime.ts           # 日付ユーティリティ（ローカル日付・セッション日付など）
 │   ├── api/
 │   │   └── itunesSearch.ts       # 【レガシー】1.0.x のクライアント。1.1.0 は features/songSearch/itunes.ts を使用
 │   ├── features/
@@ -98,7 +108,11 @@ mykara/
 │       ├── SongCard.tsx          # 曲カード（ホーム用）
 │       ├── SearchResultList.tsx  # 検索候補の汎用リスト（FlatList・toRowで任意型対応）
 │       ├── ScoreBottomSheet.tsx  # 点数入力・編集ボトムシート（機種トグル付き）
-│       ├── ScoreChart.tsx        # 折れ線グラフ（gifted-charts、DAM/JOYSOUND 2系列）
+│       ├── ScoreChart.tsx        # 折れ線グラフ（gifted-charts、曲詳細トグルで選択機種1系列 #71）
+│       ├── SetlistModal.tsx      # 今日のセットリスト選曲モーダル
+│       ├── RandomPickModal.tsx   # ランダム選曲モーダル（範囲選択）
+│       ├── CoachMark.tsx         # コーチマーク（操作ガイドの吹き出し）
+│       ├── FirstLaunchGuide.tsx  # 初回起動ガイド
 │       ├── KeyStepper.tsx        # キー（音域）ステッパー
 │       └── EmptyState.tsx        # 空状態・ローディング・エラー表示
 ├── assets/
@@ -1047,7 +1061,9 @@ export function useSongs(tabId: number) {
 
 #### ビルド・提出コマンド
 
-```powershell
+> 下記 `eas` コマンドは Windows / macOS どちらのシェルでも同じように実行できる。
+
+```bash
 # AABビルド（Google Play必須形式）
 eas build --platform android --profile production
 
@@ -1113,6 +1129,17 @@ eas submit --platform android --profile production
 | 詳細画面アートワーク | 曲詳細にiTunesアートワーク64x64表示（fallback: 🎵） |
 | グラフ（DAM/JOYSOUND 機種別） | 曲詳細のトグルで選択した機種の1系列を表示（#71 で2系列同時表示から変更） |
 | DAM/JOYSOUND 完全分離（#71） | 最高点・グラフ・集計・並び替え・自己ベストを機種別に。一覧/並び替えはデフォルト機種基準、詳細はトグル切替 |
+| セットリスト（今日） | 「📋」ボタンから当日歌う曲を選択。先頭に「今日」タブを表示。翌日自動クリア（`SetlistModal.tsx`） |
+| ランダム選曲 | 「🎲」ボタンから範囲（すべて/各タブ）を選び、ランダムに1曲選んで詳細へ遷移（`RandomPickModal.tsx`） |
+| 読み入力欄＋かな正規化ローカル検索（#42, #61〜#63, #69） | 曲名/アーティストの「読み」を任意入力。持ち歌リストの検索はひらがな/カタカナ・全角半角・大小文字を区別しない（`src/lib/text.ts`）。読みがあれば五十音順の並び替えにも使用 |
+| 並び替え（持ち歌リスト） | 登録日/最高スコア/記録回数/最終記録日/スコア伸び率 に加え、曲名順・アーティスト名順（読み優先の五十音）。昇順/降順トグル |
+| 点数の小数第3位表示（#33） | スコアを全画面で小数第3位まで統一表示（§13 参照） |
+| 記録日の変更（#18） | 点数記録時に ‹/› で日付を1日単位変更（未来日不可） |
+| 復元のアンドゥ・全削除の3択（#19） | バックアップ復元・全データ削除の操作に確認/取り消しの導線 |
+| キー上限・下限（±7） | KeyStepper のキー調整に上限下限（±7）を設定 |
+| タブ名の重複チェック | タブの追加・リネーム時に同名を弾く |
+| コーチマーク・初回ガイド | 初回起動時の操作ガイド（`CoachMark.tsx` / `FirstLaunchGuide.tsx`） |
+| ヘルプ画面 | アプリ内ヘルプ（`app/help.tsx` ＋ `src/data/helpContent.ts`）。v1.0 から実機に存在 |
 
 ## 12. 今後の対応候補
 
@@ -1157,6 +1184,7 @@ const score = song.best_score; // useSongs(tabId, defaultMachine) で機種別�
 - 実装: `src/features/songSearch/itunes.ts` の `searchSongs(term, mode)`
 - モード別 attribute: 曲から=`songTerm` / アーティスト=`artistTerm` / キーワード=指定なし
 - `limit=200` / `country=JP` / `lang=ja_jp`。例外を投げず成功/失敗を型で返し、通信失敗(network/http/parse)と0件を区別
+- ひらがな入力でも漢字名・英語名・愛称・略称がヒットすることを検証済み（検証日・条件は ⚠️ 未記録）。そのため、アプリ側で「ひらがな→カタカナ変換して2回検索」する処理は行わない
 - デバウンス 300ms。古い結果が新しい結果を上書きしないよう seq で最新優先（`useSongSearch`）
 - 【レガシー】1.0.x のインライン候補（`src/hooks/useMusicSearch.ts` / `src/api/itunesSearch.ts`・`pausedRef`/abort 制御）は 1.1.0 で未使用
 
@@ -1179,7 +1207,7 @@ drag-reorder機能のrevertと一緒に取り消されました。
 |---|---|---|---|
 | fix-C | iTunes検索の最小文字数を 2→1 に変更（1文字のアーティスト名対応） | `src/hooks/useMusicSearch.ts` | ✅ T5で適用済み |
 | fix-D | 編集モード起動時に `pausedRef` をリセット・`song.tabs` の nullチェック追加 | `app/song/new.tsx` | ✅ T4で適用済み |
-| fix-E | `react-native-reanimated` を Expo SDK 54 互換バージョン（`~4.1.1`）に固定 | `package.json` | ⚠️ 未適用（要検討） |
+| fix-E | `react-native-reanimated` を Expo SDK 54 互換バージョン（`~4.1.1`）に固定 | `package.json` | ✅ 対象外（解決済み）。Expo SDK 57 へ更新済みで、現在 `react-native-reanimated` は依存に含まれていない（`package.json` で確認）。固定作業は不要 |
 
 ---
 
@@ -1189,17 +1217,20 @@ drag-reorder機能のrevertと一緒に取り消されました。
 {
   "android": {
     "package": "com.rengemaru.utacho",
-    "versionCode": 1,
+    "versionCode": 3,
     "permissions": ["android.permission.INTERNET"],
     "adaptiveIcon": {
-      "foregroundImage": "./assets/adaptive-icon.png",
-      "backgroundImage": "./assets/adaptive-icon-background.png",
-      "monochromeImage": "./assets/adaptive-icon-monochrome.png"
+      "foregroundImage": "./assets/android-icon-foreground.png",
+      "backgroundImage": "./assets/android-icon-background.png",
+      "monochromeImage": "./assets/android-icon-monochrome.png"
     },
     "predictiveBackGestureEnabled": false
   }
 }
 ```
+
+> targetSdk / compileSdk 36 は `plugins` の `expo-build-properties`（`targetSdkVersion: 36` / `compileSdkVersion: 36`）で固定している。
+> アプリの表示バージョン（`expo.version`）は `1.1.0`。`android.versionCode` はアップロードのたびに増やす（現在 3）。
 
 ---
 
