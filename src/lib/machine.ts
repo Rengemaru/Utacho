@@ -20,7 +20,8 @@ export async function completeOnboarding(): Promise<void> {
 
 export async function getDefaultMachine(): Promise<Machine> {
   const v = await getSetting('default_machine');
-  return (v as Machine) ?? 'DAM';
+  // 不正値（復元時の異常データ等）は 'DAM' にフォールバック（#76）
+  return v === 'JOYSOUND' ? 'JOYSOUND' : 'DAM';
 }
 
 export async function setDefaultMachine(m: Machine): Promise<void> {

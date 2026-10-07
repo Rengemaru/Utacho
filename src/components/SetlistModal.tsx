@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../constants/colors';
 import { fonts } from '../constants/fonts';
 import { SongWithStats } from '../types';
+import { normalizeForSearch } from '../lib/text';
 
 interface Props {
   visible: boolean;
@@ -46,11 +47,13 @@ export function SetlistModal({ visible, songs, selectedIds, onSave, onClose }: P
   }
 
   const filtered = useMemo(() => {
-    if (!query.trim()) return songs;
-    const q = query.toLowerCase();
-    return songs.filter(
-      (s) => s.title.toLowerCase().includes(q) || s.artist.toLowerCase().includes(q)
-    );
+    // ホーム検索と同じく、かな正規化＋4フィールド（曲名/アーティスト/各読み）で部分一致（#79）
+    const q = normalizeForSearch(query);
+    if (!q) return songs;
+    return songs.filter((s) => {
+      const fields = [s.title, s.artist, s.title_reading, s.artist_reading].map(normalizeForSearch);
+      return fields.some((f) => f.includes(q));
+    });
   }, [songs, query]);
 
   return (

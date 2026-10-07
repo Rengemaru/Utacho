@@ -165,6 +165,15 @@ export default function HomeScreen() {
     }, [reloadTabs, reload, refreshMachine])
   );
 
+  // #75: 選択中のタブが削除されて存在しなくなったら「すべて」に戻す（宙ぶらりん防止）。
+  // ALL / SETLIST の固定タブは対象外。
+  useEffect(() => {
+    if (activeTabId === ALL_TAB.id || activeTabId === SETLIST_TAB.id) return;
+    if (!tabsWithAll.some((t) => t.id === activeTabId)) {
+      setActiveTabId(ALL_TAB.id);
+    }
+  }, [tabsWithAll, activeTabId]);
+
   function handleFirstLaunchRegister() {
     setSettingSync('first_launch_guide', 'done');
     // 「今すぐ登録」を選んだユーザーはコーチマーク不要（ガイドで十分）

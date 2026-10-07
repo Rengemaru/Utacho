@@ -3,9 +3,17 @@ import { SongRow, SongWithStats, TabRow } from '../types';
 import type { Machine } from '../lib/machine';
 
 // machine を渡すとその機種だけで集計する（DAM/JOYSOUND 完全分離 #71）。
-// Machine は 'DAM'|'JOYSOUND' の型安全な enum なので SQL への直接埋め込みは安全。
+// SQL へ直接埋め込むため、実行時にも 'DAM'|'JOYSOUND' 以外を弾く（#76: as Machine 等の混入対策）。
+function machineClause(machine?: Machine): string {
+  if (!machine) return '';
+  if (machine !== 'DAM' && machine !== 'JOYSOUND') {
+    throw new Error(`invalid machine value: ${String(machine)}`);
+  }
+  return ` AND machine = '${machine}'`;
+}
+
 function statsSelect(machine?: Machine): string {
-  const m = machine ? ` AND machine = '${machine}'` : '';
+  const m = machineClause(machine);
   return `
     MAX(sc.score) AS best_score,
     (SELECT score FROM scores WHERE song_id = s.id${m} ORDER BY scored_at DESC, id DESC LIMIT 1) AS latest_score,
@@ -16,7 +24,8 @@ function statsSelect(machine?: Machine): string {
 }
 
 function scoresJoin(machine?: Machine): string {
-  return machine
+  const m = machineClause(machine); // 不正値はここで例外（sc.machine も同じ検証値を使う）
+  return m
     ? `LEFT JOIN scores sc ON sc.song_id = s.id AND sc.machine = '${machine}'`
     : `LEFT JOIN scores sc ON sc.song_id = s.id`;
 }
