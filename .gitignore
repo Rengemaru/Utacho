@@ -52,6 +52,14 @@ assets/icon-build-*.svg
 assets/icon-build-*.svg.png
 assets/icon-concepts/
 
+# 動画ファイル（バグ報告・デモ録画などリポジトリ肥大化防止のためignore）
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.webm
+
 # ドキュメント（ローカル管理）
 docs/instructions/
 docs/reports/
+docs/demo/

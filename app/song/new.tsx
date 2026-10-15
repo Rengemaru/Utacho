@@ -202,7 +202,7 @@ export default function SongFormScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={[styles.screen, { paddingTop: insets.top + 6 }]}>
         {/* ヘッダー */}
@@ -345,7 +345,7 @@ export default function SongFormScreen() {
 
         {/* 新規タブ作成モーダル */}
         <Modal visible={newTabModalVisible} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setNewTabModalVisible(false)}>
-          <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
             <TouchableWithoutFeedback onPress={() => setNewTabModalVisible(false)}>
               <View style={styles.modalOverlay} />
             </TouchableWithoutFeedback>
