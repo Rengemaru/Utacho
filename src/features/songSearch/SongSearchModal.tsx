@@ -230,7 +230,7 @@ function SearchScreen({
   const showSortRow = status === 'complete' || status === 'truncated';
 
   return (
-    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={styles.header}>
         <TouchableOpacity onPress={onBack} accessibilityRole="button" accessibilityLabel="戻る">
           <Text style={styles.headerBack}>‹</Text>

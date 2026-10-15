@@ -1190,7 +1190,7 @@ const score = song.best_score; // useSongs(tabId, defaultMachine) で機種別�
 
 ### Android 対応（実装済み）
 - ステータスバー制御
-- `KeyboardAvoidingView`（`behavior="height"`）
+- `KeyboardAvoidingView`（iOS=`padding` / Android=`undefined`。Android は `app.json` の `softwareKeyboardLayoutMode: "resize"`＝ネイティブ `adjustResize` に任せる。※ 旧 `behavior="height"` は `adjustResize` と二重補正になりスクロールが往復する不具合の原因だったため撤去）
 - `Modal`（Android互換）
 - スプラッシュ画面
 - アダプティブアイコン（foreground / background / monochrome）
