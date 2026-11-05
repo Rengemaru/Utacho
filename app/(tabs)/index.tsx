@@ -32,6 +32,7 @@ import { useTabs } from '../../src/hooks/useTabs';
 import { useMachine } from '../../src/contexts/MachineContext';
 import { SongWithStats } from '../../src/types';
 import { normalizeForSearch } from '../../src/lib/text';
+import { useIsTablet, useTwoColumn } from '../../src/lib/responsive';
 
 type SortKey = 'created_at' | 'best_score' | 'score_count' | 'latest_scored_at' | 'improvement' | 'title' | 'artist';
 type SortDir = 'asc' | 'desc';
@@ -100,6 +101,8 @@ function currentYearMonth(): string {
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
+  const isTablet = useIsTablet();
+  const twoColumn = useTwoColumn();
   const { defaultMachine, refresh: refreshMachine } = useMachine();
   const { tabsWithAll, reload: reloadTabs } = useTabs();
   const [activeTabId, setActiveTabId] = useState<number>(ALL_TAB.id);
@@ -317,11 +320,11 @@ export default function HomeScreen() {
         <Text style={styles.appTitle}>歌帳</Text>
         <View style={styles.headerActions}>
           <TouchableOpacity
-            style={styles.setlistBtn}
+            style={[styles.setlistBtn, isTablet && styles.iconBtnTablet]}
             onPress={openSetlistModal}
             accessibilityLabel="今日のセットリスト"
           >
-            <Text style={styles.setlistBtnText}>📋</Text>
+            <Text style={[styles.setlistBtnText, isTablet && styles.iconBtnTextTablet]}>📋</Text>
             {setlistIds.length > 0 && (
               <View style={styles.setlistBadge}>
                 <Text style={styles.setlistBadgeText}>{setlistIds.length}</Text>
@@ -329,17 +332,17 @@ export default function HomeScreen() {
             )}
           </TouchableOpacity>
           <TouchableOpacity
-            style={styles.helpBtn}
+            style={[styles.helpBtn, isTablet && styles.iconBtnTablet]}
             onPress={() => router.push('/help')}
             accessibilityLabel="ヘルプ"
           >
-            <Text style={styles.helpBtnText}>？</Text>
+            <Text style={[styles.helpBtnText, isTablet && styles.iconBtnTextTablet]}>？</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={styles.addBtn}
+            style={[styles.addBtn, isTablet && styles.iconBtnTablet]}
             onPress={() => router.push('/song/new')}
           >
-            <Text style={styles.addBtnText}>＋</Text>
+            <Text style={[styles.addBtnText, isTablet && styles.addBtnTextTablet]}>＋</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -501,10 +504,15 @@ export default function HomeScreen() {
         <FlatList
           data={filtered}
           keyExtractor={(item) => String(item.id)}
+          // numColumns は動的に変えられないので、列数が変わったら key で作り直す
+          key={twoColumn ? 'grid2' : 'grid1'}
+          numColumns={twoColumn ? 2 : 1}
+          columnWrapperStyle={twoColumn ? styles.columnWrapper : undefined}
           style={styles.list}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
           renderItem={({ item }) => (
+            <View style={twoColumn ? styles.gridItem : undefined}>
             <Swipeable
               ref={(ref) => { swipeRefs.current.set(item.id, ref); }}
               onSwipeableWillOpen={() => closeOtherSwipeables(item.id)}
@@ -544,6 +552,7 @@ export default function HomeScreen() {
                 />
               </TouchableOpacity>
             </Swipeable>
+            </View>
           )}
         />
       )}
@@ -714,6 +723,10 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   addBtnText: { fontSize: 20, color: colors.white, lineHeight: 24 },
+  // タブレット時：ヘッダーアイコンボタンを44pxに拡大（押しやすさ・#92）
+  iconBtnTablet: { width: 44, height: 44, borderRadius: 13 },
+  iconBtnTextTablet: { fontSize: 20, lineHeight: 26 },
+  addBtnTextTablet: { fontSize: 26, lineHeight: 30 },
   sessionBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -857,6 +870,9 @@ const styles = StyleSheet.create({
   // FlatList が中身の高さで膨らみ、兄弟（タブ行）を flex shrink で圧迫して切る。
   list: { flex: 1 },
   listContent: { paddingHorizontal: 18, paddingBottom: 100, gap: 7 },
+  // タブレット2カラム（#92）：行内のカードを等幅で並べる
+  columnWrapper: { gap: 7 },
+  gridItem: { flex: 1, minWidth: 0 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
   swipeActions: { flexDirection: 'row', alignItems: 'stretch', paddingLeft: 8, gap: 6 },
   swipeBtn: {
