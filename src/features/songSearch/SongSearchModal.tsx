@@ -1,7 +1,7 @@
 // 曲検索モーダル（04a 選択画面 ＋ 04b 検索画面）。spec-1.1.0-song-flow §5・§6.6。
 // ワイヤーフレーム v6 セクションC を基準にスタイリング。
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -16,7 +16,16 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SearchResultList } from '../../components/SearchResultList';
+import { SearchHistoryChips } from '../../components/SearchHistoryChips';
+import {
+  clearSearchHistory,
+  deleteSearchHistoryEntry,
+  getSearchHistory,
+  pushSearchHistory,
+} from '../../db/settings';
 import { colors } from '../../constants/colors';
+
+const HISTORY_KEY = 'search_history_itunes' as const;
 import { buildInitialQuery } from './logic';
 import { SearchMode, SongCandidate, SortKey } from './types';
 import { useSongSearch } from './useSongSearch';
@@ -55,15 +64,43 @@ export function SongSearchModal({ visible, purpose, currentSong, onSelect, onMan
   const insets = useSafeAreaInsets();
   const [screen, setScreen] = useState<'select' | 'search'>('select');
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
+  const [history, setHistory] = useState<string[]>([]);
   const search = useSongSearch();
 
-  // モーダルを開くたびに 04a（選択画面）へリセット（§5.7）
+  // モーダルを開くたびに 04a（選択画面）へリセット（§5.7）＋履歴を読み込む
   useEffect(() => {
     if (visible) {
       setScreen('select');
       setSortMenuOpen(false);
+      if (Platform.OS !== 'web') setHistory(getSearchHistory(HISTORY_KEY));
     }
   }, [visible]);
+
+  // 検索キーワードを履歴へ記録（#91）。空・web は無視
+  const recordHistory = useCallback((term: string) => {
+    if (Platform.OS === 'web' || !term.trim()) return;
+    setHistory(pushSearchHistory(HISTORY_KEY, term));
+  }, []);
+
+  const removeHistory = useCallback((term: string) => {
+    if (Platform.OS === 'web') return;
+    setHistory(deleteSearchHistoryEntry(HISTORY_KEY, term));
+  }, []);
+
+  const clearHistory = useCallback(() => {
+    if (Platform.OS === 'web') return;
+    clearSearchHistory(HISTORY_KEY);
+    setHistory([]);
+  }, []);
+
+  // 候補選択時はそのときの検索語を履歴へ残してから確定する
+  const handleSelect = useCallback(
+    (candidate: SongCandidate) => {
+      recordHistory(search.query);
+      onSelect(candidate);
+    },
+    [recordHistory, search.query, onSelect],
+  );
 
   function openSearch(mode: SearchMode) {
     const initial =
@@ -110,9 +147,13 @@ export function SongSearchModal({ visible, purpose, currentSong, onSelect, onMan
             sortMenuOpen={sortMenuOpen}
             setSortMenuOpen={setSortMenuOpen}
             onBack={() => setScreen('select')}
-            onSelect={onSelect}
+            onSelect={handleSelect}
             onManual={onManual}
             bottomInset={insets.bottom}
+            history={history}
+            onRecordHistory={recordHistory}
+            onRemoveHistory={removeHistory}
+            onClearHistory={clearHistory}
           />
         )}
       </View>
@@ -216,6 +257,10 @@ function SearchScreen({
   onSelect,
   onManual,
   bottomInset,
+  history,
+  onRecordHistory,
+  onRemoveHistory,
+  onClearHistory,
 }: {
   purpose: 'add' | 'change';
   search: ReturnType<typeof useSongSearch>;
@@ -225,6 +270,10 @@ function SearchScreen({
   onSelect: (candidate: SongCandidate) => void;
   onManual?: () => void;
   bottomInset: number;
+  history: string[];
+  onRecordHistory: (term: string) => void;
+  onRemoveHistory: (term: string) => void;
+  onClearHistory: () => void;
 }) {
   const { query, setQuery, mode, setMode, sortKey, changeSort, status, visibleItems, totalCount, hasMore, showMore, retry } = search;
   const showSortRow = status === 'complete' || status === 'truncated';
@@ -249,6 +298,7 @@ function SearchScreen({
           placeholderTextColor={colors.text3}
           autoFocus
           returnKeyType="search"
+          onSubmitEditing={() => onRecordHistory(query)}
         />
         {query.length > 0 && (
           <TouchableOpacity
@@ -281,6 +331,18 @@ function SearchScreen({
           );
         })}
       </View>
+
+      {/* 検索前は履歴チップを表示（#91）。タップで再検索 */}
+      {status === 'idle' && (
+        <View style={styles.historyWrap}>
+          <SearchHistoryChips
+            history={history}
+            onSelect={setQuery}
+            onRemove={onRemoveHistory}
+            onClear={onClearHistory}
+          />
+        </View>
+      )}
 
       {/* 件数・並び替え */}
       {showSortRow && (
@@ -569,6 +631,8 @@ const styles = StyleSheet.create({
   sortMenuTextCur: { color: colors.accent, fontWeight: '700' },
   sortMenuCheck: { fontSize: 12, color: colors.accent, fontWeight: '700' },
   sortBackdrop: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 10 },
+
+  historyWrap: { marginHorizontal: 18 },
 
   truncateNote: {
     marginHorizontal: 18,
