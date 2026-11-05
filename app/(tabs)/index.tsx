@@ -891,14 +891,12 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     fontWeight: '500',
   },
-  // 検索履歴ドロップダウンのアンカー。searchRow を内包し、直下にフロートさせる
-  searchZone: { zIndex: 30 },
+  // 検索履歴ドロップダウンのアンカー。通常レイアウトに差し込み、下のコンテンツを押し下げる
+  searchZone: {},
   historyDropdownAnchor: {
-    position: 'absolute',
-    top: 46,
-    left: 18,
-    right: 18,
-    zIndex: 50,
+    marginHorizontal: 18,
+    marginTop: 2,
+    marginBottom: 6,
   },
   // flex:1 で残り領域いっぱいに広がり内部スクロールする。これが無いと
   // FlatList が中身の高さで膨らみ、兄弟（タブ行）を flex shrink で圧迫して切る。

@@ -634,14 +634,11 @@ const styles = StyleSheet.create({
   sortMenuCheck: { fontSize: 12, color: colors.accent, fontWeight: '700' },
   sortBackdrop: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 10 },
 
-  // 履歴ドロップダウンのアンカー。sInput を内包し直下にフロートさせる
-  sInputZone: { zIndex: 30 },
+  // 履歴ドロップダウンのアンカー。通常レイアウトに差し込み、下のコンテンツを押し下げる
+  sInputZone: {},
   historyDropdownAnchor: {
-    position: 'absolute',
-    top: 52,
-    left: 18,
-    right: 18,
-    zIndex: 50,
+    marginHorizontal: 18,
+    marginBottom: 8,
   },
 
   truncateNote: {
