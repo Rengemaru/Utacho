@@ -25,7 +25,8 @@ import { colors } from '../../src/constants/colors';
 import { fonts } from '../../src/constants/fonts';
 import { deleteSong, getAllSongs, getRandomSongId } from '../../src/db/songs';
 import { getSessionSummary, getMonthlyStats, SessionSummary, MonthlyStats } from '../../src/db/scores';
-import { getSetlistSongIds, saveSetlistSongIds, getSettingSync, setSettingSync } from '../../src/db/settings';
+import { getSetlistSongIds, saveSetlistSongIds, getSettingSync, setSettingSync, getSearchHistory, pushSearchHistory, deleteSearchHistoryEntry, clearSearchHistory } from '../../src/db/settings';
+import { SearchHistoryChips } from '../../src/components/SearchHistoryChips';
 import { useSongs, ALL_TAB, SETLIST_TAB } from '../../src/hooks/useSongs';
 import { useTabs } from '../../src/hooks/useTabs';
 import { useMachine } from '../../src/contexts/MachineContext';
@@ -103,6 +104,8 @@ export default function HomeScreen() {
   const { tabsWithAll, reload: reloadTabs } = useTabs();
   const [activeTabId, setActiveTabId] = useState<number>(ALL_TAB.id);
   const [query, setQuery] = useState('');
+  const [searchFocused, setSearchFocused] = useState(false);
+  const [searchHistory, setSearchHistory] = useState<string[]>([]);
   const [sortKey, setSortKey] = useState<SortKey>('created_at');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [sortModalVisible, setSortModalVisible] = useState(false);
@@ -140,9 +143,32 @@ export default function HomeScreen() {
 
       const monthly = getMonthlyStats(currentYearMonth());
       setMonthlyStats(monthly.record_count > 0 ? monthly : null);
+
+      setSearchHistory(getSearchHistory('search_history_home'));
     } catch (e) {
       console.error(e);
     }
+  }
+
+  // 持ち歌フィルタの検索履歴操作（#91）
+  function recordSearchHistory(term: string) {
+    if (Platform.OS === 'web' || !term.trim()) return;
+    setSearchHistory(pushSearchHistory('search_history_home', term));
+  }
+
+  function handleHistorySelect(term: string) {
+    setQuery(term);
+  }
+
+  function handleHistoryRemove(term: string) {
+    if (Platform.OS === 'web') return;
+    setSearchHistory(deleteSearchHistoryEntry('search_history_home', term));
+  }
+
+  function handleHistoryClear() {
+    if (Platform.OS === 'web') return;
+    clearSearchHistory('search_history_home');
+    setSearchHistory([]);
   }
 
   useFocusEffect(
@@ -400,6 +426,10 @@ export default function HomeScreen() {
             placeholderTextColor={colors.text3}
             value={query}
             onChangeText={setQuery}
+            returnKeyType="search"
+            onFocus={() => setSearchFocused(true)}
+            onBlur={() => setSearchFocused(false)}
+            onSubmitEditing={() => recordSearchHistory(query)}
           />
           {query.length > 0 && (
             <TouchableOpacity
@@ -434,6 +464,18 @@ export default function HomeScreen() {
       {/* ソートラベル（デフォルト以外の時のみ） */}
       {!isDefaultSort && (
         <Text style={styles.sortLabel}>{currentSortLabel}</Text>
+      )}
+
+      {/* 検索履歴チップ（#91）。検索欄フォーカス中かつ未入力のときだけ表示 */}
+      {searchFocused && query.length === 0 && (
+        <View style={styles.historyWrap}>
+          <SearchHistoryChips
+            history={searchHistory}
+            onSelect={handleHistorySelect}
+            onRemove={handleHistoryRemove}
+            onClear={handleHistoryClear}
+          />
+        </View>
       )}
 
       {/* 曲一覧 */}
@@ -810,6 +852,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     fontWeight: '500',
   },
+  historyWrap: { marginHorizontal: 18, marginBottom: 6 },
   // flex:1 で残り領域いっぱいに広がり内部スクロールする。これが無いと
   // FlatList が中身の高さで膨らみ、兄弟（タブ行）を flex shrink で圧迫して切る。
   list: { flex: 1 },
