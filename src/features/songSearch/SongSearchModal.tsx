@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SearchResultList } from '../../components/SearchResultList';
-import { SearchHistoryChips } from '../../components/SearchHistoryChips';
+import { SearchHistoryDropdown } from '../../components/SearchHistoryDropdown';
 import {
   clearSearchHistory,
   deleteSearchHistoryEntry,
@@ -287,7 +287,8 @@ function SearchScreen({
         <Text style={styles.headerTitle}>{purpose === 'change' ? '曲を変更' : '曲を追加'}</Text>
       </View>
 
-      {/* 検索欄 */}
+      {/* 検索欄（履歴ドロップダウンのアンカー） */}
+      <View style={styles.sInputZone}>
       <View style={styles.sInput}>
         <Text style={styles.sIcon}>🔍</Text>
         <TextInput
@@ -314,6 +315,19 @@ function SearchScreen({
         )}
       </View>
 
+      {/* 検索前（idle）は検索欄直下に履歴ドロップダウンをフロート表示（#91） */}
+      {status === 'idle' && history.length > 0 && (
+        <View style={styles.historyDropdownAnchor}>
+          <SearchHistoryDropdown
+            history={history}
+            onSelect={setQuery}
+            onRemove={onRemoveHistory}
+            onClear={onClearHistory}
+          />
+        </View>
+      )}
+      </View>
+
       {/* モード切り替え */}
       <View style={styles.modeSeg}>
         {MODE_SEG.map((m) => {
@@ -331,18 +345,6 @@ function SearchScreen({
           );
         })}
       </View>
-
-      {/* 検索前は履歴チップを表示（#91）。タップで再検索 */}
-      {status === 'idle' && (
-        <View style={styles.historyWrap}>
-          <SearchHistoryChips
-            history={history}
-            onSelect={setQuery}
-            onRemove={onRemoveHistory}
-            onClear={onClearHistory}
-          />
-        </View>
-      )}
 
       {/* 件数・並び替え */}
       {showSortRow && (
@@ -632,7 +634,15 @@ const styles = StyleSheet.create({
   sortMenuCheck: { fontSize: 12, color: colors.accent, fontWeight: '700' },
   sortBackdrop: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 10 },
 
-  historyWrap: { marginHorizontal: 18 },
+  // 履歴ドロップダウンのアンカー。sInput を内包し直下にフロートさせる
+  sInputZone: { zIndex: 30 },
+  historyDropdownAnchor: {
+    position: 'absolute',
+    top: 52,
+    left: 18,
+    right: 18,
+    zIndex: 50,
+  },
 
   truncateNote: {
     marginHorizontal: 18,
