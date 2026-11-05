@@ -293,6 +293,7 @@ export default function HomeScreen() {
           <TouchableOpacity
             style={styles.setlistBtn}
             onPress={openSetlistModal}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             accessibilityLabel="今日のセットリスト"
           >
             <Text style={styles.setlistBtnText}>📋</Text>
@@ -305,6 +306,7 @@ export default function HomeScreen() {
           <TouchableOpacity
             style={styles.helpBtn}
             onPress={() => router.push('/help')}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             accessibilityLabel="ヘルプ"
           >
             <Text style={styles.helpBtnText}>？</Text>
@@ -312,6 +314,8 @@ export default function HomeScreen() {
           <TouchableOpacity
             style={styles.addBtn}
             onPress={() => router.push('/song/new')}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityLabel="曲を追加"
           >
             <Text style={styles.addBtnText}>＋</Text>
           </TouchableOpacity>
@@ -418,6 +422,7 @@ export default function HomeScreen() {
           <TouchableOpacity
             style={styles.diceBtn}
             onPress={() => setRandomModalVisible(true)}
+            hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
             accessibilityLabel="ランダムに選曲"
           >
             <Text style={styles.diceBtnText}>🎲</Text>
@@ -426,6 +431,8 @@ export default function HomeScreen() {
         <TouchableOpacity
           style={[styles.sortBtn, !isDefaultSort && styles.sortBtnActive]}
           onPress={() => setSortModalVisible(true)}
+          hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+          accessibilityLabel="並び替え"
         >
           <Text style={[styles.sortBtnText, !isDefaultSort && styles.sortBtnTextActive]}>⇅</Text>
         </TouchableOpacity>
