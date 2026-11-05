@@ -462,10 +462,15 @@ export default function HomeScreen() {
         <FlatList
           data={filtered}
           keyExtractor={(item) => String(item.id)}
+          // numColumns は動的に変えられないので、列数が変わったら key で作り直す
+          key={twoColumn ? 'grid2' : 'grid1'}
+          numColumns={twoColumn ? 2 : 1}
+          columnWrapperStyle={twoColumn ? styles.columnWrapper : undefined}
           style={styles.list}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
           renderItem={({ item }) => (
+            <View style={twoColumn ? styles.gridItem : undefined}>
             <Swipeable
               ref={(ref) => { swipeRefs.current.set(item.id, ref); }}
               onSwipeableWillOpen={() => closeOtherSwipeables(item.id)}
@@ -505,6 +510,7 @@ export default function HomeScreen() {
                 />
               </TouchableOpacity>
             </Swipeable>
+            </View>
           )}
         />
       )}
@@ -821,6 +827,9 @@ const styles = StyleSheet.create({
   // FlatList が中身の高さで膨らみ、兄弟（タブ行）を flex shrink で圧迫して切る。
   list: { flex: 1 },
   listContent: { paddingHorizontal: 18, paddingBottom: 100, gap: 7 },
+  // タブレット2カラム（#92）：行内のカードを等幅で並べる
+  columnWrapper: { gap: 7 },
+  gridItem: { flex: 1, minWidth: 0 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
   swipeActions: { flexDirection: 'row', alignItems: 'stretch', paddingLeft: 8, gap: 6 },
   swipeBtn: {
