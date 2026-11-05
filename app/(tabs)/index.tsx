@@ -26,7 +26,7 @@ import { fonts } from '../../src/constants/fonts';
 import { deleteSong, getAllSongs, getRandomSongId } from '../../src/db/songs';
 import { getSessionSummary, getMonthlyStats, SessionSummary, MonthlyStats } from '../../src/db/scores';
 import { getSetlistSongIds, saveSetlistSongIds, getSettingSync, setSettingSync, getSearchHistory, pushSearchHistory, deleteSearchHistoryEntry, clearSearchHistory } from '../../src/db/settings';
-import { SearchHistoryChips } from '../../src/components/SearchHistoryChips';
+import { SearchHistoryDropdown } from '../../src/components/SearchHistoryDropdown';
 import { useSongs, ALL_TAB, SETLIST_TAB } from '../../src/hooks/useSongs';
 import { useTabs } from '../../src/hooks/useTabs';
 import { useMachine } from '../../src/contexts/MachineContext';
@@ -436,7 +436,8 @@ export default function HomeScreen() {
         })}
       </ScrollView>
 
-      {/* 検索バー + ソートボタン */}
+      {/* 検索バー + ソートボタン（履歴ドロップダウンのアンカー） */}
+      <View style={styles.searchZone}>
       <View style={styles.searchRow}>
         <View style={styles.searchBar}>
           <Text style={styles.searchIcon}>🔍</Text>
@@ -484,21 +485,22 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* ソートラベル（デフォルト以外の時のみ） */}
-      {!isDefaultSort && (
-        <Text style={styles.sortLabel}>{currentSortLabel}</Text>
-      )}
-
-      {/* 検索履歴チップ（#91）。検索欄フォーカス中かつ未入力のときだけ表示 */}
-      {searchFocused && query.length === 0 && (
-        <View style={styles.historyWrap}>
-          <SearchHistoryChips
+      {/* 検索履歴ドロップダウン（#91）。検索欄フォーカス中かつ未入力のとき検索欄直下にフロート表示 */}
+      {searchFocused && query.length === 0 && searchHistory.length > 0 && (
+        <View style={styles.historyDropdownAnchor}>
+          <SearchHistoryDropdown
             history={searchHistory}
             onSelect={handleHistorySelect}
             onRemove={handleHistoryRemove}
             onClear={handleHistoryClear}
           />
         </View>
+      )}
+      </View>
+
+      {/* ソートラベル（デフォルト以外の時のみ） */}
+      {!isDefaultSort && (
+        <Text style={styles.sortLabel}>{currentSortLabel}</Text>
       )}
 
       {/* 曲一覧 */}
@@ -889,7 +891,15 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     fontWeight: '500',
   },
-  historyWrap: { marginHorizontal: 18, marginBottom: 6 },
+  // 検索履歴ドロップダウンのアンカー。searchRow を内包し、直下にフロートさせる
+  searchZone: { zIndex: 30 },
+  historyDropdownAnchor: {
+    position: 'absolute',
+    top: 46,
+    left: 18,
+    right: 18,
+    zIndex: 50,
+  },
   // flex:1 で残り領域いっぱいに広がり内部スクロールする。これが無いと
   // FlatList が中身の高さで膨らみ、兄弟（タブ行）を flex shrink で圧迫して切る。
   list: { flex: 1 },
