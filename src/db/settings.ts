@@ -1,4 +1,10 @@
 import { getDb } from './client';
+import {
+  addHistoryEntry,
+  parseHistory,
+  removeHistoryEntry,
+  SearchHistoryKey,
+} from '../lib/searchHistory';
 
 export async function getSetting(key: string): Promise<string | null> {
   const row = await getDb().getFirstAsync<{ value: string }>(
@@ -51,4 +57,30 @@ export function getSetlistSongIds(date: string): number[] {
 export function saveSetlistSongIds(date: string, ids: number[]): void {
   setSettingSync('setlist_date', date);
   setSettingSync('setlist_song_ids', JSON.stringify(ids));
+}
+
+// ---- 検索キーワード履歴（#91）----
+
+/** 履歴を取得（最新が先頭）。壊れた値は空配列。 */
+export function getSearchHistory(key: SearchHistoryKey): string[] {
+  return parseHistory(getSettingSync(key));
+}
+
+/** キーワードを履歴へ追加し、更新後の配列を返す。 */
+export function pushSearchHistory(key: SearchHistoryKey, term: string): string[] {
+  const next = addHistoryEntry(getSearchHistory(key), term);
+  setSettingSync(key, JSON.stringify(next));
+  return next;
+}
+
+/** 履歴から1件削除し、更新後の配列を返す。 */
+export function deleteSearchHistoryEntry(key: SearchHistoryKey, term: string): string[] {
+  const next = removeHistoryEntry(getSearchHistory(key), term);
+  setSettingSync(key, JSON.stringify(next));
+  return next;
+}
+
+/** 履歴を全消去する。 */
+export function clearSearchHistory(key: SearchHistoryKey): void {
+  setSettingSync(key, '[]');
 }
