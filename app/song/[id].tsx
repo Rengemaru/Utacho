@@ -102,14 +102,25 @@ export default function SongDetailScreen() {
     <View style={[styles.screen, { paddingTop: insets.top }]}>
       {/* ヘッダー */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+        <TouchableOpacity
+          style={styles.backBtn}
+          onPress={() => router.back()}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel="戻る"
+        >
           <Text style={styles.backBtnText}>‹</Text>
         </TouchableOpacity>
         <View style={styles.headerInfo}>
           <Text style={styles.headerTitle} numberOfLines={1}>{song.title}</Text>
           <Text style={styles.headerArtist} numberOfLines={1}>{song.artist || '—'}</Text>
         </View>
-        <TouchableOpacity onPress={() => router.push(`/song/new?songId=${songId}`)}>
+        <TouchableOpacity
+          onPress={() => router.push(`/song/new?songId=${songId}`)}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel="曲を編集"
+        >
           <Text style={styles.editBtn}>編集</Text>
         </TouchableOpacity>
       </View>
@@ -261,6 +272,19 @@ interface HistoryRowProps {
 }
 
 function HistoryRow({ score, onEdit, onDelete }: HistoryRowProps) {
+  // スワイプに依存しない代替導線（#24）。タップ/長押しで編集・削除のアクションシートを出す。
+  function showActions() {
+    Alert.alert(
+      formatDateTime(score.scored_at),
+      `${score.score.toFixed(3)}点`,
+      [
+        { text: '編集', onPress: onEdit },
+        { text: '削除', style: 'destructive', onPress: onDelete },
+        { text: 'キャンセル', style: 'cancel' },
+      ]
+    );
+  }
+
   return (
     <Swipeable
       overshootRight={false}
@@ -281,6 +305,13 @@ function HistoryRow({ score, onEdit, onDelete }: HistoryRowProps) {
         </View>
       )}
     >
+      <TouchableOpacity
+        activeOpacity={0.6}
+        onPress={showActions}
+        onLongPress={showActions}
+        accessibilityRole="button"
+        accessibilityLabel={`${formatDateTime(score.scored_at)} ${score.score.toFixed(3)}点 の編集・削除`}
+      >
       <View style={styles.historyRow}>
         <Text style={styles.historyDate}>{formatDateTime(score.scored_at)}</Text>
         <View style={[
@@ -296,6 +327,7 @@ function HistoryRow({ score, onEdit, onDelete }: HistoryRowProps) {
         </View>
         <Text style={styles.historyScore}>{score.score.toFixed(3)}</Text>
       </View>
+      </TouchableOpacity>
     </Swipeable>
   );
 }

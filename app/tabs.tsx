@@ -114,7 +114,13 @@ export default function TabsScreen() {
     <View style={[styles.screen, { paddingTop: insets.top }]}>
       {/* ヘッダー */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+        <TouchableOpacity
+          style={styles.backBtn}
+          onPress={() => router.back()}
+          hitSlop={BTN_HIT_SLOP}
+          accessibilityRole="button"
+          accessibilityLabel="戻る"
+        >
           <Text style={styles.backBtnText}>‹</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>タブを編集</Text>

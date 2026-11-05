@@ -41,6 +41,7 @@ export function SongCard({ song, machine, onPressRecord }: Props) {
         <TouchableOpacity
           style={styles.recordBtn}
           onPress={onPressRecord}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           accessibilityRole="button"
           accessibilityLabel={`${song.title}の点数を記録`}
         >

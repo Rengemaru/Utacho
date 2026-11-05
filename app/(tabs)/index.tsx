@@ -258,6 +258,19 @@ export default function HomeScreen() {
     });
   }
 
+  // スワイプに依存しない代替導線（#24）。カード長押しで編集・削除のアクションシートを出す。
+  function handleSongActions(song: SongWithStats) {
+    Alert.alert(
+      song.title,
+      song.artist || undefined,
+      [
+        { text: '編集', onPress: () => router.push(`/song/new?songId=${song.id}`) },
+        { text: '削除', style: 'destructive', onPress: () => handleDeleteSong(song) },
+        { text: 'キャンセル', style: 'cancel' },
+      ]
+    );
+  }
+
   function handleDeleteSong(song: SongWithStats) {
     Alert.alert(
       '曲を削除',
@@ -322,6 +335,7 @@ export default function HomeScreen() {
           <TouchableOpacity
             style={[styles.setlistBtn, isTablet && styles.iconBtnTablet]}
             onPress={openSetlistModal}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             accessibilityLabel="今日のセットリスト"
           >
             <Text style={[styles.setlistBtnText, isTablet && styles.iconBtnTextTablet]}>📋</Text>
@@ -334,6 +348,7 @@ export default function HomeScreen() {
           <TouchableOpacity
             style={[styles.helpBtn, isTablet && styles.iconBtnTablet]}
             onPress={() => router.push('/help')}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             accessibilityLabel="ヘルプ"
           >
             <Text style={[styles.helpBtnText, isTablet && styles.iconBtnTextTablet]}>？</Text>
@@ -341,6 +356,8 @@ export default function HomeScreen() {
           <TouchableOpacity
             style={[styles.addBtn, isTablet && styles.iconBtnTablet]}
             onPress={() => router.push('/song/new')}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityLabel="曲を追加"
           >
             <Text style={[styles.addBtnText, isTablet && styles.addBtnTextTablet]}>＋</Text>
           </TouchableOpacity>
@@ -451,6 +468,7 @@ export default function HomeScreen() {
           <TouchableOpacity
             style={styles.diceBtn}
             onPress={() => setRandomModalVisible(true)}
+            hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
             accessibilityLabel="ランダムに選曲"
           >
             <Text style={styles.diceBtnText}>🎲</Text>
@@ -459,6 +477,8 @@ export default function HomeScreen() {
         <TouchableOpacity
           style={[styles.sortBtn, !isDefaultSort && styles.sortBtnActive]}
           onPress={() => setSortModalVisible(true)}
+          hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+          accessibilityLabel="並び替え"
         >
           <Text style={[styles.sortBtnText, !isDefaultSort && styles.sortBtnTextActive]}>⇅</Text>
         </TouchableOpacity>
@@ -544,7 +564,11 @@ export default function HomeScreen() {
                 </View>
               )}
             >
-              <TouchableOpacity onPress={() => router.push(`/song/${item.id}`)}>
+              <TouchableOpacity
+                onPress={() => router.push(`/song/${item.id}`)}
+                onLongPress={() => handleSongActions(item)}
+                accessibilityHint="長押しで編集・削除"
+              >
                 <SongCard
                   song={item}
                   machine={defaultMachine}
