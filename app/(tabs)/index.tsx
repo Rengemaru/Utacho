@@ -229,6 +229,19 @@ export default function HomeScreen() {
     });
   }
 
+  // スワイプに依存しない代替導線（#24）。カード長押しで編集・削除のアクションシートを出す。
+  function handleSongActions(song: SongWithStats) {
+    Alert.alert(
+      song.title,
+      song.artist || undefined,
+      [
+        { text: '編集', onPress: () => router.push(`/song/new?songId=${song.id}`) },
+        { text: '削除', style: 'destructive', onPress: () => handleDeleteSong(song) },
+        { text: 'キャンセル', style: 'cancel' },
+      ]
+    );
+  }
+
   function handleDeleteSong(song: SongWithStats) {
     Alert.alert(
       '曲を削除',
@@ -501,7 +514,11 @@ export default function HomeScreen() {
                 </View>
               )}
             >
-              <TouchableOpacity onPress={() => router.push(`/song/${item.id}`)}>
+              <TouchableOpacity
+                onPress={() => router.push(`/song/${item.id}`)}
+                onLongPress={() => handleSongActions(item)}
+                accessibilityHint="長押しで編集・削除"
+              >
                 <SongCard
                   song={item}
                   machine={defaultMachine}
