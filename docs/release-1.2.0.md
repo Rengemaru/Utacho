@@ -5,10 +5,17 @@
 > 前リリースの記録：`docs/release-1.1.0.md`
 
 ## 0. バージョン
-- **versionName：`1.2.0`**（`app.json` `expo.version`・本リリースで 1.1.0 → 1.2.0 に更新）
+
+**Google Play 現状（2026-10-07 時点・クローズドテスト Alpha）**
+- リリース名：**1.1.0**／App Bundle **versionCode 6**（有効・完全公開 100%）
+- 過去バンドル：1.0.0（versionCode 3=非アクティブ、versionCode 2=有効）
+
+**本リリース（1.2.0）**
+- **versionName：`1.2.0`**（`app.json` `expo.version`・1.1.0 → 1.2.0 に更新）
   - ⚠️ 1.1.0 のまま配布すると、ユーザーから見てバージョンが変わらずアップデートが降ってくる状態になるため、必ず **1.2.0** へ上げる。
-- versionCode：`app.json` で **4** に更新（`docs/release-1.1.0.md` 追記分 / 準備 PR）。
-  - `eas.json` は `autoIncrement: true` のため、EAS ビルド時にリモートの最大値 +1 へ自動設定される（`4` は明示の目安値）。
+- **versionCode：`7`**（`app.json` で設定）
+  - ⚠️ 現行の最新 versionCode は **6**。次ビルドは **必ず 7 以上**でないとアップロードできない。
+  - `eas.json` は `autoIncrement: true` のため、EAS ビルド時にはリモート最大値 +1（＝7）へ自動設定される。`app.json` の `7` はそれに合わせた明示値（autoIncrement を切った場合の保険）。
 
 ---
 
@@ -91,8 +98,8 @@ eas build --platform android --profile production
 eas submit --platform android --profile production
 ```
 
-- ビルド前に `app.json` の `expo.version` が **1.2.0** になっていることを確認する。
-- `versionCode` は `autoIncrement: true` により自動増加する（手動の `4` より大きくなる場合がある）。
+- ビルド前に `app.json` の `expo.version` が **1.2.0**、`versionCode` が **7**（≥7）になっていることを確認する。
+- `versionCode` は `autoIncrement: true` によりリモート最大値（現 6）+1 = **7** へ自動設定される。
 - クローズドテストのトラックは停止しない（停止すると14日カウントがリセット）。
 
 ## 5. 公開（本番トラックへ）
