@@ -277,6 +277,8 @@ function SearchScreen({
 }) {
   const { query, setQuery, mode, setMode, sortKey, changeSort, status, visibleItems, totalCount, hasMore, showMore, retry } = search;
   const showSortRow = status === 'complete' || status === 'truncated';
+  // 履歴ドロップダウンはホームと同様フォーカス連動（検索欄から離れたら閉じる）
+  const [searchFocused, setSearchFocused] = useState(false);
 
   return (
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -299,6 +301,8 @@ function SearchScreen({
           placeholderTextColor={colors.text3}
           autoFocus
           returnKeyType="search"
+          onFocus={() => setSearchFocused(true)}
+          onBlur={() => setSearchFocused(false)}
           onSubmitEditing={() => onRecordHistory(query)}
         />
         {query.length > 0 && (
@@ -315,8 +319,8 @@ function SearchScreen({
         )}
       </View>
 
-      {/* 検索前（idle）は検索欄直下に履歴ドロップダウンをフロート表示（#91） */}
-      {status === 'idle' && history.length > 0 && (
+      {/* 検索欄フォーカス中かつ検索前（idle）のとき、検索欄直下に履歴ドロップダウンを表示（#91） */}
+      {searchFocused && status === 'idle' && history.length > 0 && (
         <View style={styles.historyDropdownAnchor}>
           <SearchHistoryDropdown
             history={history}
