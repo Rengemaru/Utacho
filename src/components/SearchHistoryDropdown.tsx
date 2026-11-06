@@ -10,11 +10,12 @@ type Props = {
   onSelect: (term: string) => void;
   onRemove: (term: string) => void;
   onClear: () => void;
-  // リストが長いときの最大高さ（スクロール）。既定は約5件分。
+  // 履歴リストの最大高さ（スクロール）。既定は約4件分（1行 ≈ 43px）。
+  // これを超える分はドロップダウン内スクロールで見られる。「全消去」行は常に下部に表示。
   maxHeight?: number;
 };
 
-export function SearchHistoryDropdown({ history, onSelect, onRemove, onClear, maxHeight = 240 }: Props) {
+export function SearchHistoryDropdown({ history, onSelect, onRemove, onClear, maxHeight = 172 }: Props) {
   if (history.length === 0) return null;
 
   return (
