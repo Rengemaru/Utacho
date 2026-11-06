@@ -331,6 +331,10 @@ export const HELP_SECTIONS: HelpSection[] = [
         body: ['ご意見・ご要望・不具合の報告はこちらからお願いします。'],
         links: [
           {
+            label: 'お問い合わせフォームを開く',
+            url: 'https://docs.google.com/forms/d/e/1FAIpQLSf3TQNxt8K_TyOfBKiAt0Kty42A6T8TADIvLtAzhDy9htXHOQ/viewform',
+          },
+          {
             label: 'メールで問い合わせる',
             url: 'mailto:ren0304game@gmail.com',
           },
