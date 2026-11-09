@@ -1,5 +1,5 @@
 // 曲検索モーダル（1.1.0）の型定義。
-// 仕様書 docs/spec~1.1.0/spec-1.1.0-song-flow.md §6.2・§6.3 に対応。
+// 仕様書 docs/specs/spec-1.1.0-song-flow.md §6.2・§6.3 に対応。
 
 /** 検索対象の種類。04b のモード切り替えに対応 */
 export type SearchMode = 'song' | 'artist' | 'keyword';

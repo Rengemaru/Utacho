@@ -1,7 +1,7 @@
 # 1.1.0 仕様書：曲の追加・編集フロー再設計
 
 > versionName：1.1.0 / ターゲットAPI：36 / 前提：1.0.1（`SearchResultList`）と 1.0.2（API 36）が完了していること
-> 索引：[README.md](./README.md) / 画面：`docs/wireframe/歌帳 ワイヤーフレーム v6.html` のセクション C
+> 索引：[README.md](./README.md) / 画面：`docs/wireframes/v6-current.html` のセクション C
 
 > **状態（2026-10-07 追記）**：本仕様は**実装済み**。1.1.0 はクローズドテストへ配布済み（配布日 ⚠️ 未記録）。
 > 実装は `src/features/songSearch/`（`itunes.ts` / `logic.ts` / `useSongSearch.ts` / `SongSearchModal.tsx` ほか）。
@@ -250,7 +250,7 @@ type SongSearchModalProps = {
 
 | # | タスク | 目安 | 受け入れ条件 |
 |---|---|---|---|
-| B1 | ワイヤーv6の反映 | 2h | `docs/wireframe/歌帳 ワイヤーフレーム v6.html` が本仕様と一致している（✅ 2026-09-30 作成済み）。更新した場合は Drive の共有用コピーも差し替える |
+| B1 | ワイヤーv6の反映 | 2h | `docs/wireframes/v6-current.html` が本仕様と一致している（✅ 2026-09-30 作成済み）。更新した場合は Drive の共有用コピーも差し替える |
 | B2 | 型・定数の定義 | 1h | 6.2 の型と定数が定義され、型エラーがない |
 | B3 | 日本語ソートの実機検証 | 0.5h | Hermes で `Intl.Collator('ja')` を使い「アイ／あお／愛／Apple」等を並べた結果が報告され、曲名順の方式が決まっている |
 | B4 | iTunes 検索関数 | 2h | 5.3 のとおりにリクエストし、6.3 の型で成功・失敗を返す。機内モードで `ok: false` になる |
