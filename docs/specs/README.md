@@ -2,7 +2,7 @@
 
 > 作成日：2026-09-30 / 対象：Google Play クローズドテスト中の改善リリース
 > 正本：このディレクトリの Markdown。決定の経緯は Notion（要件定義 §9・開発ロードマップ「v1.1 WBS」）を参照。
-> 画面の正：`docs/wireframe/歌帳 ワイヤーフレーム v6.html`（Google Drive にあるものは共有用コピー。更新したら Drive も差し替える）
+> 画面の正：`docs/wireframes/v6-current.html`（Google Drive にあるものは共有用コピー。更新したら Drive も差し替える）
 
 ## 配布状況（2026-10-07 追記）
 
