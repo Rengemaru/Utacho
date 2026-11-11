@@ -24,7 +24,7 @@ import { colors } from '../../src/constants/colors';
 import { fonts } from '../../src/constants/fonts';
 import { deleteSong, getAllSongs, getRandomSongId } from '../../src/db/songs';
 import { deleteTab } from '../../src/db/tabs';
-import { getSessionSummary, getMonthlyStats, SessionSummary, MonthlyStats } from '../../src/db/scores';
+import { getSessionSummary, getMonthlyStats, getSongIdsScoredOn, SessionSummary, MonthlyStats } from '../../src/db/scores';
 import { getSetlistSongIds, saveSetlistSongIds, getSettingSync, setSettingSync, getSearchHistory, pushSearchHistory, deleteSearchHistoryEntry, clearSearchHistory } from '../../src/db/settings';
 import { SearchHistoryDropdown } from '../../src/components/SearchHistoryDropdown';
 import { useSongs, ALL_TAB, SETLIST_TAB } from '../../src/hooks/useSongs';
@@ -35,21 +35,32 @@ import { SongWithStats } from '../../src/types';
 import { normalizeForSearch } from '../../src/lib/text';
 import { useIsTablet, useTwoColumn } from '../../src/lib/responsive';
 
-type SortKey = 'created_at' | 'best_score' | 'score_count' | 'latest_scored_at' | 'improvement' | 'title' | 'artist';
+type SortKey = 'created_at' | 'best_score' | 'score_count' | 'latest_scored_at' | 'improvement' | 'title' | 'artist' | 'shuffle';
 type SortDir = 'asc' | 'desc';
 
 import { truncateTabName } from '../../src/constants/tabConfig';
 
 // ラベルから方向語は外し、方向は昇順/降順トグルで示す
 const SORT_OPTIONS: { key: SortKey; label: string }[] = [
-  { key: 'created_at',      label: '登録日' },
-  { key: 'best_score',      label: '最高スコア' },
-  { key: 'score_count',     label: '記録回数' },
-  { key: 'latest_scored_at', label: '最終記録日' },
-  { key: 'improvement',     label: 'スコア伸び率' },
-  { key: 'title',           label: '曲名' },
-  { key: 'artist',          label: 'アーティスト' },
+  { key: 'created_at',      label: '🗓 登録日' },
+  { key: 'best_score',      label: '🏆 最高スコア' },
+  { key: 'score_count',     label: '🔢 記録回数' },
+  { key: 'latest_scored_at', label: '🕒 最終記録日' },
+  { key: 'improvement',     label: '📈 スコア伸び率' },
+  { key: 'title',           label: '🔤 曲名' },
+  { key: 'artist',          label: '🎤 アーティスト' },
+  { key: 'shuffle',         label: '🔀 シャッフル' },
 ];
+
+// Fisher–Yates で配列をランダムに並べ替える（非破壊）
+function shuffleArray<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
 
 // 曲名/アーティスト順の日本語照合
 const jaCollator = new Intl.Collator('ja');
@@ -82,6 +93,9 @@ function compareAsc(a: SongWithStats, b: SongWithStats, key: SortKey): number {
         normalizeForSearch(a.artist_reading || a.artist),
         normalizeForSearch(b.artist_reading || b.artist),
       );
+    case 'shuffle':
+      // シャッフルは filtered 側で保存済みのランダム順を使うため、ここでは順序を変えない
+      return 0;
   }
 }
 
@@ -114,6 +128,8 @@ export default function HomeScreen() {
   const [sortKey, setSortKey] = useState<SortKey>('created_at');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [sortModalVisible, setSortModalVisible] = useState(false);
+  // シャッフル選択時に確定したランダム順（曲ID配列）。再レンダーで並びが暴れないよう保持する（#110 §2）
+  const [shuffleOrder, setShuffleOrder] = useState<number[]>([]);
   const [setlistIds, setSetlistIds] = useState<number[]>([]);
   const [setlistModalVisible, setSetlistModalVisible] = useState(false);
   const [allSongsForSetlist, setAllSongsForSetlist] = useState<SongWithStats[]>([]);
@@ -229,7 +245,20 @@ export default function HomeScreen() {
   // タブピル長押し → タブの詳細設定（対応曲の一括変更）への導線（#117）。
   // 「すべて」「今日（セットリスト）」の固定タブは編集不可なので対象外。
   async function handleTabLongPress(tab: { id: number; name: string }) {
-    if (tab.id === ALL_TAB.id || tab.id === SETLIST_TAB.id) return;
+    if (tab.id === ALL_TAB.id) return;
+    // 「今日」タブの長押しはセットリストを空にする操作（シャッフルは並び替えメニューに移動・#110 §2）
+    if (tab.id === SETLIST_TAB.id) {
+      if (setlistIds.length === 0) return;
+      const r = await confirm({
+        title: '今日のセットリスト',
+        message: 'このリストを操作',
+        options: [
+          { label: '今日のリストを空にする', icon: '🗑', style: 'danger' },
+        ],
+      });
+      if (r === 0) clearSetlist();
+      return;
+    }
     const r = await confirm({
       title: tab.name,
       message: 'このタブを操作',
@@ -242,6 +271,24 @@ export default function HomeScreen() {
     if (r === 0) router.push(`/tabs/${tab.id}`);
     else if (r === 1) router.push(`/tabs/${tab.id}?openPicker=1`);
     else if (r === 2) handleDeleteTab(tab);
+  }
+
+  // 今日のセットリストを空にする（歌帳の曲は消さない）
+  async function clearSetlist() {
+    const r = await confirm({
+      title: '今日のリストを空にする',
+      message: '今日のセットリストをすべて外しますか？\n歌帳の曲は削除されません。',
+      icon: '🗑',
+      iconTone: 'red',
+      options: [{ label: '空にする', style: 'danger' }],
+    });
+    if (r !== 0) return;
+    if (Platform.OS === 'web') return;
+    saveSetlistSongIds(localDateString(), []);
+    setSetlistIds([]);
+    setActiveTabId(ALL_TAB.id);
+    reloadTabs();
+    reload();
   }
 
   async function handleDeleteTab(tab: { id: number; name: string }) {
@@ -265,16 +312,51 @@ export default function HomeScreen() {
     }
   }
 
-  function handleRandomPick(scopeId: number) {
+  async function handleRandomPick(scopeId: number) {
     setRandomModalVisible(false);
     if (Platform.OS === 'web') return;
-    // ALL_TAB（すべて）は全曲から、それ以外はそのタブから抽選
-    const tabId = scopeId === ALL_TAB.id ? null : scopeId;
-    const songId = getRandomSongId(tabId);
+    let songId: number | null = null;
+    if (scopeId === SETLIST_TAB.id) {
+      // 今日のセットリストから抽選（保持しているID配列から直接選ぶ・#110 §3）
+      if (setlistIds.length === 0) return;
+      // 「歌った曲（今日スコアあり）」と未歌唱が混在していたら、含めるか尋ねる（#110 §1）
+      const sungToday = new Set(getSongIdsScoredOn(localDateString()));
+      const sungInList = setlistIds.filter((id) => sungToday.has(id));
+      const unsung = setlistIds.filter((id) => !sungToday.has(id));
+      let pool = setlistIds;
+      if (sungInList.length > 0 && unsung.length > 0) {
+        const r = await confirm({
+          title: '今日のセットリストから選曲',
+          message: `歌った曲が ${sungInList.length}曲 あります。抽選に含めますか？`,
+          options: [
+            { label: '歌った曲も含める', icon: '🎲' },
+            { label: 'まだ歌ってない曲だけ', icon: '🆕' },
+          ],
+        });
+        if (r === -1) return;
+        pool = r === 1 ? unsung : setlistIds;
+      }
+      songId = pool[Math.floor(Math.random() * pool.length)];
+    } else {
+      // ALL_TAB（すべて）は全曲から、それ以外はそのタブから抽選
+      const tabId = scopeId === ALL_TAB.id ? null : scopeId;
+      songId = getRandomSongId(tabId);
+    }
     if (songId != null) {
       router.push(`/song/${songId}`);
     }
   }
+
+  // ランダム選曲の範囲。今日のセットリストがあれば先頭に追加する（#110 §3）
+  const randomScopes = useMemo(() => {
+    if (setlistIds.length > 0) {
+      return [
+        { id: SETLIST_TAB.id, name: '今日のセットリスト', song_count: setlistIds.length },
+        ...tabsWithAll,
+      ];
+    }
+    return tabsWithAll;
+  }, [tabsWithAll, setlistIds]);
 
   function openSetlistModal() {
     if (Platform.OS !== 'web') {
@@ -301,16 +383,49 @@ export default function HomeScreen() {
 
   // スワイプに依存しない代替導線（#24）。カード長押しで編集・削除のアクションシートを出す。
   async function handleSongActions(song: SongWithStats) {
+    const inSetlist = activeTabId === SETLIST_TAB.id;
     const r = await confirm({
       title: song.title,
       message: song.artist || undefined,
       options: [
         { label: '編集', icon: '✏️' },
-        { label: '削除', icon: '🗑', style: 'danger' },
+        inSetlist
+          ? { label: '今日から外す', icon: '✕' }
+          : { label: '削除', icon: '🗑', style: 'danger' },
       ],
     });
     if (r === 0) router.push(`/song/new?songId=${song.id}`);
-    else if (r === 1) handleDeleteSong(song);
+    else if (r === 1) handleCardDelete(song);
+  }
+
+  // 「今日」タブでの削除はセットリストから外すだけ、それ以外は歌帳から完全削除（#110 §1-a）
+  function handleCardDelete(song: SongWithStats) {
+    if (activeTabId === SETLIST_TAB.id) removeFromSetlist(song);
+    else handleDeleteSong(song);
+  }
+
+  async function removeFromSetlist(song: SongWithStats) {
+    const r = await confirm({
+      title: '今日のセットリストから外す',
+      message: `「${song.title}」を今日のセットリストから外しますか？\n歌帳からは削除されません。`,
+      icon: '✕',
+      options: [{ label: '今日から外す', style: 'primary' }],
+    });
+    if (r !== 0) return;
+    if (Platform.OS === 'web') return;
+    try {
+      const next = setlistIds.filter((id) => id !== song.id);
+      saveSetlistSongIds(localDateString(), next);
+      setSetlistIds(next);
+      reloadTabs();
+      if (next.length === 0 && activeTabId === SETLIST_TAB.id) {
+        setActiveTabId(ALL_TAB.id);
+      }
+      reload();
+    } catch (e) {
+      console.error(e);
+      await confirm({ title: 'エラー', message: 'セットリストの更新に失敗しました', options: [{ label: 'OK', style: 'primary' }], cancelLabel: null });
+    }
   }
 
   async function handleDeleteSong(song: SongWithStats) {
@@ -343,8 +458,13 @@ export default function HomeScreen() {
           return fields.some((f) => f.includes(q));
         })
       : songs;
+    // シャッフルは確定済みのランダム順（shuffleOrder）で並べる。未収録IDは末尾へ
+    if (sortKey === 'shuffle') {
+      const idx = new Map(shuffleOrder.map((id, i) => [id, i]));
+      return [...base].sort((a, b) => (idx.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (idx.get(b.id) ?? Number.MAX_SAFE_INTEGER));
+    }
     return sortSongs(base, sortKey, sortDir);
-  }, [songs, query, sortKey, sortDir]);
+  }, [songs, query, sortKey, sortDir, shuffleOrder]);
 
   // セットリストタブを先頭に追加（今日の分が存在する場合）
   const visibleTabs = useMemo(() => {
@@ -359,7 +479,9 @@ export default function HomeScreen() {
 
   const isDefaultSort = sortKey === 'created_at' && sortDir === 'desc';
   const currentSortLabel =
-    (SORT_OPTIONS.find((o) => o.key === sortKey)?.label ?? '') + (sortDir === 'asc' ? ' ↑' : ' ↓');
+    sortKey === 'shuffle'
+      ? '🔀 シャッフル'
+      : (SORT_OPTIONS.find((o) => o.key === sortKey)?.label ?? '') + (sortDir === 'asc' ? ' ↑' : ' ↓');
   // 登録曲が1件もないときはランダム選曲ボタンを出さない
   const hasAnySong = (tabsWithAll.find((t) => t.id === ALL_TAB.id)?.song_count ?? 0) > 0;
 
@@ -594,13 +716,13 @@ export default function HomeScreen() {
                   <TouchableOpacity
                     style={[styles.swipeBtn, styles.swipeDeleteBtn]}
                     accessibilityRole="button"
-                    accessibilityLabel={`${item.title}を削除`}
+                    accessibilityLabel={activeTabId === SETLIST_TAB.id ? `${item.title}を今日から外す` : `${item.title}を削除`}
                     onPress={() => {
                       swipeRefs.current.get(item.id)?.close();
-                      handleDeleteSong(item);
+                      handleCardDelete(item);
                     }}
                   >
-                    <Text style={styles.swipeBtnText}>🗑{'\n'}削除</Text>
+                    <Text style={styles.swipeBtnText}>{activeTabId === SETLIST_TAB.id ? `✕\n外す` : `🗑\n削除`}</Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -673,7 +795,12 @@ export default function HomeScreen() {
               <TouchableOpacity
                 key={opt.key}
                 style={[styles.sortOption, sortKey === opt.key && styles.sortOptionActive]}
-                onPress={() => { setSortKey(opt.key); setSortModalVisible(false); }}
+                onPress={() => {
+                  // シャッフルを選ぶたびに新しいランダム順を確定する（再選択で並び直し）
+                  if (opt.key === 'shuffle') setShuffleOrder(shuffleArray(songs.map((s) => s.id)));
+                  setSortKey(opt.key);
+                  setSortModalVisible(false);
+                }}
               >
                 <Text style={[styles.sortOptionText, sortKey === opt.key && styles.sortOptionTextActive]}>
                   {opt.label}
@@ -705,7 +832,7 @@ export default function HomeScreen() {
       {/* ランダム選曲モーダル */}
       <RandomPickModal
         visible={randomModalVisible}
-        scopes={tabsWithAll}
+        scopes={randomScopes}
         onPick={handleRandomPick}
         onClose={() => setRandomModalVisible(false)}
       />
