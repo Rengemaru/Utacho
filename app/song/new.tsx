@@ -37,7 +37,7 @@ export default function SongFormScreen() {
   const { songId } = useLocalSearchParams<{ songId?: string }>();
   const isEdit = !!songId;
 
-  const { tabs, reload: reloadTabs } = useTabs();
+  const { tabs, loading: tabsLoading, reload: reloadTabs } = useTabs();
   const [title, setTitle] = useState('');
   const [artist, setArtist] = useState('');
   const [keyOffset, setKeyOffset] = useState<number | null>(null);
@@ -76,11 +76,15 @@ export default function SongFormScreen() {
     }
   }, [songId, isEdit]);
 
-  // Bug-1: タブが削除・追加されたとき、存在しないタブIDをselectedTabIdsから除去する
+  // Bug-1: タブが削除・追加されたとき、存在しないタブIDをselectedTabIdsから除去する。
+  // ただしタブ一覧のロード完了前（tabsLoading中・tabs=[]）は絞り込まない。
+  // ここで走らせると、曲のタブを復元する Effect 1 と同じバッチで filter が実行され、
+  // 関数型アップデータの prev は [3,5]（Effect 1の結果）なのにクロージャの tabs は
+  // 初回レンダーの [] を掴んでいるため、設定済みタブが全部外れてしまう。
   useEffect(() => {
-    if (!isEdit) return;
+    if (!isEdit || tabsLoading) return;
     setSelectedTabIds((prev) => prev.filter((id) => tabs.some((t) => t.id === id)));
-  }, [tabs, isEdit]);
+  }, [tabs, tabsLoading, isEdit]);
 
   function applyCandidate(c: SongCandidate) {
     setTitle(c.title);
