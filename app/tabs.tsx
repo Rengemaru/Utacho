@@ -130,7 +130,7 @@ export default function TabsScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 100 }]}
       >
-        <Text style={styles.hint}>タブはカラオケの持ち歌カテゴリです。曲に複数のタブを付けられます。</Text>
+        <Text style={styles.hint}>タブはカラオケの持ち歌カテゴリです。曲に複数のタブを付けられます。タブをタップすると詳細設定（対応曲の一括変更）を開けます。</Text>
 
         <View style={styles.group}>
           {tabs.length === 0 ? (
@@ -145,10 +145,17 @@ export default function TabsScreen() {
                 key={tab.id}
                 style={[styles.row, index === tabs.length - 1 && styles.rowLast]}
               >
-                <View style={styles.tabIcon}>
-                  <Text style={styles.tabIconText}>🗂</Text>
-                </View>
-                <Text style={styles.tabName} numberOfLines={1} ellipsizeMode="tail">{tab.name}</Text>
+                <TouchableOpacity
+                  style={styles.rowMain}
+                  onPress={() => router.push(`/tabs/${tab.id}`)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${tab.name}の詳細設定`}
+                >
+                  <View style={styles.tabIcon}>
+                    <Text style={styles.tabIconText}>🗂</Text>
+                  </View>
+                  <Text style={styles.tabName} numberOfLines={1} ellipsizeMode="tail">{tab.name}</Text>
+                </TouchableOpacity>
                 <View style={styles.actions}>
                   <TouchableOpacity
                     style={[styles.arrowBtn, index === 0 && styles.arrowBtnDisabled]}
@@ -327,6 +334,13 @@ const styles = StyleSheet.create({
   },
   tabIconText: {
     fontSize: 14,
+  },
+  rowMain: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    minWidth: 0,
   },
   tabName: {
     flex: 1,
