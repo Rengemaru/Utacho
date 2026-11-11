@@ -47,11 +47,27 @@ export function getSetlistSongIds(date: string): number[] {
   if (storedDate !== date) return [];
   const idsJson = getSettingSync('setlist_song_ids');
   if (!idsJson) return [];
+  let ids: number[];
   try {
-    return JSON.parse(idsJson) as number[];
+    ids = JSON.parse(idsJson) as number[];
   } catch {
     return [];
   }
+  if (ids.length === 0) return [];
+  // 削除済みなど存在しない曲IDを除去する（#109）。
+  // バッジ・タブの曲数は ids.length を使う一方、リスト表示は存在する曲だけになり
+  // 数が食い違うため、読み取り時に掃除し、変化があれば保存し直す。
+  const placeholders = ids.map(() => '?').join(',');
+  const rows = getDb().getAllSync<{ id: number }>(
+    `SELECT id FROM songs WHERE id IN (${placeholders})`,
+    ids
+  );
+  const existing = new Set(rows.map((r) => r.id));
+  const pruned = ids.filter((id) => existing.has(id));
+  if (pruned.length !== ids.length) {
+    setSettingSync('setlist_song_ids', JSON.stringify(pruned));
+  }
+  return pruned;
 }
 
 export function saveSetlistSongIds(date: string, ids: number[]): void {
