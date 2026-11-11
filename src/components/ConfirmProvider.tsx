@@ -78,10 +78,11 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
         statusBarTranslucent
         onRequestClose={() => finish(-1)}
       >
-        <TouchableWithoutFeedback onPress={() => cancelable && finish(-1)}>
-          <View style={styles.overlay} />
-        </TouchableWithoutFeedback>
-        {config && (
+        <View style={styles.centerWrap}>
+          <TouchableWithoutFeedback onPress={() => cancelable && finish(-1)}>
+            <View style={styles.overlay} />
+          </TouchableWithoutFeedback>
+          {config && (
           <View style={styles.dialog}>
             <View style={styles.body}>
               {config.icon && (
@@ -140,7 +141,8 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
               </View>
             )}
           </View>
-        )}
+          )}
+        </View>
       </Modal>
     </ConfirmContext.Provider>
   );
@@ -158,10 +160,11 @@ function optIconTone(style?: ConfirmOptionStyle) {
 }
 
 const styles = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.42)' },
+  // flexで画面中央に配置（固定オフセットを使わないため、ダイアログの高さに関わらず常に中央）
+  centerWrap: { flex: 1, justifyContent: 'center' },
+  overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.42)' },
   dialog: {
-    position: 'absolute', left: 28, right: 28, top: '50%',
-    transform: [{ translateY: -120 }],
+    marginHorizontal: 28,
     backgroundColor: colors.white, borderRadius: 18, overflow: 'hidden',
     shadowColor: '#000', shadowOffset: { width: 0, height: 18 }, shadowOpacity: 0.25, shadowRadius: 48, elevation: 12,
   },
