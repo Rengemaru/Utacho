@@ -5,6 +5,10 @@ export function getAllTabs(): TabRow[] {
   return getDb().getAllSync<TabRow>('SELECT * FROM tabs ORDER BY sort_order ASC');
 }
 
+export function getTabById(id: number): TabRow | null {
+  return getDb().getFirstSync<TabRow>('SELECT * FROM tabs WHERE id = ?', [id]) ?? null;
+}
+
 export function getAllTabsWithCounts(): TabWithCount[] {
   return getDb().getAllSync<TabWithCount>(`
     SELECT t.*, COUNT(st.song_id) AS song_count
