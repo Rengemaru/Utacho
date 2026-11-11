@@ -229,7 +229,22 @@ export default function HomeScreen() {
   // タブピル長押し → タブの詳細設定（対応曲の一括変更）への導線（#117）。
   // 「すべて」「今日（セットリスト）」の固定タブは編集不可なので対象外。
   async function handleTabLongPress(tab: { id: number; name: string }) {
-    if (tab.id === ALL_TAB.id || tab.id === SETLIST_TAB.id) return;
+    if (tab.id === ALL_TAB.id) return;
+    // 「今日」タブの長押しはセットリスト操作（シャッフル／空にする）・#110 §2
+    if (tab.id === SETLIST_TAB.id) {
+      if (setlistIds.length === 0) return;
+      const r = await confirm({
+        title: '今日のセットリスト',
+        message: 'このリストを操作',
+        options: [
+          { label: '順番をシャッフル', icon: '🔀' },
+          { label: '今日のリストを空にする', icon: '🗑', style: 'danger' },
+        ],
+      });
+      if (r === 0) shuffleSetlist();
+      else if (r === 1) clearSetlist();
+      return;
+    }
     const r = await confirm({
       title: tab.name,
       message: 'このタブを操作',
@@ -242,6 +257,36 @@ export default function HomeScreen() {
     if (r === 0) router.push(`/tabs/${tab.id}`);
     else if (r === 1) router.push(`/tabs/${tab.id}?openPicker=1`);
     else if (r === 2) handleDeleteTab(tab);
+  }
+
+  // セットリストの順番をランダムに並べ替えて保存する（#110 §2・保存型）
+  function shuffleSetlist() {
+    if (Platform.OS === 'web' || setlistIds.length < 2) return;
+    const shuffled = [...setlistIds];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    saveSetlistSongIds(localDateString(), shuffled);
+    setSetlistIds(shuffled);
+  }
+
+  // 今日のセットリストを空にする（歌帳の曲は消さない）
+  async function clearSetlist() {
+    const r = await confirm({
+      title: '今日のリストを空にする',
+      message: '今日のセットリストをすべて外しますか？\n歌帳の曲は削除されません。',
+      icon: '🗑',
+      iconTone: 'red',
+      options: [{ label: '空にする', style: 'danger' }],
+    });
+    if (r !== 0) return;
+    if (Platform.OS === 'web') return;
+    saveSetlistSongIds(localDateString(), []);
+    setSetlistIds([]);
+    setActiveTabId(ALL_TAB.id);
+    reloadTabs();
+    reload();
   }
 
   async function handleDeleteTab(tab: { id: number; name: string }) {
@@ -394,8 +439,13 @@ export default function HomeScreen() {
           return fields.some((f) => f.includes(q));
         })
       : songs;
+    // 「今日」タブは保存されたセットリストのID順（シャッフル結果）で表示する（並び替えは適用しない・#110 §2）
+    if (activeTabId === SETLIST_TAB.id) {
+      const orderIndex = new Map(setlistIds.map((id, i) => [id, i]));
+      return [...base].sort((a, b) => (orderIndex.get(a.id) ?? 0) - (orderIndex.get(b.id) ?? 0));
+    }
     return sortSongs(base, sortKey, sortDir);
-  }, [songs, query, sortKey, sortDir]);
+  }, [songs, query, sortKey, sortDir, activeTabId, setlistIds]);
 
   // セットリストタブを先頭に追加（今日の分が存在する場合）
   const visibleTabs = useMemo(() => {
