@@ -56,6 +56,7 @@ export default function RootLayout() {
           <Stack.Screen name="song/new" options={{ presentation: 'modal', animation: 'slide_from_bottom', headerShown: false }} />
           <Stack.Screen name="song/[id]" options={{ headerShown: false }} />
           <Stack.Screen name="tabs" options={{ headerShown: false }} />
+          <Stack.Screen name="tabs/[id]" options={{ headerShown: false }} />
           <Stack.Screen name="onboarding" options={{ headerShown: false }} />
           <Stack.Screen name="settings/machine" options={{ headerShown: false }} />
         </Stack>
