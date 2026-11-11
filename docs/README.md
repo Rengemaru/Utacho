@@ -6,7 +6,7 @@
 
 | パス | 内容 |
 |---|---|
-| `releases/` | リリース手順書。[release-1.1.0.md](./releases/release-1.1.0.md) / [release-1.2.0.md](./releases/release-1.2.0.md) |
+| `releases/` | リリース手順書。[release-1.1.0.md](./releases/release-1.1.0.md) / [release-1.2.0.md](./releases/release-1.2.0.md) / [release-1.2.1.md](./releases/release-1.2.1.md) |
 | `specs/` | 仕様書。索引は [specs/README.md](./specs/README.md)。1.0.1（fix-f）/ 1.0.2（API36）/ 1.1.0（曲検索フロー）を収録 |
 | `wireframes/` | 画面ワイヤーフレーム。**正は [v6-current.html](./wireframes/v6-current.html)**。旧版は `wireframes/archive/`（v3 / v5） |
 
