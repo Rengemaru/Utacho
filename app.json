@@ -2,7 +2,7 @@
   "expo": {
     "name": "歌帳",
     "slug": "Mykara",
-    "version": "1.2.0",
+    "version": "1.2.1",
     "scheme": "mykara",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -13,7 +13,7 @@
     },
     "android": {
       "package": "com.rengemaru.utacho",
-      "versionCode": 7,
+      "versionCode": 8,
       "softwareKeyboardLayoutMode": "resize",
       "permissions": [
         "android.permission.INTERNET"
