@@ -61,6 +61,15 @@ export function getSessionSummary(date: string): SessionSummary {
   };
 }
 
+/** 指定日に1件以上スコアがある（＝その日に歌った）曲IDの一覧。scored_at は前方一致で判定。 */
+export function getSongIdsScoredOn(date: string): number[] {
+  const rows = getDb().getAllSync<{ song_id: number }>(
+    'SELECT DISTINCT song_id FROM scores WHERE scored_at LIKE ?',
+    [date + '%']
+  );
+  return rows.map((r) => r.song_id);
+}
+
 export function getScoresBySong(songId: number): ScoreRow[] {
   // 同じ分に複数記録があっても登録順で安定させるため id を第2キーにする
   return getDb().getAllSync<ScoreRow>(

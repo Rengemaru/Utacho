@@ -24,7 +24,7 @@ import { colors } from '../../src/constants/colors';
 import { fonts } from '../../src/constants/fonts';
 import { deleteSong, getAllSongs, getRandomSongId } from '../../src/db/songs';
 import { deleteTab } from '../../src/db/tabs';
-import { getSessionSummary, getMonthlyStats, SessionSummary, MonthlyStats } from '../../src/db/scores';
+import { getSessionSummary, getMonthlyStats, getSongIdsScoredOn, SessionSummary, MonthlyStats } from '../../src/db/scores';
 import { getSetlistSongIds, saveSetlistSongIds, getSettingSync, setSettingSync, getSearchHistory, pushSearchHistory, deleteSearchHistoryEntry, clearSearchHistory } from '../../src/db/settings';
 import { SearchHistoryDropdown } from '../../src/components/SearchHistoryDropdown';
 import { useSongs, ALL_TAB, SETLIST_TAB } from '../../src/hooks/useSongs';
@@ -312,14 +312,31 @@ export default function HomeScreen() {
     }
   }
 
-  function handleRandomPick(scopeId: number) {
+  async function handleRandomPick(scopeId: number) {
     setRandomModalVisible(false);
     if (Platform.OS === 'web') return;
     let songId: number | null = null;
     if (scopeId === SETLIST_TAB.id) {
       // 今日のセットリストから抽選（保持しているID配列から直接選ぶ・#110 §3）
       if (setlistIds.length === 0) return;
-      songId = setlistIds[Math.floor(Math.random() * setlistIds.length)];
+      // 「歌った曲（今日スコアあり）」と未歌唱が混在していたら、含めるか尋ねる（#110 §1）
+      const sungToday = new Set(getSongIdsScoredOn(localDateString()));
+      const sungInList = setlistIds.filter((id) => sungToday.has(id));
+      const unsung = setlistIds.filter((id) => !sungToday.has(id));
+      let pool = setlistIds;
+      if (sungInList.length > 0 && unsung.length > 0) {
+        const r = await confirm({
+          title: '今日のセットリストから選曲',
+          message: `歌った曲が ${sungInList.length}曲 あります。抽選に含めますか？`,
+          options: [
+            { label: '歌った曲も含める', icon: '🎲' },
+            { label: 'まだ歌ってない曲だけ', icon: '🆕' },
+          ],
+        });
+        if (r === -1) return;
+        pool = r === 1 ? unsung : setlistIds;
+      }
+      songId = pool[Math.floor(Math.random() * pool.length)];
     } else {
       // ALL_TAB（すべて）は全曲から、それ以外はそのタブから抽選
       const tabId = scopeId === ALL_TAB.id ? null : scopeId;
