@@ -1,3 +1,4 @@
+import Constants from 'expo-constants';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, ActivityIndicator, Linking, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -293,7 +294,9 @@ export default function SettingsScreen() {
               <View style={styles.rowText}>
                 <Text style={styles.rowLabel}>バージョン</Text>
               </View>
-              <Text style={styles.rowValue}>1.0.0</Text>
+              <Text style={styles.rowValue}>
+                {Constants.expoConfig?.version ?? (Constants as any).manifest?.version ?? '—'}
+              </Text>
             </View>
             <TouchableOpacity
               style={styles.row}
