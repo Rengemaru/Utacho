@@ -23,6 +23,7 @@ import { SongCard } from '../../src/components/SongCard';
 import { colors } from '../../src/constants/colors';
 import { fonts } from '../../src/constants/fonts';
 import { deleteSong, getAllSongs, getRandomSongId } from '../../src/db/songs';
+import { deleteTab } from '../../src/db/tabs';
 import { getSessionSummary, getMonthlyStats, SessionSummary, MonthlyStats } from '../../src/db/scores';
 import { getSetlistSongIds, saveSetlistSongIds, getSettingSync, setSettingSync, getSearchHistory, pushSearchHistory, deleteSearchHistoryEntry, clearSearchHistory } from '../../src/db/settings';
 import { SearchHistoryDropdown } from '../../src/components/SearchHistoryDropdown';
@@ -232,9 +233,36 @@ export default function HomeScreen() {
     const r = await confirm({
       title: tab.name,
       message: 'このタブを操作',
-      options: [{ label: 'タブの詳細設定（対応曲の変更）', icon: '⚙️' }],
+      options: [
+        { label: 'タブの詳細設定', description: '名前変更・対応曲・削除', icon: '⚙️' },
+        { label: '対応曲を変更', description: 'この中の曲をまとめて編集', icon: '🎵' },
+        { label: 'タブを削除', icon: '🗑', style: 'danger' },
+      ],
     });
     if (r === 0) router.push(`/tabs/${tab.id}`);
+    else if (r === 1) router.push(`/tabs/${tab.id}?openPicker=1`);
+    else if (r === 2) handleDeleteTab(tab);
+  }
+
+  async function handleDeleteTab(tab: { id: number; name: string }) {
+    const r = await confirm({
+      title: 'タブを削除',
+      message: `「${tab.name}」を削除しますか？\n紐づく曲は削除されません。`,
+      icon: '🗑',
+      iconTone: 'red',
+      options: [{ label: '削除する', style: 'danger' }],
+    });
+    if (r !== 0) return;
+    if (Platform.OS === 'web') return;
+    try {
+      deleteTab(tab.id);
+      reload();
+      reloadTabs();
+      reloadExtras();
+    } catch (e) {
+      console.error(e);
+      await confirm({ title: 'エラー', message: '削除に失敗しました', options: [{ label: 'OK', style: 'primary' }], cancelLabel: null });
+    }
   }
 
   function handleRandomPick(scopeId: number) {
