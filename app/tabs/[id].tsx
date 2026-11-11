@@ -1,5 +1,5 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Image,
   Modal,
@@ -28,7 +28,7 @@ const BTN_HIT_SLOP = { top: 10, bottom: 10, left: 8, right: 8 };
 
 export default function TabDetailScreen() {
   const insets = useSafeAreaInsets();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, openPicker: openPickerParam } = useLocalSearchParams<{ id: string; openPicker?: string }>();
   const tabId = Number(id);
   const confirm = useConfirm();
 
@@ -50,6 +50,15 @@ export default function TabDetailScreen() {
   }, [tabId]);
 
   useFocusEffect(useCallback(() => { reload(); }, [reload]));
+
+  // ホームのタブ長押し「対応曲を変更」から ?openPicker=1 で来たときは、タブ読込後に一度だけ自動で開く
+  const didAutoOpenRef = useRef(false);
+  useEffect(() => {
+    if (openPickerParam === '1' && tab && !didAutoOpenRef.current) {
+      didAutoOpenRef.current = true;
+      openPicker();
+    }
+  }, [openPickerParam, tab]);
 
   function openRename() {
     setRenameInput(tab?.name ?? '');
