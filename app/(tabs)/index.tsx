@@ -268,13 +268,31 @@ export default function HomeScreen() {
   function handleRandomPick(scopeId: number) {
     setRandomModalVisible(false);
     if (Platform.OS === 'web') return;
-    // ALL_TAB（すべて）は全曲から、それ以外はそのタブから抽選
-    const tabId = scopeId === ALL_TAB.id ? null : scopeId;
-    const songId = getRandomSongId(tabId);
+    let songId: number | null = null;
+    if (scopeId === SETLIST_TAB.id) {
+      // 今日のセットリストから抽選（保持しているID配列から直接選ぶ・#110 §3）
+      if (setlistIds.length === 0) return;
+      songId = setlistIds[Math.floor(Math.random() * setlistIds.length)];
+    } else {
+      // ALL_TAB（すべて）は全曲から、それ以外はそのタブから抽選
+      const tabId = scopeId === ALL_TAB.id ? null : scopeId;
+      songId = getRandomSongId(tabId);
+    }
     if (songId != null) {
       router.push(`/song/${songId}`);
     }
   }
+
+  // ランダム選曲の範囲。今日のセットリストがあれば先頭に追加する（#110 §3）
+  const randomScopes = useMemo(() => {
+    if (setlistIds.length > 0) {
+      return [
+        { id: SETLIST_TAB.id, name: '今日のセットリスト', song_count: setlistIds.length },
+        ...tabsWithAll,
+      ];
+    }
+    return tabsWithAll;
+  }, [tabsWithAll, setlistIds]);
 
   function openSetlistModal() {
     if (Platform.OS !== 'web') {
@@ -738,7 +756,7 @@ export default function HomeScreen() {
       {/* ランダム選曲モーダル */}
       <RandomPickModal
         visible={randomModalVisible}
-        scopes={tabsWithAll}
+        scopes={randomScopes}
         onPick={handleRandomPick}
         onClose={() => setRandomModalVisible(false)}
       />
