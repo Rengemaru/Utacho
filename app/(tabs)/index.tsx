@@ -301,16 +301,49 @@ export default function HomeScreen() {
 
   // スワイプに依存しない代替導線（#24）。カード長押しで編集・削除のアクションシートを出す。
   async function handleSongActions(song: SongWithStats) {
+    const inSetlist = activeTabId === SETLIST_TAB.id;
     const r = await confirm({
       title: song.title,
       message: song.artist || undefined,
       options: [
         { label: '編集', icon: '✏️' },
-        { label: '削除', icon: '🗑', style: 'danger' },
+        inSetlist
+          ? { label: '今日から外す', icon: '✕' }
+          : { label: '削除', icon: '🗑', style: 'danger' },
       ],
     });
     if (r === 0) router.push(`/song/new?songId=${song.id}`);
-    else if (r === 1) handleDeleteSong(song);
+    else if (r === 1) handleCardDelete(song);
+  }
+
+  // 「今日」タブでの削除はセットリストから外すだけ、それ以外は歌帳から完全削除（#110 §1-a）
+  function handleCardDelete(song: SongWithStats) {
+    if (activeTabId === SETLIST_TAB.id) removeFromSetlist(song);
+    else handleDeleteSong(song);
+  }
+
+  async function removeFromSetlist(song: SongWithStats) {
+    const r = await confirm({
+      title: '今日のセットリストから外す',
+      message: `「${song.title}」を今日のセットリストから外しますか？\n歌帳からは削除されません。`,
+      icon: '✕',
+      options: [{ label: '今日から外す', style: 'primary' }],
+    });
+    if (r !== 0) return;
+    if (Platform.OS === 'web') return;
+    try {
+      const next = setlistIds.filter((id) => id !== song.id);
+      saveSetlistSongIds(localDateString(), next);
+      setSetlistIds(next);
+      reloadTabs();
+      if (next.length === 0 && activeTabId === SETLIST_TAB.id) {
+        setActiveTabId(ALL_TAB.id);
+      }
+      reload();
+    } catch (e) {
+      console.error(e);
+      await confirm({ title: 'エラー', message: 'セットリストの更新に失敗しました', options: [{ label: 'OK', style: 'primary' }], cancelLabel: null });
+    }
   }
 
   async function handleDeleteSong(song: SongWithStats) {
@@ -594,13 +627,13 @@ export default function HomeScreen() {
                   <TouchableOpacity
                     style={[styles.swipeBtn, styles.swipeDeleteBtn]}
                     accessibilityRole="button"
-                    accessibilityLabel={`${item.title}を削除`}
+                    accessibilityLabel={activeTabId === SETLIST_TAB.id ? `${item.title}を今日から外す` : `${item.title}を削除`}
                     onPress={() => {
                       swipeRefs.current.get(item.id)?.close();
-                      handleDeleteSong(item);
+                      handleCardDelete(item);
                     }}
                   >
-                    <Text style={styles.swipeBtnText}>🗑{'\n'}削除</Text>
+                    <Text style={styles.swipeBtnText}>{activeTabId === SETLIST_TAB.id ? `✕\n外す` : `🗑\n削除`}</Text>
                   </TouchableOpacity>
                 </View>
               )}
