@@ -224,6 +224,20 @@ export default function HomeScreen() {
     setCoachMarkVisible(false);
   }
 
+  // タブピル長押し → タブの詳細設定（対応曲の一括変更）への導線（#117）。
+  // 「すべて」「今日（セットリスト）」の固定タブは編集不可なので対象外。
+  function handleTabLongPress(tab: { id: number; name: string }) {
+    if (tab.id === ALL_TAB.id || tab.id === SETLIST_TAB.id) return;
+    Alert.alert(
+      tab.name,
+      undefined,
+      [
+        { text: 'タブの詳細設定（対応曲の変更）', onPress: () => router.push(`/tabs/${tab.id}`) },
+        { text: 'キャンセル', style: 'cancel' },
+      ]
+    );
+  }
+
   function handleRandomPick(scopeId: number) {
     setRandomModalVisible(false);
     if (Platform.OS === 'web') return;
@@ -418,6 +432,8 @@ export default function HomeScreen() {
                 isActive && isSetlist && styles.tabPillSetlistActive,
               ]}
               onPress={() => setActiveTabId(tab.id)}
+              onLongPress={() => handleTabLongPress(tab)}
+              delayLongPress={300}
             >
               <Text style={[
                 styles.tabPillText,
