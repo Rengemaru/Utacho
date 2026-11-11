@@ -35,7 +35,7 @@ import { SongWithStats } from '../../src/types';
 import { normalizeForSearch } from '../../src/lib/text';
 import { useIsTablet, useTwoColumn } from '../../src/lib/responsive';
 
-type SortKey = 'created_at' | 'best_score' | 'score_count' | 'latest_scored_at' | 'improvement' | 'title' | 'artist';
+type SortKey = 'created_at' | 'best_score' | 'score_count' | 'latest_scored_at' | 'improvement' | 'title' | 'artist' | 'shuffle';
 type SortDir = 'asc' | 'desc';
 
 import { truncateTabName } from '../../src/constants/tabConfig';
@@ -49,7 +49,18 @@ const SORT_OPTIONS: { key: SortKey; label: string }[] = [
   { key: 'improvement',     label: 'スコア伸び率' },
   { key: 'title',           label: '曲名' },
   { key: 'artist',          label: 'アーティスト' },
+  { key: 'shuffle',         label: '🔀 シャッフル' },
 ];
+
+// Fisher–Yates で配列をランダムに並べ替える（非破壊）
+function shuffleArray<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
 
 // 曲名/アーティスト順の日本語照合
 const jaCollator = new Intl.Collator('ja');
@@ -82,6 +93,9 @@ function compareAsc(a: SongWithStats, b: SongWithStats, key: SortKey): number {
         normalizeForSearch(a.artist_reading || a.artist),
         normalizeForSearch(b.artist_reading || b.artist),
       );
+    case 'shuffle':
+      // シャッフルは filtered 側で保存済みのランダム順を使うため、ここでは順序を変えない
+      return 0;
   }
 }
 
@@ -114,6 +128,8 @@ export default function HomeScreen() {
   const [sortKey, setSortKey] = useState<SortKey>('created_at');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [sortModalVisible, setSortModalVisible] = useState(false);
+  // シャッフル選択時に確定したランダム順（曲ID配列）。再レンダーで並びが暴れないよう保持する（#110 §2）
+  const [shuffleOrder, setShuffleOrder] = useState<number[]>([]);
   const [setlistIds, setSetlistIds] = useState<number[]>([]);
   const [setlistModalVisible, setSetlistModalVisible] = useState(false);
   const [allSongsForSetlist, setAllSongsForSetlist] = useState<SongWithStats[]>([]);
@@ -230,19 +246,17 @@ export default function HomeScreen() {
   // 「すべて」「今日（セットリスト）」の固定タブは編集不可なので対象外。
   async function handleTabLongPress(tab: { id: number; name: string }) {
     if (tab.id === ALL_TAB.id) return;
-    // 「今日」タブの長押しはセットリスト操作（シャッフル／空にする）・#110 §2
+    // 「今日」タブの長押しはセットリストを空にする操作（シャッフルは並び替えメニューに移動・#110 §2）
     if (tab.id === SETLIST_TAB.id) {
       if (setlistIds.length === 0) return;
       const r = await confirm({
         title: '今日のセットリスト',
         message: 'このリストを操作',
         options: [
-          { label: '順番をシャッフル', icon: '🔀' },
           { label: '今日のリストを空にする', icon: '🗑', style: 'danger' },
         ],
       });
-      if (r === 0) shuffleSetlist();
-      else if (r === 1) clearSetlist();
+      if (r === 0) clearSetlist();
       return;
     }
     const r = await confirm({
@@ -257,18 +271,6 @@ export default function HomeScreen() {
     if (r === 0) router.push(`/tabs/${tab.id}`);
     else if (r === 1) router.push(`/tabs/${tab.id}?openPicker=1`);
     else if (r === 2) handleDeleteTab(tab);
-  }
-
-  // セットリストの順番をランダムに並べ替えて保存する（#110 §2・保存型）
-  function shuffleSetlist() {
-    if (Platform.OS === 'web' || setlistIds.length < 2) return;
-    const shuffled = [...setlistIds];
-    for (let i = shuffled.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-    }
-    saveSetlistSongIds(localDateString(), shuffled);
-    setSetlistIds(shuffled);
   }
 
   // 今日のセットリストを空にする（歌帳の曲は消さない）
@@ -439,13 +441,13 @@ export default function HomeScreen() {
           return fields.some((f) => f.includes(q));
         })
       : songs;
-    // 「今日」タブは保存されたセットリストのID順（シャッフル結果）で表示する（並び替えは適用しない・#110 §2）
-    if (activeTabId === SETLIST_TAB.id) {
-      const orderIndex = new Map(setlistIds.map((id, i) => [id, i]));
-      return [...base].sort((a, b) => (orderIndex.get(a.id) ?? 0) - (orderIndex.get(b.id) ?? 0));
+    // シャッフルは確定済みのランダム順（shuffleOrder）で並べる。未収録IDは末尾へ
+    if (sortKey === 'shuffle') {
+      const idx = new Map(shuffleOrder.map((id, i) => [id, i]));
+      return [...base].sort((a, b) => (idx.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (idx.get(b.id) ?? Number.MAX_SAFE_INTEGER));
     }
     return sortSongs(base, sortKey, sortDir);
-  }, [songs, query, sortKey, sortDir, activeTabId, setlistIds]);
+  }, [songs, query, sortKey, sortDir, shuffleOrder]);
 
   // セットリストタブを先頭に追加（今日の分が存在する場合）
   const visibleTabs = useMemo(() => {
@@ -460,7 +462,9 @@ export default function HomeScreen() {
 
   const isDefaultSort = sortKey === 'created_at' && sortDir === 'desc';
   const currentSortLabel =
-    (SORT_OPTIONS.find((o) => o.key === sortKey)?.label ?? '') + (sortDir === 'asc' ? ' ↑' : ' ↓');
+    sortKey === 'shuffle'
+      ? 'シャッフル'
+      : (SORT_OPTIONS.find((o) => o.key === sortKey)?.label ?? '') + (sortDir === 'asc' ? ' ↑' : ' ↓');
   // 登録曲が1件もないときはランダム選曲ボタンを出さない
   const hasAnySong = (tabsWithAll.find((t) => t.id === ALL_TAB.id)?.song_count ?? 0) > 0;
 
@@ -774,7 +778,12 @@ export default function HomeScreen() {
               <TouchableOpacity
                 key={opt.key}
                 style={[styles.sortOption, sortKey === opt.key && styles.sortOptionActive]}
-                onPress={() => { setSortKey(opt.key); setSortModalVisible(false); }}
+                onPress={() => {
+                  // シャッフルを選ぶたびに新しいランダム順を確定する（再選択で並び直し）
+                  if (opt.key === 'shuffle') setShuffleOrder(shuffleArray(songs.map((s) => s.id)));
+                  setSortKey(opt.key);
+                  setSortModalVisible(false);
+                }}
               >
                 <Text style={[styles.sortOptionText, sortKey === opt.key && styles.sortOptionTextActive]}>
                   {opt.label}
