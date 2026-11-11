@@ -1,19 +1,25 @@
 import Constants from 'expo-constants';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, ActivityIndicator, Linking, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Linking, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../../src/constants/colors';
 import { fonts } from '../../src/constants/fonts';
 import { getDefaultMachine, type Machine } from '../../src/lib/machine';
 import { exportBackup, readBackupFile, restoreFromBackup, isEmptyBackup, buildBackupJson, type BackupData } from '../../src/lib/backup';
 import { deleteAllData, getDataCounts } from '../../src/db/maintenance';
+import { useConfirm, type ConfirmIconTone } from '../../src/components/ConfirmProvider';
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const [defaultMachine, setDefaultMachineState] = useState<Machine>('DAM');
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const confirm = useConfirm();
+
+  // 1ボタンの通知（完了・エラー・非対応）用のヘルパー
+  const notify = (title: string, message?: string, iconTone?: ConfirmIconTone, icon?: string) =>
+    confirm({ title, message, icon, iconTone, options: [{ label: 'OK', style: 'primary' }], cancelLabel: null });
 
   useFocusEffect(useCallback(() => {
     if (Platform.OS === 'web') return;
@@ -22,16 +28,16 @@ export default function SettingsScreen() {
 
   async function handleExportBackup() {
     if (Platform.OS === 'web') {
-      Alert.alert('非対応', 'バックアップはモバイル端末でのみ使用できます');
+      await notify('非対応', 'バックアップはモバイル端末でのみ使用できます');
       return;
     }
     try {
       setIsExporting(true);
       await exportBackup();
-      Alert.alert('完了', 'バックアップの書き出しが完了しました');
+      await notify('完了', 'バックアップの書き出しが完了しました', 'green', '✅');
     } catch (e) {
       console.error(e);
-      Alert.alert('エラー', 'バックアップの書き出しに失敗しました');
+      await notify('エラー', 'バックアップの書き出しに失敗しました', 'red');
     } finally {
       setIsExporting(false);
     }
@@ -39,7 +45,7 @@ export default function SettingsScreen() {
 
   async function handleImportBackup() {
     if (Platform.OS === 'web') {
-      Alert.alert('非対応', 'バックアップの読み込みはモバイル端末でのみ使用できます');
+      await notify('非対応', 'バックアップの読み込みはモバイル端末でのみ使用できます');
       return;
     }
     try {
@@ -47,91 +53,85 @@ export default function SettingsScreen() {
       const data = await readBackupFile();
       if (!data) return;
 
-      const doRestore = async () => {
-        try {
-          // 復元前に現在のデータをスナップショット退避（アンドゥ用）
-          const snapshotJson = await buildBackupJson();
-          restoreFromBackup(data);
-          Alert.alert(
-            '完了',
-            'バックアップを復元しました。元のデータに戻すこともできます。',
-            [
-              { text: 'OK', style: 'cancel' },
-              {
-                text: '元に戻す',
-                style: 'destructive',
-                onPress: () => {
-                  try {
-                    restoreFromBackup(JSON.parse(snapshotJson) as BackupData);
-                    Alert.alert('完了', '元のデータに戻しました');
-                  } catch (e) {
-                    console.error(e);
-                    Alert.alert('エラー', '元に戻せませんでした');
-                  }
-                },
-              },
-            ]
-          );
-        } catch (e) {
-          console.error(e);
-          Alert.alert('エラー', '復元に失敗しました');
-        }
-      };
-
       const current = getDataCounts();
       const diff =
         `曲 ${current.songs} → ${data.songs.length}件\n` +
         `スコア ${current.scores} → ${data.scores.length}件\n` +
         `タブ ${current.tabs} → ${data.tabs.length}件`;
 
-      const confirmRestore = () => {
-        Alert.alert(
-          'バックアップを読み込みますか？',
-          `${diff}\n\n現在のデータはすべて上書きされます。この操作は取り消せません。`,
-          [
-            { text: 'キャンセル', style: 'cancel' },
-            { text: '読み込む', style: 'destructive', onPress: doRestore },
-          ]
-        );
-      };
-
+      // 空バックアップの警告（続ける場合のみ復元確認へ）
       if (isEmptyBackup(data)) {
-        Alert.alert(
-          '⚠️ 空のバックアップです',
-          `このファイルには曲・スコア・タブが含まれていません。\n復元すると現在のデータ（曲 ${current.songs}件・スコア ${current.scores}件・タブ ${current.tabs}件）がすべて消えます。\n\n本当に続けますか？`,
-          [
-            { text: 'キャンセル', style: 'cancel' },
-            { text: '続ける', style: 'destructive', onPress: confirmRestore },
-          ]
-        );
-      } else {
-        confirmRestore();
+        const proceed = await confirm({
+          title: '⚠️ 空のバックアップです',
+          message: `このファイルには曲・スコア・タブが含まれていません。\n復元すると現在のデータ（曲 ${current.songs}件・スコア ${current.scores}件・タブ ${current.tabs}件）がすべて消えます。\n\n本当に続けますか？`,
+          icon: '⚠️',
+          iconTone: 'red',
+          options: [{ label: '続ける', style: 'danger' }],
+          cancelLabel: 'キャンセル',
+        });
+        if (proceed !== 0) return;
+      }
+
+      // 復元確認
+      const ok = await confirm({
+        title: 'バックアップを読み込みますか？',
+        message: `${diff}\n\n現在のデータはすべて上書きされます。この操作は取り消せません。`,
+        icon: '📂',
+        options: [{ label: '読み込む', style: 'danger' }],
+        cancelLabel: 'キャンセル',
+      });
+      if (ok !== 0) return;
+
+      // 復元実行（アンドゥ用に現在のデータを退避）
+      try {
+        const snapshotJson = await buildBackupJson();
+        restoreFromBackup(data);
+        const undo = await confirm({
+          title: '完了',
+          message: 'バックアップを復元しました。元のデータに戻すこともできます。',
+          icon: '✅',
+          iconTone: 'green',
+          options: [{ label: '元に戻す', style: 'danger' }],
+          cancelLabel: 'OK',
+        });
+        if (undo === 0) {
+          try {
+            restoreFromBackup(JSON.parse(snapshotJson) as BackupData);
+            await notify('完了', '元のデータに戻しました', 'green', '✅');
+          } catch (e) {
+            console.error(e);
+            await notify('エラー', '元に戻せませんでした', 'red');
+          }
+        }
+      } catch (e) {
+        console.error(e);
+        await notify('エラー', '復元に失敗しました', 'red');
       }
     } catch (e) {
       console.error(e);
-      Alert.alert('エラー', e instanceof Error ? e.message : 'ファイルの読み込みに失敗しました');
+      await notify('エラー', e instanceof Error ? e.message : 'ファイルの読み込みに失敗しました', 'red');
     } finally {
       setIsImporting(false);
     }
   }
 
-  function runDeleteAll() {
+  async function runDeleteAll() {
     if (Platform.OS === 'web') {
-      Alert.alert('完了', 'すべてのデータを削除しました');
+      await notify('完了', 'すべてのデータを削除しました', 'green', '✅');
       return;
     }
     try {
       deleteAllData();
-      Alert.alert('完了', 'すべてのデータを削除しました');
+      await notify('完了', 'すべてのデータを削除しました', 'green', '✅');
     } catch (e) {
       console.error(e);
-      Alert.alert('エラー', '削除に失敗しました');
+      await notify('エラー', '削除に失敗しました', 'red');
     }
   }
 
   async function handleBackupThenDelete() {
     if (Platform.OS === 'web') {
-      runDeleteAll();
+      await runDeleteAll();
       return;
     }
     try {
@@ -139,24 +139,28 @@ export default function SettingsScreen() {
       await exportBackup();
     } catch (e) {
       console.error(e);
-      Alert.alert('エラー', 'バックアップに失敗したため削除を中止しました');
+      await notify('エラー', 'バックアップに失敗したため削除を中止しました', 'red');
       return;
     } finally {
       setIsExporting(false);
     }
-    runDeleteAll();
+    await runDeleteAll();
   }
 
-  function handleDeleteAll() {
-    Alert.alert(
-      'すべてのデータを削除',
-      'この操作は取り消せません。削除前にバックアップを取ることをおすすめします。',
-      [
-        { text: 'キャンセル', style: 'cancel' },
-        { text: 'バックアップして削除', onPress: handleBackupThenDelete },
-        { text: 'そのまま削除', style: 'destructive', onPress: runDeleteAll },
-      ]
-    );
+  async function handleDeleteAll() {
+    const r = await confirm({
+      title: 'すべてのデータを削除',
+      message: 'この操作は取り消せません。削除前にバックアップを取ることをおすすめします。',
+      icon: '🗑',
+      iconTone: 'red',
+      options: [
+        { label: 'バックアップして削除', description: '書き出してから全削除（推奨）', icon: '💾', style: 'primary' },
+        { label: 'そのまま削除', description: 'バックアップせず全削除', icon: '🗑', style: 'danger' },
+      ],
+      cancelLabel: 'キャンセル',
+    });
+    if (r === 0) await handleBackupThenDelete();
+    else if (r === 1) await runDeleteAll();
   }
 
   return (
