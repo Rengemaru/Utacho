@@ -42,13 +42,13 @@ import { truncateTabName } from '../../src/constants/tabConfig';
 
 // ラベルから方向語は外し、方向は昇順/降順トグルで示す
 const SORT_OPTIONS: { key: SortKey; label: string }[] = [
-  { key: 'created_at',      label: '登録日' },
-  { key: 'best_score',      label: '最高スコア' },
-  { key: 'score_count',     label: '記録回数' },
-  { key: 'latest_scored_at', label: '最終記録日' },
-  { key: 'improvement',     label: 'スコア伸び率' },
-  { key: 'title',           label: '曲名' },
-  { key: 'artist',          label: 'アーティスト' },
+  { key: 'created_at',      label: '🗓 登録日' },
+  { key: 'best_score',      label: '🏆 最高スコア' },
+  { key: 'score_count',     label: '🔢 記録回数' },
+  { key: 'latest_scored_at', label: '🕒 最終記録日' },
+  { key: 'improvement',     label: '📈 スコア伸び率' },
+  { key: 'title',           label: '🔤 曲名' },
+  { key: 'artist',          label: '🎤 アーティスト' },
   { key: 'shuffle',         label: '🔀 シャッフル' },
 ];
 
@@ -463,7 +463,7 @@ export default function HomeScreen() {
   const isDefaultSort = sortKey === 'created_at' && sortDir === 'desc';
   const currentSortLabel =
     sortKey === 'shuffle'
-      ? 'シャッフル'
+      ? '🔀 シャッフル'
       : (SORT_OPTIONS.find((o) => o.key === sortKey)?.label ?? '') + (sortDir === 'asc' ? ' ↑' : ' ↓');
   // 登録曲が1件もないときはランダム選曲ボタンを出さない
   const hasAnySong = (tabsWithAll.find((t) => t.id === ALL_TAB.id)?.song_count ?? 0) > 0;
