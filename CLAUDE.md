@@ -1265,7 +1265,28 @@ drag-reorder機能のrevertと一緒に取り消されました。
 
 ---
 
-## 17. 将来フェーズ
+## 17. リリース前バージョン確認チェックリスト（毎回必須）
+
+> ⚠️ **リリース（EAS ビルド）前に、必ず下記を1つずつ確認すること。**
+> バージョンの上げ忘れが起きやすいポイントなので、`docs/releases/release-<version>.md` を作る際もこの一覧を参照する。
+
+| # | 確認項目 | 場所 | 忘れると何が起きるか |
+|---|---|---|---|
+| 1 | **`expo.version`（versionName）を今回のリリース版に上げたか** | `app.json` | 据え置きだとユーザーから見てバージョンが変わらず「更新が来ていない」状態になる |
+| 2 | **`android.versionCode` を前回+1（以上）に上げたか** | `app.json` | 同じ／小さいと Google Play にアップロードできない（提出エラー） |
+| 3 | 設定画面「アプリ情報 > バージョン」が今回の版と一致するか | 実機で目視 | **※ #119 以降は `expo-constants` で `expo.version` を動的表示するため自動追従。手動更新は不要だが、念のため目視確認する** |
+| 4 | `eas.json` の `autoIncrement` と `app.json` の `versionCode` が矛盾しないか | `eas.json` / `app.json` | `autoIncrement: true` だと EAS がリモート最大値+1 を採用。`app.json` の値はあくまで保険。想定と食い違っていないか確認 |
+| 5 | `docs/releases/release-<version>.md` を作成・更新したか | `docs/releases/` | リリース内容・手順・実機確認の記録が残らない |
+| 6 | 一般公開時は `eas.json` の `submit...track` を `internal`→`production` にしたか | `eas.json` | 内部テストのまま公開したつもりになる |
+| 7 | （任意）Git タグ `v<version>` を付けたか | git | 後からリリース地点を追えない |
+
+> 補足：`slug` / `scheme`（`app.json`）と `extra.eas.projectId` は **EAS 上のプロジェクト識別子**。
+> リリースのたびに変える値ではない。変更すると EAS ビルド／サブミットに影響するため、変更時は単独で慎重に行う。
+> 将来 iOS 対応時は `ios.buildNumber` も versionCode と同様にアップロードごとに上げる必要がある。
+
+---
+
+## 18. 将来フェーズ
 
 ### Phase 5: iOS / App Store 公開
 - Apple Developer Program 登録（年額 $99）
