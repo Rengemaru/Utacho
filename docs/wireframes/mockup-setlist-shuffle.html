@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>歌帳 ワイヤーフレーム — セットリストのランダム順（#110 §2）置き場所案</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Plus+Jakarta+Sans:wght@600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+* { box-sizing:border-box; margin:0; padding:0; }
+:root {
+  --bg-page:#f0f2f7; --bg-phone:#ffffff; --surface:#f7f8fc; --surface2:#eef0f6;
+  --border:rgba(0,0,0,0.07); --border-strong:rgba(0,0,0,0.14); --accent:#5b4cf5; --accent-soft:rgba(91,76,245,0.1);
+  --green:#00b96b; --yellow:#f59e0b; --red:#ef4444; --text:#111827; --text2:#6b7280; --text3:#9ca3af;
+  --shadow:0 2px 12px rgba(0,0,0,0.06);
+}
+body { font-family:'Noto Sans JP',system-ui,sans-serif; background:var(--bg-page); color:var(--text); min-height:100vh; padding:48px 24px 80px; }
+.page-header { text-align:center; margin-bottom:12px; }
+.page-header h1 { font-family:'Plus Jakarta Sans','Noto Sans JP',sans-serif; font-size:24px; font-weight:800; letter-spacing:-0.02em; }
+.page-header h1 span { color:var(--accent); }
+.page-header p { font-size:13px; color:var(--text2); margin-top:8px; line-height:1.7; }
+.tag-new { background:var(--red); color:#fff; padding:2px 7px; border-radius:4px; font-size:10px; font-weight:700; }
+.rec { background:var(--green); color:#fff; padding:2px 7px; border-radius:4px; font-size:10px; font-weight:700; }
+.grid { display:flex; flex-wrap:wrap; gap:34px; justify-content:center; max-width:1300px; margin:28px auto 0; }
+.screen-wrap { display:flex; flex-direction:column; align-items:center; gap:12px; width:300px; }
+.screen-label { font-size:12px; font-weight:700; color:var(--text); text-align:center; display:flex; align-items:center; gap:6px; }
+.screen-note { font-size:11px; color:var(--text2); line-height:1.6; width:100%; padding:0 4px; }
+
+.phone { width:300px; height:620px; background:var(--bg-phone); border-radius:40px; border:1.5px solid rgba(0,0,0,0.1); overflow:hidden; position:relative; box-shadow:0 0 0 6px #e4e6ed,0 20px 40px rgba(0,0,0,0.12); }
+.island { position:absolute; top:12px; left:50%; transform:translateX(-50%); width:80px; height:24px; background:#111; border-radius:20px; z-index:20; }
+.status-bar { display:flex; justify-content:space-between; align-items:center; padding:46px 20px 6px; font-size:11px; color:var(--text2); }
+.status-bar .time { font-family:'DM Mono',monospace; font-size:13px; font-weight:500; color:var(--text); }
+.sc { height:calc(100% - 74px); display:flex; flex-direction:column; overflow:hidden; position:relative; }
+.bottom-nav { display:flex; justify-content:space-around; align-items:center; padding:10px 0 16px; border-top:1px solid var(--border); background:#fff; position:absolute; bottom:0; left:0; right:0; }
+.nav-item { display:flex; flex-direction:column; align-items:center; gap:3px; font-size:9px; color:var(--text3); font-weight:500; }
+.nav-item.active { color:var(--accent); }
+.nav-icon { font-size:17px; }
+
+.title-row { display:flex; justify-content:space-between; align-items:center; padding:8px 16px 8px; }
+.app-title { font-family:'Plus Jakarta Sans','Noto Sans JP',sans-serif; font-size:20px; font-weight:800; color:var(--accent); }
+.head-actions { display:flex; gap:7px; align-items:center; }
+.hbtn { width:30px; height:30px; border-radius:9px; background:var(--surface2); display:flex; align-items:center; justify-content:center; font-size:14px; color:var(--text2); position:relative; }
+.hbtn.add { background:var(--accent); color:#fff; }
+.badge { position:absolute; top:-4px; right:-4px; min-width:15px; height:15px; border-radius:8px; background:var(--green); color:#fff; font-size:8px; font-weight:700; display:flex; align-items:center; justify-content:center; padding:0 3px; }
+.tab-row { display:flex; gap:6px; padding:0 16px 10px; overflow:hidden; }
+.pill { padding:5px 10px; border-radius:20px; font-size:11px; font-weight:500; white-space:nowrap; background:var(--surface2); color:var(--text2); display:flex; align-items:center; gap:4px; }
+.pill.setlist { background:rgba(0,185,107,0.12); color:var(--green); border:1.5px solid rgba(0,185,107,0.4); }
+.pill .cnt { font-size:9px; opacity:0.8; }
+.search-row { display:flex; align-items:center; gap:8px; margin:0 16px 8px; }
+.search { flex:1; background:var(--surface); border:1.5px solid var(--border); border-radius:12px; padding:8px 12px; display:flex; align-items:center; gap:8px; font-size:11px; color:var(--text3); }
+.iconbtn { width:34px; height:34px; border-radius:10px; background:var(--surface); border:1.5px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:15px; flex-shrink:0; }
+.iconbtn.hot { background:var(--accent-soft); border-color:rgba(91,76,245,0.35); }
+.setbar { display:flex; align-items:center; justify-content:space-between; margin:0 16px 8px; padding:8px 12px; background:rgba(0,185,107,0.07); border:1.5px solid rgba(0,185,107,0.2); border-radius:11px; }
+.setbar .l { font-size:11px; color:var(--green); font-weight:700; }
+.setbar .sh { display:flex; align-items:center; gap:5px; font-size:11px; font-weight:700; color:var(--accent); background:var(--accent-soft); border:1.5px solid rgba(91,76,245,0.3); border-radius:9px; padding:5px 10px; }
+.list { flex:1; overflow:hidden; padding:0 16px 80px; display:flex; flex-direction:column; gap:7px; }
+.card { background:#fff; border:1.5px solid var(--border); border-radius:13px; padding:10px 12px; display:flex; align-items:center; gap:10px; box-shadow:var(--shadow); }
+.art { width:38px; height:38px; border-radius:9px; background:var(--surface2); display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0; }
+.info { flex:1; min-width:0; }
+.t { font-size:12.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.a { font-size:10.5px; color:var(--text2); }
+.sc-badge { font-family:'DM Mono',monospace; font-size:13px; color:var(--accent); }
+.mic { width:28px; height:28px; border-radius:8px; background:var(--accent-soft); display:flex; align-items:center; justify-content:center; font-size:12px; border:1.5px solid rgba(91,76,245,0.2); }
+
+/* overlays (menu/sheet) */
+.ov { position:absolute; inset:0; background:rgba(0,0,0,0.35); z-index:10; }
+.menu { position:absolute; z-index:11; background:#fff; border-radius:14px; box-shadow:0 12px 36px rgba(0,0,0,0.22); border:1px solid var(--border); overflow:hidden; }
+.menu .mh { padding:11px 14px 9px; border-bottom:1px solid var(--border); }
+.menu .mh .mt { font-size:13px; font-weight:700; }
+.menu .mh .ms { font-size:10px; color:var(--text3); margin-top:1px; }
+.menu .mi { padding:12px 14px; font-size:13px; display:flex; align-items:center; gap:10px; border-bottom:1px solid var(--border); }
+.menu .mi:last-child { border-bottom:none; }
+.menu .mi .em { width:18px; text-align:center; }
+.sortmenu { position:absolute; left:16px; right:16px; bottom:0; z-index:11; background:#fff; border-radius:20px 20px 0 0; padding:14px 18px 30px; box-shadow:0 -8px 32px rgba(0,0,0,0.15); }
+.sortmenu .sh2 { font-size:12px; font-weight:700; color:var(--text2); text-align:center; margin-bottom:10px; }
+.sortmenu .so { padding:11px 2px; font-size:13px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; }
+.sortmenu .so:last-child { border-bottom:none; }
+.sortmenu .so.cur { color:var(--accent); font-weight:700; }
+.sortmenu .so.add { color:var(--accent); font-weight:700; }
+.legend { max-width:1100px; margin:16px auto 0; background:#fff; border:1.5px solid var(--border); border-radius:14px; padding:16px 20px; font-size:12.5px; color:var(--text2); line-height:1.9; }
+.legend b { color:var(--text); }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1><span>歌帳</span> セットリストのランダム順 — 置き場所案 <em class="tag-new">#110 §2</em></h1>
+  <p>「今日のセットリスト」を見ているときにランダム順へ並べ替える操作の置き場所を比較。<br>いずれも<b>今日タブ表示時のみ</b>表示する前提。</p>
+</header>
+
+<div class="grid">
+
+  <!-- 案1：リスト上の専用バー -->
+  <div class="screen-wrap">
+    <div class="screen-label">案1 リスト上の専用バー <em class="rec">推奨</em></div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="status-bar"><span class="time">9:41</span><span>●●● 🔋</span></div>
+      <div class="sc">
+        <div class="title-row"><div class="app-title">歌帳</div><div class="head-actions"><div class="hbtn">📋<span class="badge">4</span></div><div class="hbtn">?</div><div class="hbtn add">＋</div></div></div>
+        <div class="tab-row"><div class="pill setlist">📋 今日<span class="cnt">4</span></div><div class="pill">すべて<span class="cnt">6</span></div><div class="pill">十八番<span class="cnt">2</span></div></div>
+        <div class="search-row"><div class="search">🔍 曲名・アーティスト名で検索</div><div class="iconbtn">🎲</div><div class="iconbtn">⇅</div></div>
+        <div class="setbar"><div class="l">📋 今日のセットリスト · 4曲</div><div class="sh">🔀 シャッフル</div></div>
+        <div class="list">
+          <div class="card"><div class="art">🎵</div><div class="info"><div class="t">TATTOO</div><div class="a">Official髭男dism</div></div><div class="sc-badge">80.0</div><div class="mic">🎤</div></div>
+          <div class="card"><div class="art">🎶</div><div class="info"><div class="t">夜に駆ける</div><div class="a">YOASOBI</div></div><div class="sc-badge">80.2</div><div class="mic">🎤</div></div>
+          <div class="card"><div class="art">🎤</div><div class="info"><div class="t">ガーネット</div><div class="a">奥華子</div></div><div class="sc-badge">92.4</div><div class="mic">🎤</div></div>
+          <div class="card"><div class="art">🎼</div><div class="info"><div class="t">Lemon</div><div class="a">米津玄師</div></div><div class="sc-badge">89.1</div><div class="mic">🎤</div></div>
+        </div>
+      </div>
+      <div class="bottom-nav"><div class="nav-item active"><div class="nav-icon">♪</div>曲一覧</div><div class="nav-item"><div class="nav-icon">⚙️</div>設定</div></div>
+    </div>
+    <div class="screen-note">リスト直上に件数＋「🔀 シャッフル」。ラベル付きで分かりやすく、将来の手動並べ替えの受け皿にもなる。今日タブ以外では非表示。</div>
+  </div>
+
+  <!-- 案2：検索行にアイコン -->
+  <div class="screen-wrap">
+    <div class="screen-label">案2 検索行に 🔀 アイコン</div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="status-bar"><span class="time">9:41</span><span>●●● 🔋</span></div>
+      <div class="sc">
+        <div class="title-row"><div class="app-title">歌帳</div><div class="head-actions"><div class="hbtn">📋<span class="badge">4</span></div><div class="hbtn">?</div><div class="hbtn add">＋</div></div></div>
+        <div class="tab-row"><div class="pill setlist">📋 今日<span class="cnt">4</span></div><div class="pill">すべて<span class="cnt">6</span></div><div class="pill">十八番<span class="cnt">2</span></div></div>
+        <div class="search-row"><div class="search">🔍 曲名・アーティスト名で検索</div><div class="iconbtn hot">🔀</div><div class="iconbtn">🎲</div><div class="iconbtn">⇅</div></div>
+        <div class="list">
+          <div class="card"><div class="art">🎵</div><div class="info"><div class="t">TATTOO</div><div class="a">Official髭男dism</div></div><div class="sc-badge">80.0</div><div class="mic">🎤</div></div>
+          <div class="card"><div class="art">🎶</div><div class="info"><div class="t">夜に駆ける</div><div class="a">YOASOBI</div></div><div class="sc-badge">80.2</div><div class="mic">🎤</div></div>
+          <div class="card"><div class="art">🎤</div><div class="info"><div class="t">ガーネット</div><div class="a">奥華子</div></div><div class="sc-badge">92.4</div><div class="mic">🎤</div></div>
+          <div class="card"><div class="art">🎼</div><div class="info"><div class="t">Lemon</div><div class="a">米津玄師</div></div><div class="sc-badge">89.1</div><div class="mic">🎤</div></div>
+        </div>
+      </div>
+      <div class="bottom-nav"><div class="nav-item active"><div class="nav-icon">♪</div>曲一覧</div><div class="nav-item"><div class="nav-icon">⚙️</div>設定</div></div>
+    </div>
+    <div class="screen-note">既存の🎲・⇅の並びに🔀を追加（今日タブのときだけ）。省スペースで統一感があるが、アイコンのみで意味が伝わりにくい。</div>
+  </div>
+
+  <!-- 案3：並び替えメニューに追加 -->
+  <div class="screen-wrap">
+    <div class="screen-label">案3 ⇅並び替えメニューに「ランダム」</div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="status-bar"><span class="time">9:41</span><span>●●● 🔋</span></div>
+      <div class="sc">
+        <div class="title-row"><div class="app-title">歌帳</div><div class="head-actions"><div class="hbtn">📋<span class="badge">4</span></div><div class="hbtn">?</div><div class="hbtn add">＋</div></div></div>
+        <div class="tab-row"><div class="pill setlist">📋 今日<span class="cnt">4</span></div><div class="pill">すべて<span class="cnt">6</span></div><div class="pill">十八番<span class="cnt">2</span></div></div>
+        <div class="search-row"><div class="search">🔍 曲名・アーティスト名で検索</div><div class="iconbtn">🎲</div><div class="iconbtn hot">⇅</div></div>
+        <div class="list">
+          <div class="card"><div class="art">🎵</div><div class="info"><div class="t">TATTOO</div><div class="a">Official髭男dism</div></div><div class="sc-badge">80.0</div><div class="mic">🎤</div></div>
+          <div class="card"><div class="art">🎶</div><div class="info"><div class="t">夜に駆ける</div><div class="a">YOASOBI</div></div><div class="sc-badge">80.2</div><div class="mic">🎤</div></div>
+        </div>
+        <div class="ov"></div>
+        <div class="sortmenu">
+          <div class="sh2">並び替え</div>
+          <div class="so cur">登録日 <span>✓</span></div>
+          <div class="so">最高スコア</div>
+          <div class="so">記録回数</div>
+          <div class="so add">🔀 ランダム（シャッフル）</div>
+        </div>
+      </div>
+      <div class="bottom-nav"><div class="nav-item active"><div class="nav-icon">♪</div>曲一覧</div><div class="nav-item"><div class="nav-icon">⚙️</div>設定</div></div>
+    </div>
+    <div class="screen-note">既存の並び替えに項目追加で最小実装。ただし並び替えは全タブ共通の仕組みで、セットリスト専用の「保存した順番」とは相性が悪く挙動が分かりにくい。</div>
+  </div>
+
+  <!-- 案4：今日タブ長押し -->
+  <div class="screen-wrap">
+    <div class="screen-label">案4 今日タブを長押し</div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="status-bar"><span class="time">9:41</span><span>●●● 🔋</span></div>
+      <div class="sc">
+        <div class="title-row"><div class="app-title">歌帳</div><div class="head-actions"><div class="hbtn">📋<span class="badge">4</span></div><div class="hbtn">?</div><div class="hbtn add">＋</div></div></div>
+        <div class="tab-row"><div class="pill setlist">📋 今日<span class="cnt">4</span></div><div class="pill">すべて<span class="cnt">6</span></div><div class="pill">十八番<span class="cnt">2</span></div></div>
+        <div class="search-row"><div class="search">🔍 曲名・アーティスト名で検索</div><div class="iconbtn">🎲</div><div class="iconbtn">⇅</div></div>
+        <div class="list">
+          <div class="card"><div class="art">🎵</div><div class="info"><div class="t">TATTOO</div><div class="a">Official髭男dism</div></div><div class="sc-badge">80.0</div><div class="mic">🎤</div></div>
+          <div class="card"><div class="art">🎶</div><div class="info"><div class="t">夜に駆ける</div><div class="a">YOASOBI</div></div><div class="sc-badge">80.2</div><div class="mic">🎤</div></div>
+        </div>
+        <div class="ov"></div>
+        <div class="menu" style="left:16px; top:96px; width:210px;">
+          <div class="mh"><div class="mt">今日のセットリスト</div><div class="ms">このリストを操作</div></div>
+          <div class="mi"><span class="em">🔀</span>順番をシャッフル</div>
+          <div class="mi"><span class="em">🗑</span>今日のリストを空にする</div>
+          <div class="mi"><span class="em">✕</span>キャンセル</div>
+        </div>
+      </div>
+      <div class="bottom-nav"><div class="nav-item active"><div class="nav-icon">♪</div>曲一覧</div><div class="nav-item"><div class="nav-icon">⚙️</div>設定</div></div>
+    </div>
+    <div class="screen-note">「今日」タブ長押しで操作メニュー。画面はすっきりするが、長押しは気づかれにくい（発見性が低い）。</div>
+  </div>
+
+</div>
+
+<div class="legend">
+  <b>補足：シャッフルの挙動（置き場所と別の論点）</b><br>
+  ・<b>保存する案（推奨）</b>：🔀でセットリストの並び順を保存し、以降その順で表示。もう一度押すと別のランダム順に。順番を見ながら歌い進められ、将来の「手動ドラッグ並べ替え」とも両立しやすい。<br>
+  ・<b>毎回振り直す案</b>：開く/押すたびに都度シャッフル（保存しない）。実装は軽いが「どこまで歌ったか」を追いにくい。
+</div>
+
+</body>
+</html>
