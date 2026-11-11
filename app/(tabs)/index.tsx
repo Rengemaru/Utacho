@@ -1,7 +1,6 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
   FlatList,
   Modal,
   Platform,
@@ -24,12 +23,14 @@ import { SongCard } from '../../src/components/SongCard';
 import { colors } from '../../src/constants/colors';
 import { fonts } from '../../src/constants/fonts';
 import { deleteSong, getAllSongs, getRandomSongId } from '../../src/db/songs';
+import { deleteTab } from '../../src/db/tabs';
 import { getSessionSummary, getMonthlyStats, SessionSummary, MonthlyStats } from '../../src/db/scores';
 import { getSetlistSongIds, saveSetlistSongIds, getSettingSync, setSettingSync, getSearchHistory, pushSearchHistory, deleteSearchHistoryEntry, clearSearchHistory } from '../../src/db/settings';
 import { SearchHistoryDropdown } from '../../src/components/SearchHistoryDropdown';
 import { useSongs, ALL_TAB, SETLIST_TAB } from '../../src/hooks/useSongs';
 import { useTabs } from '../../src/hooks/useTabs';
 import { useMachine } from '../../src/contexts/MachineContext';
+import { useConfirm } from '../../src/components/ConfirmProvider';
 import { SongWithStats } from '../../src/types';
 import { normalizeForSearch } from '../../src/lib/text';
 import { useIsTablet, useTwoColumn } from '../../src/lib/responsive';
@@ -104,6 +105,7 @@ export default function HomeScreen() {
   const isTablet = useIsTablet();
   const twoColumn = useTwoColumn();
   const { defaultMachine, refresh: refreshMachine } = useMachine();
+  const confirm = useConfirm();
   const { tabsWithAll, reload: reloadTabs } = useTabs();
   const [activeTabId, setActiveTabId] = useState<number>(ALL_TAB.id);
   const [query, setQuery] = useState('');
@@ -226,16 +228,41 @@ export default function HomeScreen() {
 
   // タブピル長押し → タブの詳細設定（対応曲の一括変更）への導線（#117）。
   // 「すべて」「今日（セットリスト）」の固定タブは編集不可なので対象外。
-  function handleTabLongPress(tab: { id: number; name: string }) {
+  async function handleTabLongPress(tab: { id: number; name: string }) {
     if (tab.id === ALL_TAB.id || tab.id === SETLIST_TAB.id) return;
-    Alert.alert(
-      tab.name,
-      undefined,
-      [
-        { text: 'タブの詳細設定（対応曲の変更）', onPress: () => router.push(`/tabs/${tab.id}`) },
-        { text: 'キャンセル', style: 'cancel' },
-      ]
-    );
+    const r = await confirm({
+      title: tab.name,
+      message: 'このタブを操作',
+      options: [
+        { label: 'タブの詳細設定', description: '名前変更・対応曲・削除', icon: '⚙️' },
+        { label: '対応曲を変更', description: 'この中の曲をまとめて編集', icon: '🎵' },
+        { label: 'タブを削除', icon: '🗑', style: 'danger' },
+      ],
+    });
+    if (r === 0) router.push(`/tabs/${tab.id}`);
+    else if (r === 1) router.push(`/tabs/${tab.id}?openPicker=1`);
+    else if (r === 2) handleDeleteTab(tab);
+  }
+
+  async function handleDeleteTab(tab: { id: number; name: string }) {
+    const r = await confirm({
+      title: 'タブを削除',
+      message: `「${tab.name}」を削除しますか？\n紐づく曲は削除されません。`,
+      icon: '🗑',
+      iconTone: 'red',
+      options: [{ label: '削除する', style: 'danger' }],
+    });
+    if (r !== 0) return;
+    if (Platform.OS === 'web') return;
+    try {
+      deleteTab(tab.id);
+      reload();
+      reloadTabs();
+      reloadExtras();
+    } catch (e) {
+      console.error(e);
+      await confirm({ title: 'エラー', message: '削除に失敗しました', options: [{ label: 'OK', style: 'primary' }], cancelLabel: null });
+    }
   }
 
   function handleRandomPick(scopeId: number) {
@@ -273,42 +300,38 @@ export default function HomeScreen() {
   }
 
   // スワイプに依存しない代替導線（#24）。カード長押しで編集・削除のアクションシートを出す。
-  function handleSongActions(song: SongWithStats) {
-    Alert.alert(
-      song.title,
-      song.artist || undefined,
-      [
-        { text: '編集', onPress: () => router.push(`/song/new?songId=${song.id}`) },
-        { text: '削除', style: 'destructive', onPress: () => handleDeleteSong(song) },
-        { text: 'キャンセル', style: 'cancel' },
-      ]
-    );
+  async function handleSongActions(song: SongWithStats) {
+    const r = await confirm({
+      title: song.title,
+      message: song.artist || undefined,
+      options: [
+        { label: '編集', icon: '✏️' },
+        { label: '削除', icon: '🗑', style: 'danger' },
+      ],
+    });
+    if (r === 0) router.push(`/song/new?songId=${song.id}`);
+    else if (r === 1) handleDeleteSong(song);
   }
 
-  function handleDeleteSong(song: SongWithStats) {
-    Alert.alert(
-      '曲を削除',
-      `「${song.title}」を削除しますか？\nスコア履歴もすべて削除されます。`,
-      [
-        { text: 'キャンセル', style: 'cancel' },
-        {
-          text: '削除する',
-          style: 'destructive',
-          onPress: () => {
-            if (Platform.OS === 'web') { reload(); return; }
-            try {
-              deleteSong(song.id);
-              reload();
-              reloadTabs();
-              reloadExtras();
-            } catch (e) {
-              console.error(e);
-              Alert.alert('エラー', '削除に失敗しました');
-            }
-          },
-        },
-      ]
-    );
+  async function handleDeleteSong(song: SongWithStats) {
+    const r = await confirm({
+      title: '曲を削除',
+      message: `「${song.title}」を削除しますか？\nスコア履歴もすべて削除されます。`,
+      icon: '🗑',
+      iconTone: 'red',
+      options: [{ label: '削除する', style: 'danger' }],
+    });
+    if (r !== 0) return;
+    if (Platform.OS === 'web') { reload(); return; }
+    try {
+      deleteSong(song.id);
+      reload();
+      reloadTabs();
+      reloadExtras();
+    } catch (e) {
+      console.error(e);
+      await confirm({ title: 'エラー', message: '削除に失敗しました', options: [{ label: 'OK', style: 'primary' }], cancelLabel: null });
+    }
   }
 
   const filtered = useMemo(() => {

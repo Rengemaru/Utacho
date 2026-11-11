@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Animated,
   Modal,
   Platform,
@@ -18,6 +17,7 @@ import { insertScore, updateScore, getBestScore } from '../db/scores';
 import { getSettingSync, setSettingSync } from '../db/settings';
 import { ScoreRow, SongWithStats } from '../types';
 import { useMachine } from '../contexts/MachineContext';
+import { useConfirm } from './ConfirmProvider';
 import type { Machine } from '../lib/machine';
 import {
   formatDateTime,
@@ -41,6 +41,7 @@ interface Props {
 export function ScoreBottomSheet({ visible, song, editingScore, onClose, onSaved }: Props) {
   const insets = useSafeAreaInsets();
   const { currentMachine, setCurrentMachine } = useMachine();
+  const confirm = useConfirm();
   const [input, setInput] = useState('');
   const [machine, setMachine] = useState<Machine>(currentMachine);
   const [scoredAt, setScoredAt] = useState<string>(nowDateTimeString());
@@ -79,10 +80,12 @@ export function ScoreBottomSheet({ visible, song, editingScore, onClose, onSaved
     if (m === currentMachine) return;
     if (getSettingSync('session_machine_hint_shown') === 'true') return;
     setSettingSync('session_machine_hint_shown', 'true');
-    Alert.alert(
-      '機種を変更しました',
-      'この機種は今日のうちだけ記憶されます。翌日は設定したデフォルト機種に戻ります。'
-    );
+    void confirm({
+      title: '機種を変更しました',
+      message: 'この機種は今日のうちだけ記憶されます。翌日は設定したデフォルト機種に戻ります。',
+      options: [{ label: 'OK', style: 'primary' }],
+      cancelLabel: null,
+    });
   }
 
   function handleKey(key: string) {
@@ -119,7 +122,7 @@ export function ScoreBottomSheet({ visible, song, editingScore, onClose, onSaved
     if (isSaving) return;
     const score = parseFloat(input);
     if (isNaN(score) || score < 0 || score > MAX_SCORE) {
-      Alert.alert('入力エラー', '0〜100の数値を入力してください');
+      await confirm({ title: '入力エラー', message: '0〜100の数値を入力してください', options: [{ label: 'OK', style: 'primary' }], cancelLabel: null });
       return;
     }
     if (Platform.OS === 'web') {
@@ -148,7 +151,7 @@ export function ScoreBottomSheet({ visible, song, editingScore, onClose, onSaved
       }
     } catch (e) {
       console.error(e);
-      Alert.alert('エラー', '保存に失敗しました');
+      await confirm({ title: 'エラー', message: '保存に失敗しました', options: [{ label: 'OK', style: 'primary' }], cancelLabel: null });
     } finally {
       if (!pbTriggered) setIsSaving(false);
     }

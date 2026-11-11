@@ -1,7 +1,6 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Alert,
   FlatList,
   Image,
   Platform,
@@ -25,6 +24,7 @@ import { ScoreRow } from '../../src/types';
 import { ScoreBottomSheet } from '../../src/components/ScoreBottomSheet';
 import { ScoreChart } from '../../src/components/ScoreChart';
 import { EmptyState } from '../../src/components/EmptyState';
+import { useConfirm } from '../../src/components/ConfirmProvider';
 
 export default function SongDetailScreen() {
   const insets = useSafeAreaInsets();
@@ -32,6 +32,7 @@ export default function SongDetailScreen() {
   const songId = Number(id);
   const { song, scores, loading, error, reload } = useSongDetail(songId);
   const { defaultMachine } = useMachine();
+  const confirm = useConfirm();
 
   // 編集画面などから戻ったとき、最新の曲情報・スコアを再取得する。
   // useSongDetail はマウント時のみ取得のため、これが無いと編集後に古い内容が残る。
@@ -52,28 +53,23 @@ export default function SongDetailScreen() {
   const [editingScore, setEditingScore] = useState<ScoreRow | null>(null);
   const [artworkError, setArtworkError] = useState(false);
 
-  function handleDeleteScore(score: ScoreRow) {
-    Alert.alert(
-      'スコアを削除',
-      `${formatDateTime(score.scored_at)}  ${score.score.toFixed(3)}点\nこの記録を削除しますか？`,
-      [
-        { text: 'キャンセル', style: 'cancel' },
-        {
-          text: '削除する',
-          style: 'destructive',
-          onPress: () => {
-            if (Platform.OS === 'web') return;
-            try {
-              deleteScore(score.id);
-              reload();
-            } catch (e) {
-              console.error(e);
-              Alert.alert('エラー', '削除に失敗しました');
-            }
-          },
-        },
-      ]
-    );
+  async function handleDeleteScore(score: ScoreRow) {
+    const r = await confirm({
+      title: 'スコアを削除',
+      message: `${formatDateTime(score.scored_at)}  ${score.score.toFixed(3)}点\nこの記録を削除しますか？`,
+      icon: '🗑',
+      iconTone: 'red',
+      options: [{ label: '削除する', style: 'danger' }],
+    });
+    if (r !== 0) return;
+    if (Platform.OS === 'web') return;
+    try {
+      deleteScore(score.id);
+      reload();
+    } catch (e) {
+      console.error(e);
+      await confirm({ title: 'エラー', message: '削除に失敗しました', options: [{ label: 'OK', style: 'primary' }], cancelLabel: null });
+    }
   }
 
   if (loading) {
@@ -280,17 +276,19 @@ interface HistoryRowProps {
 }
 
 function HistoryRow({ score, onEdit, onDelete }: HistoryRowProps) {
+  const confirm = useConfirm();
   // スワイプに依存しない代替導線（#24）。タップ/長押しで編集・削除のアクションシートを出す。
-  function showActions() {
-    Alert.alert(
-      formatDateTime(score.scored_at),
-      `${score.score.toFixed(3)}点`,
-      [
-        { text: '編集', onPress: onEdit },
-        { text: '削除', style: 'destructive', onPress: onDelete },
-        { text: 'キャンセル', style: 'cancel' },
-      ]
-    );
+  async function showActions() {
+    const r = await confirm({
+      title: formatDateTime(score.scored_at),
+      message: `${score.score.toFixed(3)}点`,
+      options: [
+        { label: '編集', icon: '✏️' },
+        { label: '削除', icon: '🗑', style: 'danger' },
+      ],
+    });
+    if (r === 0) onEdit();
+    else if (r === 1) onDelete();
   }
 
   return (

@@ -1,7 +1,6 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Alert,
   Image,
   Modal,
   Platform,
@@ -22,14 +21,16 @@ import { getAllSongs, getSongsByTab } from '../../src/db/songs';
 import { setSongsForTab } from '../../src/db/songTabs';
 import { TabSongPickerModal } from '../../src/components/TabSongPickerModal';
 import { EmptyState } from '../../src/components/EmptyState';
+import { useConfirm } from '../../src/components/ConfirmProvider';
 import { SongWithStats, TabRow } from '../../src/types';
 
 const BTN_HIT_SLOP = { top: 10, bottom: 10, left: 8, right: 8 };
 
 export default function TabDetailScreen() {
   const insets = useSafeAreaInsets();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, openPicker: openPickerParam } = useLocalSearchParams<{ id: string; openPicker?: string }>();
   const tabId = Number(id);
+  const confirm = useConfirm();
 
   const [tab, setTab] = useState<TabRow | null>(null);
   const [songs, setSongs] = useState<SongWithStats[]>([]);
@@ -50,17 +51,26 @@ export default function TabDetailScreen() {
 
   useFocusEffect(useCallback(() => { reload(); }, [reload]));
 
+  // ホームのタブ長押し「対応曲を変更」から ?openPicker=1 で来たときは、タブ読込後に一度だけ自動で開く
+  const didAutoOpenRef = useRef(false);
+  useEffect(() => {
+    if (openPickerParam === '1' && tab && !didAutoOpenRef.current) {
+      didAutoOpenRef.current = true;
+      openPicker();
+    }
+  }, [openPickerParam, tab]);
+
   function openRename() {
     setRenameInput(tab?.name ?? '');
     setRenameVisible(true);
   }
 
-  function handleRename() {
+  async function handleRename() {
     const name = renameInput.trim();
     if (!name) return;
     if (Platform.OS === 'web') { setRenameVisible(false); return; }
     if (findDuplicateTab(name, tabId)) {
-      Alert.alert('同じ名前のタブがあります', `「${name}」はすでに存在します。別の名前を入力してください。`);
+      await confirm({ title: '同じ名前のタブがあります', message: `「${name}」はすでに存在します。別の名前を入力してください。`, options: [{ label: 'OK', style: 'primary' }], cancelLabel: null });
       return;
     }
     try {
@@ -68,34 +78,29 @@ export default function TabDetailScreen() {
       reload();
     } catch (e) {
       console.error(e);
-      Alert.alert('エラー', '保存に失敗しました');
+      await confirm({ title: 'エラー', message: '保存に失敗しました', options: [{ label: 'OK', style: 'primary' }], cancelLabel: null });
     }
     setRenameVisible(false);
   }
 
-  function handleDelete() {
+  async function handleDelete() {
     if (!tab) return;
-    Alert.alert(
-      'タブを削除',
-      `「${tab.name}」を削除しますか？\n紐づく曲は削除されません。`,
-      [
-        { text: 'キャンセル', style: 'cancel' },
-        {
-          text: '削除する',
-          style: 'destructive',
-          onPress: () => {
-            if (Platform.OS === 'web') { router.back(); return; }
-            try {
-              deleteTab(tabId);
-              router.back();
-            } catch (e) {
-              console.error(e);
-              Alert.alert('エラー', '削除に失敗しました');
-            }
-          },
-        },
-      ]
-    );
+    const r = await confirm({
+      title: 'タブを削除',
+      message: `「${tab.name}」を削除しますか？\n紐づく曲は削除されません。`,
+      icon: '🗑',
+      iconTone: 'red',
+      options: [{ label: '削除する', style: 'danger' }],
+    });
+    if (r !== 0) return;
+    if (Platform.OS === 'web') { router.back(); return; }
+    try {
+      deleteTab(tabId);
+      router.back();
+    } catch (e) {
+      console.error(e);
+      await confirm({ title: 'エラー', message: '削除に失敗しました', options: [{ label: 'OK', style: 'primary' }], cancelLabel: null });
+    }
   }
 
   function openPicker() {
@@ -103,7 +108,7 @@ export default function TabDetailScreen() {
     setPickerVisible(true);
   }
 
-  function handleSavePicker(songIds: number[]) {
+  async function handleSavePicker(songIds: number[]) {
     if (Platform.OS === 'web') { setPickerVisible(false); return; }
     try {
       setSongsForTab(tabId, songIds);
@@ -111,7 +116,7 @@ export default function TabDetailScreen() {
       reload();
     } catch (e) {
       console.error(e);
-      Alert.alert('エラー', '曲の設定に失敗しました');
+      await confirm({ title: 'エラー', message: '曲の設定に失敗しました', options: [{ label: 'OK', style: 'primary' }], cancelLabel: null });
     }
   }
 

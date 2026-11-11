@@ -1,7 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
-  Alert,
   Image,
   Keyboard,
   KeyboardAvoidingView,
@@ -25,6 +24,7 @@ import { useTabs } from '../../src/hooks/useTabs';
 import { MOCK_SONGS } from '../../src/db/mockData';
 import { SongSearchModal } from '../../src/features/songSearch/SongSearchModal';
 import { SongCandidate } from '../../src/features/songSearch/types';
+import { useConfirm } from '../../src/components/ConfirmProvider';
 
 import { MAX_TAB_NAME_LENGTH, truncateTabName } from '../../src/constants/tabConfig';
 
@@ -38,6 +38,7 @@ export default function SongFormScreen() {
   const isEdit = !!songId;
 
   const { tabs, loading: tabsLoading, reload: reloadTabs } = useTabs();
+  const confirm = useConfirm();
   const [title, setTitle] = useState('');
   const [artist, setArtist] = useState('');
   const [keyOffset, setKeyOffset] = useState<number | null>(null);
@@ -93,16 +94,16 @@ export default function SongFormScreen() {
   }
 
   // 検索モーダルで候補を選んだとき。編集時は確認ダイアログを挟む（§5.9）
-  function handleSearchSelect(c: SongCandidate) {
+  async function handleSearchSelect(c: SongCandidate) {
     if (isEdit) {
-      Alert.alert(
-        '曲を変更しますか？',
-        `「${c.title}（${c.artist}）」に置き換えます。キー・メモ・タブ・点数はそのまま引き継がれ、「変更を保存する」で確定します。別の曲として記録する場合は、新しく追加してください。`,
-        [
-          { text: '戻る', style: 'cancel' },
-          { text: '変更する', onPress: () => { applyCandidate(c); setSearchVisible(false); } },
-        ]
-      );
+      const r = await confirm({
+        title: '曲を変更しますか？',
+        message: `「${c.title}（${c.artist}）」に置き換えます。キー・メモ・タブ・点数はそのまま引き継がれ、「変更を保存する」で確定します。別の曲として記録する場合は、新しく追加してください。`,
+        icon: '🎵',
+        options: [{ label: '変更する', style: 'primary' }],
+        cancelLabel: '戻る',
+      });
+      if (r === 0) { applyCandidate(c); setSearchVisible(false); }
     } else {
       applyCandidate(c);
       setAddStarted(true);
@@ -138,12 +139,12 @@ export default function SongFormScreen() {
     setNewTabModalVisible(true);
   }
 
-  function handleConfirmNewTab() {
+  async function handleConfirmNewTab() {
     const name = newTabName.trim();
     if (!name) return;
     if (Platform.OS === 'web') { setNewTabModalVisible(false); return; }
     if (findDuplicateTab(name)) {
-      Alert.alert('同じ名前のタブがあります', `「${name}」はすでに存在します。別の名前を入力してください。`);
+      await confirm({ title: '同じ名前のタブがあります', message: `「${name}」はすでに存在します。別の名前を入力してください。`, options: [{ label: 'OK', style: 'primary' }], cancelLabel: null });
       return; // モーダルは開いたままにして入力し直せるようにする
     }
     try {
@@ -152,20 +153,20 @@ export default function SongFormScreen() {
       setSelectedTabIds((prev) => [...prev, newId]);
     } catch (e) {
       console.error(e);
-      Alert.alert('エラー', 'タブの作成に失敗しました');
+      await confirm({ title: 'エラー', message: 'タブの作成に失敗しました', options: [{ label: 'OK', style: 'primary' }], cancelLabel: null });
     }
     Keyboard.dismiss(); // Bug-3: Android でキーボードが残存する問題を修正
     setNewTabModalVisible(false);
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!title.trim()) {
-      Alert.alert('入力エラー', '曲名を入力してください');
+      await confirm({ title: '入力エラー', message: '曲名を入力してください', options: [{ label: 'OK', style: 'primary' }], cancelLabel: null });
       return;
     }
     if (Platform.OS === 'web') { router.back(); return; }
 
-    function doSave() {
+    async function doSave() {
       try {
         if (isEdit) {
           updateSong(Number(songId), title.trim(), artist.trim(), keyOffset, artworkUrl, memo, titleReading.trim(), artistReading.trim());
@@ -177,7 +178,7 @@ export default function SongFormScreen() {
         router.back();
       } catch (e) {
         console.error(e);
-        Alert.alert('エラー', '保存に失敗しました');
+        await confirm({ title: 'エラー', message: '保存に失敗しました', options: [{ label: 'OK', style: 'primary' }], cancelLabel: null });
       }
     }
 
@@ -189,18 +190,19 @@ export default function SongFormScreen() {
     );
     if (duplicate) {
       const artistLabel = artist.trim() ? `（${artist.trim()}）` : '';
-      Alert.alert(
-        '重複登録',
-        `「${title.trim()}」${artistLabel}はすでに登録されています。それでも${isEdit ? '保存' : '追加'}しますか？`,
-        [
-          { text: '戻る', style: 'cancel' },
-          { text: `それでも${isEdit ? '保存' : '登録'}する`, onPress: doSave },
-        ]
-      );
+      const r = await confirm({
+        title: '重複登録',
+        message: `「${title.trim()}」${artistLabel}はすでに登録されています。それでも${isEdit ? '保存' : '追加'}しますか？`,
+        icon: '⚠️',
+        iconTone: 'red',
+        options: [{ label: `それでも${isEdit ? '保存' : '登録'}する`, style: 'danger' }],
+        cancelLabel: '戻る',
+      });
+      if (r === 0) await doSave();
       return;
     }
 
-    doSave();
+    await doSave();
   }
 
   return (

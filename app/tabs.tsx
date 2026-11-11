@@ -1,7 +1,6 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 import {
-  Alert,
   Modal,
   Platform,
   ScrollView,
@@ -18,6 +17,7 @@ import { MAX_TAB_NAME_LENGTH } from '../src/constants/tabConfig';
 import { insertTab, updateTab, deleteTab, updateTabOrder, findDuplicateTab } from '../src/db/tabs';
 import { useTabs } from '../src/hooks/useTabs';
 import { EmptyState } from '../src/components/EmptyState';
+import { useConfirm } from '../src/components/ConfirmProvider';
 import { TabRow } from '../src/types';
 
 // 小さいアイコンボタンのタップ領域を広げ、誤タップを減らす（推奨44pt相当を確保）
@@ -26,6 +26,7 @@ const BTN_HIT_SLOP = { top: 10, bottom: 10, left: 8, right: 8 };
 export default function TabsScreen() {
   const insets = useSafeAreaInsets();
   const { tabs, reload } = useTabs();
+  const confirm = useConfirm();
   const [modalMode, setModalMode] = useState<'add' | 'edit' | null>(null);
   const [editingTab, setEditingTab] = useState<TabRow | null>(null);
   const [inputName, setInputName] = useState('');
@@ -48,14 +49,14 @@ export default function TabsScreen() {
     setInputName('');
   }
 
-  function handleConfirm() {
+  async function handleConfirm() {
     const name = inputName.trim();
     if (!name) return;
     if (Platform.OS === 'web') { closeModal(); return; }
     // リネーム時は自分自身を除外して重複判定する
     const excludeId = modalMode === 'edit' && editingTab ? editingTab.id : undefined;
     if (findDuplicateTab(name, excludeId)) {
-      Alert.alert('同じ名前のタブがあります', `「${name}」はすでに存在します。別の名前を入力してください。`);
+      await confirm({ title: '同じ名前のタブがあります', message: `「${name}」はすでに存在します。別の名前を入力してください。`, options: [{ label: 'OK', style: 'primary' }], cancelLabel: null });
       return; // モーダルは開いたままにして入力し直せるようにする
     }
     try {
@@ -67,33 +68,28 @@ export default function TabsScreen() {
       reload();
     } catch (e) {
       console.error(e);
-      Alert.alert('エラー', '保存に失敗しました');
+      await confirm({ title: 'エラー', message: '保存に失敗しました', options: [{ label: 'OK', style: 'primary' }], cancelLabel: null });
     }
     closeModal();
   }
 
-  function handleDelete(tab: TabRow) {
-    Alert.alert(
-      'タブを削除',
-      `「${tab.name}」を削除しますか？\n紐づく曲は削除されません。`,
-      [
-        { text: 'キャンセル', style: 'cancel' },
-        {
-          text: '削除する',
-          style: 'destructive',
-          onPress: () => {
-            if (Platform.OS === 'web') { return; }
-            try {
-              deleteTab(tab.id);
-              reload();
-            } catch (e) {
-              console.error(e);
-              Alert.alert('エラー', '削除に失敗しました');
-            }
-          },
-        },
-      ]
-    );
+  async function handleDelete(tab: TabRow) {
+    const r = await confirm({
+      title: 'タブを削除',
+      message: `「${tab.name}」を削除しますか？\n紐づく曲は削除されません。`,
+      icon: '🗑',
+      iconTone: 'red',
+      options: [{ label: '削除する', style: 'danger' }],
+    });
+    if (r !== 0) return;
+    if (Platform.OS === 'web') { return; }
+    try {
+      deleteTab(tab.id);
+      reload();
+    } catch (e) {
+      console.error(e);
+      await confirm({ title: 'エラー', message: '削除に失敗しました', options: [{ label: 'OK', style: 'primary' }], cancelLabel: null });
+    }
   }
 
   function moveTab(index: number, direction: 'up' | 'down') {
