@@ -1,5 +1,5 @@
-import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   FlatList,
@@ -32,6 +32,14 @@ export default function SongDetailScreen() {
   const songId = Number(id);
   const { song, scores, loading, error, reload } = useSongDetail(songId);
   const { defaultMachine } = useMachine();
+
+  // 編集画面などから戻ったとき、最新の曲情報・スコアを再取得する。
+  // useSongDetail はマウント時のみ取得のため、これが無いと編集後に古い内容が残る。
+  useFocusEffect(
+    useCallback(() => {
+      reload();
+    }, [reload])
+  );
   // 最高点・グラフ・前回比・記録回数は機種別に表示。初期はデフォルト機種（#71）
   const [selectedMachine, setSelectedMachine] = useState<Machine>(defaultMachine);
   // ユーザーが手動でトグルしたら、以降はデフォルト機種の変化で上書きしない（#83）。
