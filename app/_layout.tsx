@@ -15,6 +15,7 @@ import {
 import { initDatabase } from '../src/db/client';
 import { seedIfEmpty } from '../src/db/seed';
 import { MachineProvider } from '../src/contexts/MachineContext';
+import { ConfirmProvider } from '../src/components/ConfirmProvider';
 import { isOnboardingCompleted } from '../src/lib/machine';
 
 export default function RootLayout() {
@@ -51,6 +52,7 @@ export default function RootLayout() {
     <GestureHandlerRootView style={styles.root}>
       <StatusBar style="dark" />
       <MachineProvider>
+        <ConfirmProvider>
         <Stack>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="song/new" options={{ presentation: 'modal', animation: 'slide_from_bottom', headerShown: false }} />
@@ -60,6 +62,7 @@ export default function RootLayout() {
           <Stack.Screen name="onboarding" options={{ headerShown: false }} />
           <Stack.Screen name="settings/machine" options={{ headerShown: false }} />
         </Stack>
+        </ConfirmProvider>
       </MachineProvider>
     </GestureHandlerRootView>
   );
