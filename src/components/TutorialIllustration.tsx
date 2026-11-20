@@ -241,12 +241,9 @@ function Content({ kind }: { kind: string }) {
       );
     case 'manualbtn':
       return (
-        <View style={{ gap: 8, width: '100%', alignItems: 'center' }}>
-          <View style={[s.field, { width: '100%' }]}><Text style={s.fieldText}>🔍 曲・アーティストを検索</Text></View>
-          <HiBox>
-            <View style={s.manualBtn}><Text style={s.manualBtnText}>✍️ 手入力で登録</Text></View>
-          </HiBox>
-        </View>
+        <HiBox>
+          <View style={s.manualBtn}><Text style={s.manualBtnText}>✍️ 手入力で登録</Text></View>
+        </HiBox>
       );
     case 'form':
       return (
