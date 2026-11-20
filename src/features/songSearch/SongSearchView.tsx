@@ -24,6 +24,7 @@ import {
 } from '../../db/settings';
 import { colors } from '../../constants/colors';
 import { fonts } from '../../constants/fonts';
+import { useCoachTarget } from '../../lib/coachTargets';
 import { SearchMode, SongCandidate, SortKey } from './types';
 import { useSongSearch } from './useSongSearch';
 
@@ -74,6 +75,8 @@ export const SongSearchView = forwardRef<SongSearchViewHandle, Props>(function S
   // 履歴ドロップダウンはホームと同様フォーカス連動（検索欄から離れたら閉じる）
   const [searchFocused, setSearchFocused] = useState(false);
   const inputRef = useRef<TextInput>(null);
+  const searchTargetRef = useCoachTarget('search-input');
+  const manualTargetRef = useCoachTarget('manual-entry');
 
   useImperativeHandle(ref, () => ({
     focus: () => inputRef.current?.focus(),
@@ -115,6 +118,7 @@ export const SongSearchView = forwardRef<SongSearchViewHandle, Props>(function S
       <View style={styles.header}>
         <Text style={styles.headerTitle}>さがす</Text>
         {/* 手入力の導線は常に見える位置に置く（検索前・後・失敗時いつでも押せる） */}
+        <View ref={manualTargetRef} collapsable={false}>
         <TouchableOpacity
           style={styles.manualPill}
           onPress={onManual}
@@ -124,11 +128,12 @@ export const SongSearchView = forwardRef<SongSearchViewHandle, Props>(function S
         >
           <Text style={styles.manualPillText}>✏️ 手入力で登録</Text>
         </TouchableOpacity>
+        </View>
       </View>
 
       {/* 検索欄（履歴ドロップダウンのアンカー） */}
       <View>
-        <View style={styles.sInput}>
+        <View style={styles.sInput} ref={searchTargetRef} collapsable={false}>
           <Text style={styles.sIcon}>🔍</Text>
           <TextInput
             ref={inputRef}

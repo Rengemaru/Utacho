@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../src/constants/colors';
 import { fonts } from '../src/constants/fonts';
 import { completeOnboarding, setDefaultMachine, type Machine } from '../src/lib/machine';
-import { setSettingSync } from '../src/db/settings';
+import { setIntroState } from '../src/lib/tutorial';
 import { useMachine } from '../src/contexts/MachineContext';
 
 export default function OnboardingScreen() {
@@ -16,7 +16,7 @@ export default function OnboardingScreen() {
   async function finishOnboarding(machine: Machine) {
     await setDefaultMachine(machine);
     await completeOnboarding();
-    setSettingSync('first_launch_guide', 'pending'); // Onb-1: 初回登録ガイドを表示するフラグ
+    setIntroState('pending'); // 初回チュートリアル（コーチマーク）を表示するフラグ
     await refresh();
     router.replace('/(tabs)');
   }

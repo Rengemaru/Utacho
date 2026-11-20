@@ -8,9 +8,11 @@ interface Props {
   song: SongWithStats;
   machine: Machine; // best_score はこの機種での最高点。ラベルに機種名を出す（#71）
   onPressRecord: () => void;
+  /** チュートリアルで照らすための ref（先頭カードの 🎤 だけに渡す） */
+  recordButtonRef?: (node: View | null) => void;
 }
 
-export function SongCard({ song, machine, onPressRecord }: Props) {
+export function SongCard({ song, machine, onPressRecord, recordButtonRef }: Props) {
   const keyOffset = song.key_offset;
   const score = song.best_score;
   const bestLabel = machine === 'JOYSOUND' ? 'JOY BEST' : 'DAM BEST';
@@ -38,6 +40,7 @@ export function SongCard({ song, machine, onPressRecord }: Props) {
             {score != null && score > 0 ? score.toFixed(3) : '—'}
           </Text>
         </View>
+        <View ref={recordButtonRef} collapsable={false}>
         <TouchableOpacity
           style={styles.recordBtn}
           onPress={onPressRecord}
@@ -47,6 +50,7 @@ export function SongCard({ song, machine, onPressRecord }: Props) {
         >
           <Text style={styles.recordBtnText}>🎤</Text>
         </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
