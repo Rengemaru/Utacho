@@ -226,7 +226,7 @@ export default function HomeScreen() {
     // 「今すぐ登録」を選んだユーザーはコーチマーク不要（ガイドで十分）
     setSettingSync('coach_mark_shown', 'true');
     setFirstLaunchGuideVisible(false);
-    router.push('/song/new');
+    router.navigate('/search');
   }
 
   function handleFirstLaunchLater() {
@@ -512,14 +512,6 @@ export default function HomeScreen() {
           >
             <Text style={[styles.helpBtnText, isTablet && styles.iconBtnTextTablet]}>？</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.addBtn, isTablet && styles.iconBtnTablet]}
-            onPress={() => router.push('/song/new')}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            accessibilityLabel="曲を追加"
-          >
-            <Text style={[styles.addBtnText, isTablet && styles.addBtnTextTablet]}>＋</Text>
-          </TouchableOpacity>
         </View>
       </View>
 
@@ -679,8 +671,8 @@ export default function HomeScreen() {
             emoji="🎵"
             title={query ? '検索結果がありません' : 'まだ曲がありません'}
             subtitle={query ? '別のキーワードで試してみてください' : 'カラオケで歌った曲を追加しましょう'}
-            actionLabel={query ? undefined : '＋ 最初の曲を追加する'}
-            onAction={query ? undefined : () => router.push('/song/new')}
+            actionLabel={query ? undefined : '🔍 曲をさがして追加する'}
+            onAction={query ? undefined : () => router.navigate('/search')}
           />
         </View>
       ) : (
@@ -901,24 +893,9 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     lineHeight: 20,
   },
-  addBtn: {
-    width: 34,
-    height: 34,
-    backgroundColor: colors.accent,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: colors.accent,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  addBtnText: { fontSize: 20, color: colors.white, lineHeight: 24 },
   // タブレット時：ヘッダーアイコンボタンを44pxに拡大（押しやすさ・#92）
   iconBtnTablet: { width: 44, height: 44, borderRadius: 13 },
   iconBtnTextTablet: { fontSize: 20, lineHeight: 26 },
-  addBtnTextTablet: { fontSize: 26, lineHeight: 30 },
   sessionBanner: {
     flexDirection: 'row',
     alignItems: 'center',

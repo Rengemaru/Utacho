@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Image,
   Keyboard,
@@ -34,15 +34,17 @@ const MAX_MEMO_LENGTH = 1000;  // メモ
 
 export default function SongFormScreen() {
   const insets = useSafeAreaInsets();
-  const { songId } = useLocalSearchParams<{ songId?: string }>();
+  // 新規追加は「さがす」タブで選んだ候補（title/artist/artworkUrl）を受け取る。手入力時はパラメータなし
+  const params = useLocalSearchParams<{ songId?: string; title?: string; artist?: string; artworkUrl?: string }>();
+  const { songId } = params;
   const isEdit = !!songId;
 
   const { tabs, loading: tabsLoading, reload: reloadTabs } = useTabs();
   const confirm = useConfirm();
-  const [title, setTitle] = useState('');
-  const [artist, setArtist] = useState('');
+  const [title, setTitle] = useState(isEdit ? '' : params.title ?? '');
+  const [artist, setArtist] = useState(isEdit ? '' : params.artist ?? '');
   const [keyOffset, setKeyOffset] = useState<number | null>(null);
-  const [artworkUrl, setArtworkUrl] = useState<string | null>(null);
+  const [artworkUrl, setArtworkUrl] = useState<string | null>(isEdit ? null : params.artworkUrl || null);
   const [memo, setMemo] = useState('');
   const [titleReading, setTitleReading] = useState('');
   const [artistReading, setArtistReading] = useState('');
@@ -50,12 +52,8 @@ export default function SongFormScreen() {
   const [newTabModalVisible, setNewTabModalVisible] = useState(false);
   const [newTabName, setNewTabName] = useState('');
 
-  // 新規追加は検索モーダル（04a）から開始する。編集は「曲を変更」押下で開く
-  const [searchVisible, setSearchVisible] = useState(!isEdit);
-  // 新規追加で初回の検索を抜けたか（選択 or 手入力）。初回キャンセルのみホームに戻すために使う
-  const [addStarted, setAddStarted] = useState(false);
-  // onClose が ✕/戻る と onDismiss(iOS) で二重に呼ばれても router.back() を1回に抑える
-  const canceledToHomeRef = useRef(false);
+  // 編集時の「曲を変更」で開く検索モーダル
+  const [searchVisible, setSearchVisible] = useState(false);
 
   useEffect(() => {
     if (!isEdit) return;
@@ -93,39 +91,16 @@ export default function SongFormScreen() {
     setArtworkUrl(c.artworkUrl);
   }
 
-  // 検索モーダルで候補を選んだとき。編集時は確認ダイアログを挟む（§5.9）
+  // 「曲を変更」の検索モーダルで候補を選んだとき（編集時のみ）。確認ダイアログを挟む（§5.9）
   async function handleSearchSelect(c: SongCandidate) {
-    if (isEdit) {
-      const r = await confirm({
-        title: '曲を変更しますか？',
-        message: `「${c.title}（${c.artist}）」に置き換えます。キー・メモ・タブ・点数はそのまま引き継がれ、「変更を保存する」で確定します。別の曲として記録する場合は、新しく追加してください。`,
-        icon: '🎵',
-        options: [{ label: '変更する', style: 'primary' }],
-        cancelLabel: '戻る',
-      });
-      if (r === 0) { applyCandidate(c); setSearchVisible(false); }
-    } else {
-      applyCandidate(c);
-      setAddStarted(true);
-      setSearchVisible(false);
-    }
-  }
-
-  // 「手入力で登録」（新規のみ）。空のフォームのまま進む
-  function handleSearchManual() {
-    setAddStarted(true);
-    setSearchVisible(false);
-  }
-
-  // モーダルを閉じる（✕・戻る）。新規の初回検索をキャンセルしたときだけホームに戻す。
-  // フォーム表示後に「曲を変更」から開いた検索をキャンセルしても、入力を失わずフォームに留まる。
-  function handleSearchClose() {
-    setSearchVisible(false);
-    // 新規の初回検索キャンセルのみホームへ。二重発火でも1回だけ戻す（戻ると画面はアンマウントされる）
-    if (!isEdit && !addStarted && !canceledToHomeRef.current) {
-      canceledToHomeRef.current = true;
-      router.back();
-    }
+    const r = await confirm({
+      title: '曲を変更しますか？',
+      message: `「${c.title}（${c.artist}）」に置き換えます。キー・メモ・タブ・点数はそのまま引き継がれ、「変更を保存する」で確定します。別の曲として記録する場合は、新しく追加してください。`,
+      icon: '🎵',
+      options: [{ label: '変更する', style: 'primary' }],
+      cancelLabel: '戻る',
+    });
+    if (r === 0) { applyCandidate(c); setSearchVisible(false); }
   }
 
   function toggleTab(tabId: number) {
@@ -174,6 +149,9 @@ export default function SongFormScreen() {
         } else {
           const newId = insertSong(title.trim(), artist.trim(), keyOffset, artworkUrl, memo, titleReading.trim(), artistReading.trim());
           syncTabs(newId, selectedTabIds);
+          // 追加後は「さがす」タブではなく曲一覧に戻し、登録した曲が見えるようにする
+          router.dismissTo('/');
+          return;
         }
         router.back();
       } catch (e) {
@@ -282,7 +260,7 @@ export default function SongFormScreen() {
             />
           </View>
 
-          {/* アルバムアート + 「曲を変更」（新規・編集とも表示。検索をやり直せる） */}
+          {/* アルバムアート（編集時は「曲を変更」で検索をやり直せる） */}
           <View style={styles.songRow}>
             {artworkUrl ? (
               <Image source={{ uri: artworkUrl }} style={styles.songArt} />
@@ -295,9 +273,11 @@ export default function SongFormScreen() {
               <Text style={styles.songRowLabel}>アルバムアート</Text>
               <Text style={styles.songRowSub}>{artworkUrl ? '検索で選んだ曲のもの' : '未設定'}</Text>
             </View>
-            <TouchableOpacity style={styles.changeBtn} onPress={() => setSearchVisible(true)} accessibilityRole="button">
-              <Text style={styles.changeBtnText}>曲を変更</Text>
-            </TouchableOpacity>
+            {isEdit && (
+              <TouchableOpacity style={styles.changeBtn} onPress={() => setSearchVisible(true)} accessibilityRole="button">
+                <Text style={styles.changeBtnText}>曲を変更</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* タブ選択 */}
@@ -389,15 +369,16 @@ export default function SongFormScreen() {
           </KeyboardAvoidingView>
         </Modal>
 
-        {/* 曲検索モーダル（新規=手入力あり / 編集=手入力なし） */}
-        <SongSearchModal
-          visible={searchVisible}
-          purpose={isEdit ? 'change' : 'add'}
-          currentSong={isEdit ? { title, artist } : undefined}
-          onSelect={handleSearchSelect}
-          onManual={isEdit ? undefined : handleSearchManual}
-          onClose={handleSearchClose}
-        />
+        {/* 「曲を変更」用の検索モーダル（編集時のみ） */}
+        {isEdit && (
+          <SongSearchModal
+            visible={searchVisible}
+            purpose="change"
+            currentSong={{ title, artist }}
+            onSelect={handleSearchSelect}
+            onClose={() => setSearchVisible(false)}
+          />
+        )}
 
         {/* 保存ボタン */}
         <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
