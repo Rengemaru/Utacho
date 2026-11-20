@@ -14,35 +14,35 @@ export const MOCK_TABS_WITH_COUNTS: TabWithCount[] = [
 
 export const MOCK_SONGS: SongWithStats[] = [
   {
-    id: 1, title: 'ガーネット', artist: '奥華子', key_offset: 1,
+    id: 1, title: 'ガーネット', artist: '奥華子', key_offset: 1, tempo_offset: null,
     artwork_url: null, memo: '', title_reading: '', artist_reading: '', created_at: '2026-05-01T00:00:00',
     best_score: 92.4, latest_score: 92.4, first_score: 83.5,
     latest_scored_at: '2026-05-10T22:15', score_count: 4,
     tabs: [MOCK_TABS[0]],
   },
   {
-    id: 2, title: 'Lemon', artist: '米津玄師', key_offset: -3,
+    id: 2, title: 'Lemon', artist: '米津玄師', key_offset: -3, tempo_offset: null,
     artwork_url: null, memo: '', title_reading: '', artist_reading: '', created_at: '2026-05-02T00:00:00',
     best_score: 89.1, latest_score: 89.1, first_score: 84.3,
     latest_scored_at: '2026-05-01T20:00', score_count: 2,
     tabs: [MOCK_TABS[0]],
   },
   {
-    id: 3, title: '夜に駆ける', artist: 'YOASOBI', key_offset: 2,
+    id: 3, title: '夜に駆ける', artist: 'YOASOBI', key_offset: 2, tempo_offset: null,
     artwork_url: null, memo: '', title_reading: '', artist_reading: '', created_at: '2026-05-03T00:00:00',
     best_score: 85.7, latest_score: 85.7, first_score: 80.2,
     latest_scored_at: '2026-05-20T21:00', score_count: 2,
     tabs: [MOCK_TABS[0], MOCK_TABS[2]],
   },
   {
-    id: 4, title: 'カタオモイ', artist: 'Aimer', key_offset: null,
+    id: 4, title: 'カタオモイ', artist: 'Aimer', key_offset: null, tempo_offset: null,
     artwork_url: null, memo: '', title_reading: '', artist_reading: '', created_at: '2026-05-04T00:00:00',
     best_score: 88.3, latest_score: 88.3, first_score: 88.3,
     latest_scored_at: '2026-05-15T21:30', score_count: 1,
     tabs: [],
   },
   {
-    id: 5, title: '炎', artist: 'LiSA', key_offset: -1,
+    id: 5, title: '炎', artist: 'LiSA', key_offset: -1, tempo_offset: null,
     artwork_url: null, memo: '', title_reading: '', artist_reading: '', created_at: '2026-05-05T00:00:00',
     best_score: 83.2, latest_score: 83.2, first_score: 78.9,
     latest_scored_at: '2026-05-22T22:00', score_count: 2,

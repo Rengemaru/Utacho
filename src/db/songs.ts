@@ -131,11 +131,12 @@ export function insertSong(
   artworkUrl?: string | null,
   memo: string = '',
   titleReading: string = '',
-  artistReading: string = ''
+  artistReading: string = '',
+  tempoOffset: number | null = null
 ): number {
   const result = getDb().runSync(
-    'INSERT INTO songs (title, artist, key_offset, artwork_url, memo, title_reading, artist_reading, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-    [title, artist, keyOffset, artworkUrl ?? null, memo, titleReading, artistReading, new Date().toISOString()]
+    'INSERT INTO songs (title, artist, key_offset, tempo_offset, artwork_url, memo, title_reading, artist_reading, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [title, artist, keyOffset, tempoOffset, artworkUrl ?? null, memo, titleReading, artistReading, new Date().toISOString()]
   );
   return result.lastInsertRowId;
 }

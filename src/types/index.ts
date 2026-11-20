@@ -13,6 +13,7 @@ export interface SongRow {
   title: string;
   artist: string;
   key_offset: number | null;
+  tempo_offset: number | null; // テンポ調整（NULL=未設定、+1/-2 など整数）
   artwork_url: string | null;
   memo: string;
   title_reading: string;   // 曲名の読み（手入力・任意・空可）

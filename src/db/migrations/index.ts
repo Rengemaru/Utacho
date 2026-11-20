@@ -59,6 +59,17 @@ export const MIGRATIONS: Migration[] = [
       }
     },
   },
+  {
+    version: 5,
+    description: 'add tempo_offset column to songs',
+    up: async (db) => {
+      const cols = await db.getAllAsync<{ name: string }>('PRAGMA table_info(songs)');
+      // NULL=未設定。既存行は NULL のままなので非破壊
+      if (!cols.some((c) => c.name === 'tempo_offset')) {
+        await db.execAsync(`ALTER TABLE songs ADD COLUMN tempo_offset INTEGER`);
+      }
+    },
+  },
 ];
 
 export async function runMigrations(db: SQLite.SQLiteDatabase): Promise<void> {

@@ -9,6 +9,7 @@ export const schema = `
     title       TEXT    NOT NULL,
     artist      TEXT    NOT NULL DEFAULT '',
     key_offset  INTEGER,
+    tempo_offset INTEGER,
     artwork_url TEXT,
     memo        TEXT    NOT NULL DEFAULT '',
     title_reading  TEXT NOT NULL DEFAULT '',
