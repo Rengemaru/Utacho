@@ -1,5 +1,5 @@
 // 曲検索画面（フッター「さがす」タブの中身）。
-// 旧 SongSearchModal の 04b 検索画面を、選択画面（04a）なしでタブ内に直接表示する形に切り出したもの。
+// 旧・曲検索モーダルの 04b 検索画面を、選択画面（04a）なしでタブ内に直接表示する形にしたもの。
 // 検索モード（曲から/アーティスト/キーワード）は検索欄の下のセグメントで切り替える。
 
 import { forwardRef, useCallback, useImperativeHandle, useRef, useState } from 'react';

@@ -22,8 +22,6 @@ import { insertTab, findDuplicateTab } from '../../src/db/tabs';
 import { syncTabs } from '../../src/db/songTabs';
 import { useTabs } from '../../src/hooks/useTabs';
 import { MOCK_SONGS } from '../../src/db/mockData';
-import { SongSearchModal } from '../../src/features/songSearch/SongSearchModal';
-import { SongCandidate } from '../../src/features/songSearch/types';
 import { useConfirm } from '../../src/components/ConfirmProvider';
 
 import { MAX_TAB_NAME_LENGTH, truncateTabName } from '../../src/constants/tabConfig';
@@ -52,8 +50,6 @@ export default function SongFormScreen() {
   const [newTabModalVisible, setNewTabModalVisible] = useState(false);
   const [newTabName, setNewTabName] = useState('');
 
-  // 編集時の「曲を変更」で開く検索モーダル
-  const [searchVisible, setSearchVisible] = useState(false);
 
   useEffect(() => {
     if (!isEdit) return;
@@ -84,24 +80,6 @@ export default function SongFormScreen() {
     if (!isEdit || tabsLoading) return;
     setSelectedTabIds((prev) => prev.filter((id) => tabs.some((t) => t.id === id)));
   }, [tabs, tabsLoading, isEdit]);
-
-  function applyCandidate(c: SongCandidate) {
-    setTitle(c.title);
-    setArtist(c.artist);
-    setArtworkUrl(c.artworkUrl);
-  }
-
-  // 「曲を変更」の検索モーダルで候補を選んだとき（編集時のみ）。確認ダイアログを挟む（§5.9）
-  async function handleSearchSelect(c: SongCandidate) {
-    const r = await confirm({
-      title: '曲を変更しますか？',
-      message: `「${c.title}（${c.artist}）」に置き換えます。キー・メモ・タブ・点数はそのまま引き継がれ、「変更を保存する」で確定します。別の曲として記録する場合は、新しく追加してください。`,
-      icon: '🎵',
-      options: [{ label: '変更する', style: 'primary' }],
-      cancelLabel: '戻る',
-    });
-    if (r === 0) { applyCandidate(c); setSearchVisible(false); }
-  }
 
   function toggleTab(tabId: number) {
     setSelectedTabIds((prev) =>
@@ -260,7 +238,7 @@ export default function SongFormScreen() {
             />
           </View>
 
-          {/* アルバムアート（編集時は「曲を変更」で検索をやり直せる） */}
+          {/* アルバムアート（別の曲にしたい場合は、さがすタブから新しく追加する） */}
           <View style={styles.songRow}>
             {artworkUrl ? (
               <Image source={{ uri: artworkUrl }} style={styles.songArt} />
@@ -273,11 +251,6 @@ export default function SongFormScreen() {
               <Text style={styles.songRowLabel}>アルバムアート</Text>
               <Text style={styles.songRowSub}>{artworkUrl ? '検索で選んだ曲のもの' : '未設定'}</Text>
             </View>
-            {isEdit && (
-              <TouchableOpacity style={styles.changeBtn} onPress={() => setSearchVisible(true)} accessibilityRole="button">
-                <Text style={styles.changeBtnText}>曲を変更</Text>
-              </TouchableOpacity>
-            )}
           </View>
 
           {/* タブ選択 */}
@@ -369,17 +342,6 @@ export default function SongFormScreen() {
           </KeyboardAvoidingView>
         </Modal>
 
-        {/* 「曲を変更」用の検索モーダル（編集時のみ） */}
-        {isEdit && (
-          <SongSearchModal
-            visible={searchVisible}
-            purpose="change"
-            currentSong={{ title, artist }}
-            onSelect={handleSearchSelect}
-            onClose={() => setSearchVisible(false)}
-          />
-        )}
-
         {/* 保存ボタン */}
         <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
           <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
@@ -445,7 +407,7 @@ const styles = StyleSheet.create({
     minHeight: 72,
     paddingTop: 11,
   },
-  // アルバムアート + 「曲を変更」行（編集時）
+  // アルバムアート行
   songRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -481,19 +443,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: colors.text3,
     marginTop: 2,
-  },
-  changeBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 9,
-    borderWidth: 1.5,
-    borderColor: colors.accent,
-    backgroundColor: colors.accentSoft,
-  },
-  changeBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.accent,
   },
   tabSelector: {
     flexDirection: 'row',
