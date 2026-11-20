@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { colors } from '../constants/colors';
 import { fonts } from '../constants/fonts';
+import { TutorialIllustration } from './TutorialIllustration';
 import type { Tutorial } from '../data/tutorialContent';
 
 interface Props {
@@ -56,6 +57,12 @@ export function TutorialModal({ visible, tutorial, onClose }: Props) {
 
           <Text style={styles.title}>{current.title}</Text>
           <Text style={styles.desc}>{current.desc}</Text>
+
+          {current.illust ? (
+            <View style={styles.illust}>
+              <TutorialIllustration kind={current.illust} />
+            </View>
+          ) : null}
 
           <View style={styles.footer}>
             <TouchableOpacity
@@ -146,7 +153,11 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     color: colors.text2,
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: 14,
+  },
+  illust: {
+    width: '100%',
+    marginBottom: 18,
   },
   footer: {
     flexDirection: 'row',
