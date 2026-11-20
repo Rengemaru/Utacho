@@ -1,5 +1,5 @@
 import Constants from 'expo-constants';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
   Linking,
@@ -66,6 +66,7 @@ function EntryRow({ entry, isLast }: { entry: HelpEntry; isLast: boolean }) {
 
 export default function HelpScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
 
   return (
     <>
@@ -75,6 +76,20 @@ export default function HelpScreen() {
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 48 }]}
         showsVerticalScrollIndicator={false}
       >
+        <Pressable
+          style={styles.guideBanner}
+          onPress={() => router.push('/guide')}
+          accessibilityRole="button"
+          accessibilityLabel="機能ガイドのチュートリアルを開く"
+        >
+          <Text style={styles.guideBannerIcon}>📘</Text>
+          <View style={styles.guideBannerBody}>
+            <Text style={styles.guideBannerTitle}>機能ガイド（チュートリアル）</Text>
+            <Text style={styles.guideBannerSub}>使い方を機能ごとに手順つきで見る</Text>
+          </View>
+          <Text style={styles.guideBannerChevron}>›</Text>
+        </Pressable>
+
         {HELP_SECTIONS.map((section) => (
           <View key={section.id} style={styles.section}>
             <Text style={styles.sectionLabel}>{section.title}</Text>
@@ -103,6 +118,38 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingTop: 16,
     gap: 20,
+  },
+  guideBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: colors.accentSoft,
+    borderWidth: 1.5,
+    borderColor: 'rgba(91, 76, 245, 0.2)',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+  },
+  guideBannerIcon: {
+    fontSize: 22,
+  },
+  guideBannerBody: {
+    flex: 1,
+    minWidth: 0,
+  },
+  guideBannerTitle: {
+    fontFamily: fonts.jakartaBold,
+    fontSize: 14,
+    color: colors.accent,
+    marginBottom: 2,
+  },
+  guideBannerSub: {
+    fontSize: 11,
+    color: colors.text2,
+  },
+  guideBannerChevron: {
+    fontSize: 20,
+    color: colors.accent,
   },
   section: {
     gap: 6,
