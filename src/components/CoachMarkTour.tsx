@@ -2,6 +2,7 @@
 // 対象が見つからない（非表示など）ステップは飛ばす。
 
 import { useEffect, useState } from 'react';
+import { Platform, StatusBar } from 'react-native';
 import type { CoachPart, CoachStep } from '../data/tutorialSteps';
 import { measureCoachTarget } from '../lib/coachTargets';
 import { CoachHole, CoachMarkOverlay } from './CoachMarkOverlay';
@@ -22,6 +23,13 @@ interface Props {
 
 const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
+// Android では measureInWindow の y がステータスバーの下からの値になる一方、
+// コーチマークの Modal（statusBarTranslucent）は画面の最上部から描画される。
+// そのままだと穴がステータスバーの高さぶん上にずれるため、その分を足して合わせる。
+function windowToOverlayOffsetY(): number {
+  return Platform.OS === 'android' ? StatusBar.currentHeight ?? 0 : 0;
+}
+
 async function measureWithRetry(step: CoachStep): Promise<CoachHole | null> {
   if (!step.target) return null;
   for (let i = 0; i < MEASURE_RETRIES; i++) {
@@ -30,7 +38,7 @@ async function measureWithRetry(step: CoachStep): Promise<CoachHole | null> {
       const pad = step.padding ?? DEFAULT_PADDING;
       return {
         x: rect.x - pad,
-        y: rect.y - pad,
+        y: rect.y + windowToOverlayOffsetY() - pad,
         width: rect.width + pad * 2,
         height: rect.height + pad * 2,
         shape: step.shape ?? 'rect',
