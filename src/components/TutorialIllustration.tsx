@@ -229,6 +229,31 @@ function Content({ kind }: { kind: string }) {
       return <SettingRow icon="⤓" label="バックアップを書き出す" />;
     case 'import':
       return <SettingRow icon="⤒" label="バックアップを読み込む" />;
+    case 'searchtab':
+      return (
+        <View style={s.navbar}>
+          <View style={s.navItem}><Text style={s.navEmoji}>♪</Text><Text style={s.navLabel}>曲一覧</Text></View>
+          <HiBox>
+            <View style={s.navItemHi}><Text style={s.navEmoji}>🔍</Text><Text style={s.navLabelHi}>さがす</Text></View>
+          </HiBox>
+          <View style={s.navItem}><Text style={s.navEmoji}>⚙️</Text><Text style={s.navLabel}>設定</Text></View>
+        </View>
+      );
+    case 'detailedit':
+      return (
+        <View style={{ gap: 8, width: '100%' }}>
+          {[['キー', '±0'], ['テンポ', '♩ 0']].map(([lb, v]) => (
+            <View key={lb} style={s.stepperRow}>
+              <Text style={s.stepperLabel}>{lb}</Text>
+              <View style={s.stepper}>
+                <Text style={s.stepBtn}>－</Text>
+                <Text style={s.stepVal}>{v}</Text>
+                <Text style={s.stepBtn}>＋</Text>
+              </View>
+            </View>
+          ))}
+        </View>
+      );
     default:
       return null;
   }
@@ -314,4 +339,15 @@ const s = StyleSheet.create({
   toggleOn: { flex: 1, backgroundColor: colors.white, borderRadius: 8, paddingVertical: 6, alignItems: 'center' },
   toggleOnText: { fontSize: 11, fontWeight: '600', color: colors.accent },
   toggleOff: { flex: 1, fontSize: 11, color: colors.text2, textAlign: 'center' },
+  navbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', backgroundColor: colors.white, borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingVertical: 8, width: '100%' },
+  navItem: { alignItems: 'center', gap: 2 },
+  navItemHi: { alignItems: 'center', gap: 2, paddingHorizontal: 10 },
+  navEmoji: { fontSize: 14 },
+  navLabel: { fontSize: 9, color: colors.text3 },
+  navLabelHi: { fontSize: 9, color: colors.accent, fontWeight: '700' },
+  stepperRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.white, borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 },
+  stepperLabel: { fontSize: 11, color: colors.text2, fontWeight: '600' },
+  stepper: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  stepBtn: { fontSize: 15, color: colors.accent, fontWeight: '700' },
+  stepVal: { fontFamily: fonts.monoMedium, fontSize: 12, color: colors.text, minWidth: 30, textAlign: 'center' },
 });
