@@ -13,7 +13,8 @@ import {
 } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { CoachMarkTour, CoachTourResult } from '../../src/components/CoachMarkTour';
+import type { CoachTourResult } from '../../src/components/CoachMarkTour';
+import { useCoachMark } from '../../src/contexts/CoachMarkContext';
 import { EmptyState } from '../../src/components/EmptyState';
 import { CoachPart, HOME_PART, INTRO_HOME_PART, MOVED_ADD_PART } from '../../src/data/tutorialSteps';
 import { useCoachTarget } from '../../src/lib/coachTargets';
@@ -138,7 +139,7 @@ export default function HomeScreen() {
   const [sessionSummary, setSessionSummary] = useState<SessionSummary | null>(null);
   const [monthlyStats, setMonthlyStats] = useState<MonthlyStats | null>(null);
   // チュートリアル（コーチマーク）。表示中のパートと、画面が前面にあるか
-  const [tour, setTour] = useState<CoachPart | null>(null);
+  const { activePart, startTour } = useCoachMark();
   const [isFocused, setIsFocused] = useState(false);
   const songCardTargetRef = useCoachTarget('song-card');
   const songRecordTargetRef = useCoachTarget('song-record');
@@ -222,22 +223,27 @@ export default function HomeScreen() {
   // 初回（新規ユーザー）→ ようこそ＋さがす案内 / 既存ユーザー → ＋ボタン移動のお知らせ /
   // 初回の案内後に曲が1件以上になったら → 曲カードまわりの案内
   useEffect(() => {
-    if (Platform.OS === 'web' || !isFocused || loading || tour) return;
+    if (Platform.OS === 'web' || !isFocused || loading || activePart) return;
     try {
       const intro = getIntroState();
-      if (intro === 'pending') setTour(INTRO_HOME_PART);
-      else if (intro === null) setTour(MOVED_ADD_PART);
+      let part: CoachPart | null = null;
+      if (intro === 'pending') part = INTRO_HOME_PART;
+      else if (intro === null) part = MOVED_ADD_PART;
       else if (intro === 'done' && songs.length > 0 && activeTabId === ALL_TAB.id && shouldShowHomeTutorial()) {
-        setTour(HOME_PART);
+        part = HOME_PART;
+      }
+      if (part) {
+        const started = part;
+        startTour(started, { onFinish: (result) => handleTourFinish(started, result) });
       }
     } catch (e) {
       console.error(e);
     }
-  }, [isFocused, loading, songs.length, activeTabId, tour]);
+    // handleTourFinish は毎回作られるが、判定条件が変わったときだけ再評価する
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isFocused, loading, songs.length, activeTabId, activePart, startTour]);
 
-  function handleTourFinish(result: CoachTourResult) {
-    const finished = tour;
-    setTour(null);
+  function handleTourFinish(finished: CoachPart, result: CoachTourResult) {
     try {
       if (finished === INTRO_HOME_PART) {
         // 最後まで見たら、さがすタブで続き（検索欄・手入力）を出す。スキップなら終了
@@ -833,8 +839,6 @@ export default function HomeScreen() {
         onClose={() => setSetlistModalVisible(false)}
       />
 
-      {/* チュートリアル（コーチマーク） */}
-      <CoachMarkTour part={tour} onFinish={handleTourFinish} />
 
       {/* ランダム選曲モーダル */}
       <RandomPickModal

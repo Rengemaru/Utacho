@@ -1,9 +1,10 @@
 // コーチマーク1枚分の表示。画面を暗くし、対象の部分だけ穴をあけて吹き出しで説明する。
 // target が null のときは画面中央の「ようこそ」カードを出す。
 // 進行（どのステップを出すか・位置の計測）は CoachMarkTour が担当する。
+// Modal（別ウィンドウ）は使わず、アプリ本体と同じウィンドウの最前面に重ねる。
+// こうすると対象と同じ座標系で穴をあけられ、ステータスバー等による位置ずれが起きない。
 
-import { useState } from 'react';
-import { LayoutChangeEvent, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Svg, { Path, Rect } from 'react-native-svg';
 import { colors } from '../constants/colors';
 import { fonts } from '../constants/fonts';
@@ -19,8 +20,9 @@ const ARROW_W = 18;
 export type CoachHole = CoachRect & { shape: 'rect' | 'circle'; radius: number };
 
 interface Props {
-  visible: boolean;
-  /** false の間は中身を出さない（次のステップの位置を計測中など）。モーダルは開いたまま */
+  /** 重ねる領域（CoachMarkProvider のルート）の大きさ */
+  size: { w: number; h: number };
+  /** false の間は中身を出さない（次のステップの位置を計測中など）。タップは吸収し続ける */
   ready: boolean;
   hole: CoachHole | null;
   title: string;
@@ -53,19 +55,11 @@ function scrimPath(w: number, h: number, hole: CoachHole): string {
 }
 
 export function CoachMarkOverlay({
-  visible, ready, hole, title, body, stepText, dotIndex = 0, dotTotal = 0, nextLabel, onNext, onBack, onSkip,
+  size, ready, hole, title, body, stepText, dotIndex = 0, dotTotal = 0, nextLabel, onNext, onBack, onSkip,
 }: Props) {
-  const [size, setSize] = useState<{ w: number; h: number } | null>(null);
-
-  function handleLayout(e: LayoutChangeEvent) {
-    const { width, height } = e.nativeEvent.layout;
-    setSize({ w: width, h: height });
-  }
-
   return (
-    <Modal visible={visible} transparent animationType="fade" statusBarTranslucent onRequestClose={onSkip}>
-      <View style={StyleSheet.absoluteFill} onLayout={handleLayout}>
-        {!ready ? null : size && hole ? (
+      <View style={styles.layer}>
+        {!ready ? null : hole ? (
           <Spotlight
             size={size}
             hole={hole}
@@ -95,7 +89,6 @@ export function CoachMarkOverlay({
           </View>
         )}
       </View>
-    </Modal>
   );
 }
 
@@ -196,6 +189,8 @@ function Spotlight({
 }
 
 const styles = StyleSheet.create({
+  // 画面の最前面に重ねる（Android のタブバーの影より上に出すため elevation も上げる）
+  layer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1000, elevation: 1000 },
   tooltip: {
     position: 'absolute',
     width: TOOLTIP_WIDTH,

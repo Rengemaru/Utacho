@@ -26,8 +26,8 @@ import { ScoreChart } from '../../src/components/ScoreChart';
 import { EmptyState } from '../../src/components/EmptyState';
 import { SingingInfoCard } from '../../src/components/SingingInfoCard';
 import { SongSingingInfo } from '../../src/db/songs';
-import { CoachMarkTour } from '../../src/components/CoachMarkTour';
-import { CoachPart, CoachStep, DETAIL_PART } from '../../src/data/tutorialSteps';
+import { useCoachMark } from '../../src/contexts/CoachMarkContext';
+import { CoachStep, DETAIL_PART } from '../../src/data/tutorialSteps';
 import { measureCoachTarget, useCoachTarget } from '../../src/lib/coachTargets';
 import { markDetailTutorialDone, shouldShowDetailTutorial } from '../../src/lib/tutorial';
 
@@ -64,7 +64,7 @@ export default function SongDetailScreen() {
 
   // チュートリアル（曲詳細を初めて開いたとき）
   const { height: windowHeight } = useWindowDimensions();
-  const [tour, setTour] = useState<CoachPart | null>(null);
+  const { startTour } = useCoachMark();
   const listRef = useRef<FlatList<ScoreRow>>(null);
   const scrollYRef = useRef(0);
   const machineToggleTargetRef = useCoachTarget('machine-toggle');
@@ -73,10 +73,14 @@ export default function SongDetailScreen() {
   useEffect(() => {
     if (Platform.OS === 'web' || !songLoaded) return;
     try {
-      if (shouldShowDetailTutorial()) setTour(DETAIL_PART);
+      if (shouldShowDetailTutorial()) {
+        startTour(DETAIL_PART, { onFinish: handleTourFinish, onBeforeStep: prepareTourStep });
+      }
     } catch (e) {
       console.error(e);
     }
+    // 曲の読み込み完了時に1回だけ判定する
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [songLoaded]);
 
   // 照らす対象が記録ボタンの裏に隠れているときは、見える位置までスクロールしてから表示する
@@ -93,7 +97,6 @@ export default function SongDetailScreen() {
   }
 
   function handleTourFinish() {
-    setTour(null);
     try {
       markDetailTutorialDone();
     } catch (e) {
@@ -313,9 +316,6 @@ export default function SongDetailScreen() {
           <Text style={styles.recordBtnText}>🎤 点数を記録する</Text>
         </TouchableOpacity>
       </View>
-
-      {/* チュートリアル（コーチマーク） */}
-      <CoachMarkTour part={tour} onFinish={handleTourFinish} onBeforeStep={prepareTourStep} />
 
       {/* ボトムシート */}
       <ScoreBottomSheet
