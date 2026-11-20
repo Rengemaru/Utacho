@@ -1205,7 +1205,7 @@ const score = song.best_score; // useSongs(tabId, defaultMachine) で機種別�
 
 ### Android 対応（実装済み）
 - ステータスバー制御
-- `KeyboardAvoidingView`（iOS=`padding` / Android=`undefined`。Android は `app.json` の `softwareKeyboardLayoutMode: "resize"`＝ネイティブ `adjustResize` に任せる。※ 旧 `behavior="height"` は `adjustResize` と二重補正になりスクロールが往復する不具合の原因だったため撤去）
+- `KeyboardAvoidingView`（iOS / Android とも `behavior="padding"`。Expo SDK 54 以降は edge-to-edge が必須で、`app.json` の `softwareKeyboardLayoutMode: "resize"`（`adjustResize`）を指定してもウィンドウが縮まず、曲の登録フォームのメモ欄・保存ボタンがキーボードに隠れていたため、Android も `padding` にした（エミュレータ Android 15 で確認）。※ 旧 `behavior="height"` は `adjustResize` が効いていた頃に二重補正でスクロールが往復する不具合の原因だったため撤去済み）
 - `Modal`（Android互換）
 - スプラッシュ画面
 - アダプティブアイコン（foreground / background / monochrome）

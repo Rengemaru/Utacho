@@ -83,7 +83,7 @@ export function SingingInfoCard({ keyOffset, tempoOffset, memo, onChangeKey, onC
 
       {/* メモ編集ダイアログ */}
       <Modal visible={memoEditing} transparent animationType="fade" statusBarTranslucent onRequestClose={closeMemoEditor}>
-        <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={styles.flex} behavior="padding">
           <TouchableWithoutFeedback onPress={closeMemoEditor}>
             <View style={styles.modalOverlay} />
           </TouchableWithoutFeedback>

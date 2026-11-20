@@ -159,9 +159,12 @@ export default function SongFormScreen() {
   }
 
   return (
+    // Android もキーボードぶん下に余白を足す。Expo SDK 54 以降は edge-to-edge が必須で、
+    // softwareKeyboardLayoutMode: "resize"（adjustResize）を指定してもウィンドウが縮まず、
+    // 下の方のメモ欄や保存ボタンがキーボードに隠れていたため
     <KeyboardAvoidingView
       style={styles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior="padding"
     >
       <View style={[styles.screen, { paddingTop: insets.top + 6 }]}>
         {/* ヘッダー */}
@@ -314,7 +317,7 @@ export default function SongFormScreen() {
 
         {/* 新規タブ作成モーダル */}
         <Modal visible={newTabModalVisible} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setNewTabModalVisible(false)}>
-          <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <KeyboardAvoidingView style={styles.flex} behavior="padding">
             <TouchableWithoutFeedback onPress={() => setNewTabModalVisible(false)}>
               <View style={styles.modalOverlay} />
             </TouchableWithoutFeedback>

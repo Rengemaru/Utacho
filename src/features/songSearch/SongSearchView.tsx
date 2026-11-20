@@ -114,7 +114,7 @@ export const SongSearchView = forwardRef<SongSearchViewHandle, Props>(function S
   );
 
   return (
-    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={styles.flex} behavior="padding">
       <View style={styles.header}>
         <Text style={styles.headerTitle}>さがす</Text>
         {/* 手入力の導線は常に見える位置に置く（検索前・後・失敗時いつでも押せる） */}
