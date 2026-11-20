@@ -55,9 +55,10 @@ export const TUTORIALS: Tutorial[] = [
     category: 'A',
     icon: '✍️',
     title: '見つからない曲を手入力で登録する',
-    subtitle: 'さがす → 手入力で登録',
+    subtitle: 'さがす → 手入力で登録 → 入力',
     steps: [
-      { emoji: '✍️', title: '手入力を開く', desc: '「さがす」の右上「手入力で登録」をタップします。', illust: 'searchtab' },
+      { emoji: '🔍', title: '「さがす」を開く', desc: '画面下の「さがす」タブを開きます。', illust: 'searchtab' },
+      { emoji: '✍️', title: '「手入力で登録」を押す', desc: '検索画面の右上にある「手入力で登録」ボタンをタップします。', illust: 'manualbtn' },
       { emoji: '📝', title: '入力して追加', desc: '曲名・アーティストを入力し、タブやキーも設定して「追加」。', illust: 'form' },
     ],
   },

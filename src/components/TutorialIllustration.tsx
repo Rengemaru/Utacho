@@ -239,6 +239,15 @@ function Content({ kind }: { kind: string }) {
           <View style={s.navItem}><Text style={s.navEmoji}>⚙️</Text><Text style={s.navLabel}>設定</Text></View>
         </View>
       );
+    case 'manualbtn':
+      return (
+        <View style={{ gap: 8, width: '100%', alignItems: 'center' }}>
+          <View style={[s.field, { width: '100%' }]}><Text style={s.fieldText}>🔍 曲・アーティストを検索</Text></View>
+          <HiBox>
+            <View style={s.manualBtn}><Text style={s.manualBtnText}>✍️ 手入力で登録</Text></View>
+          </HiBox>
+        </View>
+      );
     case 'form':
       return (
         <View style={{ gap: 6, width: '100%' }}>
@@ -366,4 +375,6 @@ const s = StyleSheet.create({
   stepper: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   stepBtn: { fontSize: 15, color: colors.accent, fontWeight: '700' },
   stepVal: { fontFamily: fonts.monoMedium, fontSize: 12, color: colors.text, minWidth: 30, textAlign: 'center' },
+  manualBtn: { backgroundColor: colors.accentSoft, borderWidth: 1, borderColor: 'rgba(91,76,245,0.3)', borderRadius: 9, paddingHorizontal: 14, paddingVertical: 7 },
+  manualBtnText: { fontSize: 11, fontWeight: '700', color: colors.accent },
 });
