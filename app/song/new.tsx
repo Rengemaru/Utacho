@@ -15,7 +15,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { KeyStepper } from '../../src/components/KeyStepper';
+import { KeyStepper, TEMPO_HELPER_TEXT } from '../../src/components/KeyStepper';
 import { colors } from '../../src/constants/colors';
 import { insertSong, updateSong, getSongById, findDuplicateSong } from '../../src/db/songs';
 import { insertTab, findDuplicateTab } from '../../src/db/tabs';
@@ -42,6 +42,7 @@ export default function SongFormScreen() {
   const [title, setTitle] = useState(isEdit ? '' : params.title ?? '');
   const [artist, setArtist] = useState(isEdit ? '' : params.artist ?? '');
   const [keyOffset, setKeyOffset] = useState<number | null>(null);
+  const [tempoOffset, setTempoOffset] = useState<number | null>(null);
   const [artworkUrl, setArtworkUrl] = useState<string | null>(isEdit ? null : params.artworkUrl || null);
   const [memo, setMemo] = useState('');
   const [titleReading, setTitleReading] = useState('');
@@ -125,7 +126,7 @@ export default function SongFormScreen() {
           updateSong(Number(songId), title.trim(), artist.trim(), keyOffset, artworkUrl, memo, titleReading.trim(), artistReading.trim());
           syncTabs(Number(songId), selectedTabIds);
         } else {
-          const newId = insertSong(title.trim(), artist.trim(), keyOffset, artworkUrl, memo, titleReading.trim(), artistReading.trim());
+          const newId = insertSong(title.trim(), artist.trim(), keyOffset, artworkUrl, memo, titleReading.trim(), artistReading.trim(), tempoOffset);
           syncTabs(newId, selectedTabIds);
           // 追加後は「さがす」タブではなく曲一覧に戻し、登録した曲が見えるようにする
           router.dismissTo('/');
@@ -284,6 +285,14 @@ export default function SongFormScreen() {
             <Text style={styles.fieldLabel}>キー（音域）</Text>
             <KeyStepper value={keyOffset} onChange={setKeyOffset} />
           </View>
+
+          {/* テンポステッパー（新規のみ。登録後は曲詳細で調整する） */}
+          {!isEdit && (
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>テンポ</Text>
+              <KeyStepper value={tempoOffset} onChange={setTempoOffset} helperText={TEMPO_HELPER_TEXT} />
+            </View>
+          )}
 
           {/* メモ */}
           <View style={styles.fieldGroup}>

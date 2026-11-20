@@ -1,16 +1,24 @@
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { colors } from '../constants/colors';
 
-// カラオケのキー変更の現実的な範囲（原曲比 ±7 程度）
+// カラオケのキー・テンポ変更の現実的な範囲（原曲比 ±7 程度）
 const MIN_KEY = -7;
 const MAX_KEY = 7;
+
+export const KEY_HELPER_TEXT = '＋は原曲より高く、－は低く（半音単位・±7まで）';
+export const TEMPO_HELPER_TEXT = '＋は原曲より速く、－は遅く（±7まで）';
 
 interface Props {
   value: number | null;
   onChange: (value: number | null) => void;
+  /** 補足文。null で非表示（曲詳細のコンパクト表示など） */
+  helperText?: string | null;
+  /** 「未設定に戻す」リンクを出すか */
+  showReset?: boolean;
 }
 
-export function KeyStepper({ value, onChange }: Props) {
+/** ±整数の調整値（キー・テンポ）を入力するステッパー。NULL=未設定 */
+export function KeyStepper({ value, onChange, helperText = KEY_HELPER_TEXT, showReset = true }: Props) {
   const atMin = value !== null && value <= MIN_KEY;
   const atMax = value !== null && value >= MAX_KEY;
 
@@ -58,8 +66,8 @@ export function KeyStepper({ value, onChange }: Props) {
           <Text style={styles.btnText}>＋</Text>
         </TouchableOpacity>
       </View>
-      <Text style={styles.helperText}>＋は原曲より高く、－は低く（半音単位・±7まで）</Text>
-      {value !== null && (
+      {helperText != null && <Text style={styles.helperText}>{helperText}</Text>}
+      {showReset && value !== null && (
         <TouchableOpacity onPress={reset}>
           <Text style={styles.resetText}>未設定に戻す</Text>
         </TouchableOpacity>
