@@ -239,6 +239,22 @@ function Content({ kind }: { kind: string }) {
           <View style={s.navItem}><Text style={s.navEmoji}>⚙️</Text><Text style={s.navLabel}>設定</Text></View>
         </View>
       );
+    case 'form':
+      return (
+        <View style={{ gap: 6, width: '100%' }}>
+          <View style={s.field}><Text style={s.fieldText}>曲名</Text></View>
+          <View style={s.field}><Text style={s.fieldText}>アーティスト</Text></View>
+          <Row><Chip label="十八番" /><Chip label="＋ 新規" /></Row>
+        </View>
+      );
+    case 'deleteall':
+      return (
+        <View style={[s.settingRow, { borderColor: 'rgba(239,68,68,0.35)' }]}>
+          <Text style={s.settingIcon}>🗑</Text>
+          <Text style={[s.settingLabel, { color: colors.red }]}>すべてのデータを削除</Text>
+          <Text style={s.settingRight}>›</Text>
+        </View>
+      );
     case 'detailedit':
       return (
         <View style={{ gap: 8, width: '100%' }}>
