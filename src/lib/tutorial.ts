@@ -19,9 +19,17 @@ const KEY_LEGACY_COACH = 'coach_mark_shown';
  */
 export type IntroState = 'pending' | 'search' | 'done' | null;
 
+/**
+ * オンボーディングが終わっているか。終わる前（新規インストール直後）は、ホームがオンボーディング画面の
+ * 裏で描画されているだけなので、どのチュートリアルも出さない（見えない部品を測って位置がずれるため）
+ */
+function isOnboardingDone(): boolean {
+  return getSettingSync('onboarding_completed') === 'true';
+}
+
+/** オンボーディング前は 'done' 扱いにして何も出さない。完了時に pending が書き込まれる */
 export function getIntroState(): IntroState {
-  // オンボーディング前（新規インストール直後）は何も出さない。完了時に pending が書き込まれる
-  if (getSettingSync('onboarding_completed') !== 'true') return 'done';
+  if (!isOnboardingDone()) return 'done';
   const v = getSettingSync(KEY_INTRO);
   return v === 'pending' || v === 'search' || v === 'done' ? v : null;
 }
@@ -32,7 +40,7 @@ export function setIntroState(state: Exclude<IntroState, null>): void {
 
 /** ホームのパートを出すべきか（既存ユーザーは旧カードで説明済みのため出さない） */
 export function shouldShowHomeTutorial(): boolean {
-  return getSettingSync(KEY_HOME) !== 'done' && getSettingSync(KEY_LEGACY_COACH) !== 'true';
+  return isOnboardingDone() && getSettingSync(KEY_HOME) !== 'done' && getSettingSync(KEY_LEGACY_COACH) !== 'true';
 }
 
 export function markHomeTutorialDone(): void {
@@ -40,7 +48,7 @@ export function markHomeTutorialDone(): void {
 }
 
 export function shouldShowDetailTutorial(): boolean {
-  return getSettingSync(KEY_DETAIL) !== 'done';
+  return isOnboardingDone() && getSettingSync(KEY_DETAIL) !== 'done';
 }
 
 export function markDetailTutorialDone(): void {
