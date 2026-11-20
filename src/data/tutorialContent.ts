@@ -79,9 +79,10 @@ export const TUTORIALS: Tutorial[] = [
     category: 'A',
     icon: '🏷️',
     title: 'タブで整理する',
-    subtitle: 'カテゴリを作って曲を分類',
+    subtitle: '設定 → タブを作る → 分類',
     steps: [
-      { emoji: '🏷️', title: 'タブを作る', desc: '設定「タブを編集する」、またはホームでタブを長押しして作成。', illust: 'tabsedit' },
+      { emoji: '⚙️', title: '設定を開く', desc: '画面下の「設定」タブを開きます。', illust: 'settingstab' },
+      { emoji: '🏷️', title: 'タブを作る', desc: '「タブを編集する」から作成。ホームでタブ長押しからも作れます。', illust: 'tabsedit' },
       { emoji: '🔗', title: '曲を複数タブへ', desc: '1曲を複数タブに入れられます（登録・編集フォームで選択）。', illust: 'multitab' },
       { emoji: '🗂', title: '並べ替え・削除', desc: '「タブを編集する」で並べ替え・削除。曲自体は消えません。', illust: 'tabsedit' },
     ],

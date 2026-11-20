@@ -261,6 +261,16 @@ function Content({ kind }: { kind: string }) {
           <Text style={s.settingRight}>›</Text>
         </View>
       );
+    case 'settingstab':
+      return (
+        <View style={s.navbar}>
+          <View style={s.navItem}><Text style={s.navEmoji}>♪</Text><Text style={s.navLabel}>曲一覧</Text></View>
+          <View style={s.navItem}><Text style={s.navEmoji}>🔍</Text><Text style={s.navLabel}>さがす</Text></View>
+          <HiBox>
+            <View style={s.navItemHi}><Text style={s.navEmoji}>⚙️</Text><Text style={s.navLabelHi}>設定</Text></View>
+          </HiBox>
+        </View>
+      );
     case 'detailedit':
       return (
         <View style={{ gap: 8, width: '100%' }}>
