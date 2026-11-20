@@ -114,6 +114,16 @@ export const SongSearchView = forwardRef<SongSearchViewHandle, Props>(function S
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>さがす</Text>
+        {/* 手入力の導線は常に見える位置に置く（検索前・後・失敗時いつでも押せる） */}
+        <TouchableOpacity
+          style={styles.manualPill}
+          onPress={onManual}
+          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+          accessibilityRole="button"
+          accessibilityLabel="手入力で登録"
+        >
+          <Text style={styles.manualPillText}>✏️ 手入力で登録</Text>
+        </TouchableOpacity>
       </View>
 
       {/* 検索欄（履歴ドロップダウンのアンカー） */}
@@ -342,6 +352,15 @@ const styles = StyleSheet.create({
     letterSpacing: -0.4,
     color: colors.text,
   },
+  manualPill: {
+    backgroundColor: colors.surface,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  manualPillText: { fontSize: 11, fontWeight: '700', color: colors.accent },
 
   // 検索欄（フォームの fieldInput と同じ surface 塗り＋細ボーダー）
   sInput: {
