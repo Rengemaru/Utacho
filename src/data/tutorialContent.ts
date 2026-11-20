@@ -1,7 +1,6 @@
-// 機能ガイドのチュートリアル内容。ヘルプ(helpContent.ts)の「機能ガイド」各項目に対応し、
-// 1画面1ステップに分割したもの（1画面1キュー・短文）。
-// id は helpContent の該当エントリ id と一致させる。
-// illust は TutorialIllustration のミニ図解の種類キー。
+// 機能ガイドのチュートリアル内容。「やりたいこと（ユースケース）」ごとのフローで構成する。
+// カテゴリ A〜D で見出しグループ化し、各フローは手順＋ミニ図解(illust)を持つ。
+// illust は TutorialIllustration の kind。
 
 export type TutorialStep = {
   /** 見出しの前に出すアイコン絵文字 */
@@ -14,158 +13,177 @@ export type TutorialStep = {
   illust: string;
 };
 
+export type TutorialCategory = 'A' | 'B' | 'C' | 'D';
+
 export type Tutorial = {
-  /** helpContent の機能ガイド項目 id と一致 */
   id: string;
+  /** グループ分け用カテゴリ */
+  category: TutorialCategory;
   /** 一覧（ハブ）で出すアイコン */
   icon: string;
-  /** 一覧・チュートリアルの見出し */
+  /** ユースケースの見出し（やりたいこと） */
   title: string;
-  /** 一覧のサブテキスト */
+  /** 一覧のサブテキスト（フローの要約） */
   subtitle: string;
   /** 手順 */
   steps: TutorialStep[];
 };
 
+export const CATEGORIES: { key: TutorialCategory; label: string }[] = [
+  { key: 'A', label: 'そろえる・整える' },
+  { key: 'B', label: '歌う曲を選ぶ（当日）' },
+  { key: 'C', label: '記録・ふりかえり' },
+  { key: 'D', label: '設定・データ' },
+];
+
 export const TUTORIALS: Tutorial[] = [
+  // ===== A. そろえる・整える =====
   {
-    id: 'add-song',
+    id: 'uc-add',
+    category: 'A',
     icon: '🎵',
-    title: '曲を登録・編集・削除する',
-    subtitle: '登録・編集・キー/テンポ・削除',
+    title: '新しい持ち歌を登録する',
+    subtitle: 'さがす → 検索 → 追加',
     steps: [
-      { emoji: '🔍', title: '曲を登録する', desc: '画面下の「さがす」から曲を検索して選ぶか、右上の「手入力で登録」から入力します。', illust: 'searchtab' },
-      { emoji: '✏️', title: '曲を編集する', desc: 'カードを左スワイプ（または長押し）→「編集」で曲名・アーティスト・読み・タブを変更できます。', illust: 'swipe' },
-      { emoji: '🎚️', title: 'キー・テンポ・メモ', desc: '曲詳細画面でキー・テンポを －/＋ でその場調整（即保存）。メモは詳細の「編集」から。', illust: 'detailedit' },
-      { emoji: '🗑', title: '曲を削除する', desc: '左スワイプ（または長押し）→「削除」。点数の記録も消えるため確認が出ます。', illust: 'swipe' },
+      { emoji: '🔍', title: '「さがす」を開く', desc: '画面下の「さがす」タブから曲の検索を始めます。', illust: 'searchtab' },
+      { emoji: '🎼', title: '検索して選ぶ', desc: '「曲から／アーティスト／キーワード」で探し、候補をタップで取り込み。', illust: 'search' },
+      { emoji: '🎚️', title: 'キー・テンポ・メモ', desc: 'フォームでキー・テンポ・メモも設定して「追加」。', illust: 'detailedit' },
     ],
   },
   {
-    id: 'itunes-complete',
-    icon: '🔎',
-    title: '曲を検索して登録する',
-    subtitle: '「さがす」で曲/アーティスト/キーワード',
+    id: 'uc-manual',
+    category: 'A',
+    icon: '✍️',
+    title: '見つからない曲を手入力で登録する',
+    subtitle: 'さがす → 手入力で登録',
     steps: [
-      { emoji: '🔎', title: '「さがす」で検索', desc: '画面下の「さがす」で「曲から」「アーティスト」「キーワード」を切り替えて入力すると候補が出ます。', illust: 'search' },
-      { emoji: '🎼', title: '候補を選ぶ', desc: 'タップで曲名・アーティスト・アルバムアートを取り込み。発売日順などで並び替えもできます。', illust: 'search' },
-      { emoji: '📶', title: 'ネットが必要', desc: '検索はインターネット接続が必要です。見つからないときは右上の「手入力で登録」。', illust: 'offline' },
+      { emoji: '✍️', title: '手入力を開く', desc: '「さがす」の右上「手入力で登録」をタップします。', illust: 'searchtab' },
+      { emoji: '📝', title: '入力して追加', desc: '曲名・アーティストを入力し、タブやキーも設定して「追加」。', illust: 'form' },
     ],
   },
   {
-    id: 'tabs',
+    id: 'uc-edit',
+    category: 'A',
+    icon: '✏️',
+    title: '曲を直す・削除する',
+    subtitle: 'キー/テンポ調整 → 編集 → 削除',
+    steps: [
+      { emoji: '🎚️', title: 'キー・テンポを直す', desc: '曲詳細画面で －/＋ でその場調整（すぐ保存）。', illust: 'detailedit' },
+      { emoji: '✏️', title: '内容を編集する', desc: 'カードを左スワイプ→「編集」で曲名・アーティスト・読み・タブを変更。', illust: 'swipe' },
+      { emoji: '🗑', title: '削除する', desc: '左スワイプ→「削除」。点数の記録も消えるため確認が出ます。', illust: 'swipe' },
+    ],
+  },
+  {
+    id: 'uc-tabs',
+    category: 'A',
     icon: '🏷️',
-    title: 'タブ（カテゴリ）で分類する',
-    subtitle: '自由なラベルで曲を整理',
+    title: 'タブで整理する',
+    subtitle: 'カテゴリを作って曲を分類',
     steps: [
-      { emoji: '🏷️', title: '自由に作れる', desc: '「十八番」「練習中」「アニソン」など、好きな名前でタブを作れます。', illust: 'tabpills' },
-      { emoji: '⚙️', title: '追加・編集の場所', desc: '設定の「タブを編集する」か、ホームでタブを長押しして操作できます。', illust: 'tabsedit' },
-      { emoji: '🔗', title: '複数タブOK', desc: '1曲を複数のタブに入れられます。タブを削除しても曲自体は残ります。', illust: 'multitab' },
+      { emoji: '🏷️', title: 'タブを作る', desc: '設定「タブを編集する」、またはホームでタブを長押しして作成。', illust: 'tabsedit' },
+      { emoji: '🔗', title: '曲を複数タブへ', desc: '1曲を複数タブに入れられます（登録・編集フォームで選択）。', illust: 'multitab' },
+      { emoji: '🗂', title: '並べ替え・削除', desc: '「タブを編集する」で並べ替え・削除。曲自体は消えません。', illust: 'tabsedit' },
     ],
   },
+
+  // ===== B. 歌う曲を選ぶ（当日） =====
   {
-    id: 'local-search',
+    id: 'uc-find',
+    category: 'B',
     icon: '🔍',
-    title: '持ち歌リストから曲を探す',
-    subtitle: 'かな・部分一致・読みで検索',
+    title: '持ち歌をすばやく探す',
+    subtitle: '検索バー・かな・読み・履歴',
     steps: [
-      { emoji: '🔍', title: 'その場で絞り込み', desc: '検索バーに入力すると持ち歌が絞り込まれます。一部だけでも見つかります（部分一致）。', illust: 'filter' },
-      { emoji: '🈂️', title: '表記を区別しない', desc: 'ひらがな/カタカナ・大小文字・全半角は区別しません。「ヨアソビ」でも「よあそび」でもOK。', illust: 'kana' },
-      { emoji: '🕘', title: '読み・履歴で探す', desc: '「読み」を登録すると読みでも検索可。空欄タップで検索履歴から再検索できます。', illust: 'history' },
+      { emoji: '🔍', title: '検索バーで絞り込み', desc: '曲名・アーティストを一部入力すると絞り込まれます（部分一致）。', illust: 'filter' },
+      { emoji: '🈂️', title: '表記を区別しない', desc: 'かな/カナ・大小・全半角を区別せず、「読み」でも探せます。', illust: 'kana' },
+      { emoji: '🕘', title: '履歴から再検索', desc: '検索バーの空欄タップで、過去の検索語から再検索できます。', illust: 'history' },
     ],
   },
   {
-    id: 'sort-songs',
+    id: 'uc-sort',
+    category: 'B',
     icon: '⇅',
-    title: '曲を並び替える',
-    subtitle: 'スコア順・五十音順・シャッフル',
+    title: '並び替えて選ぶ',
+    subtitle: 'スコア順・五十音・シャッフル',
     steps: [
-      { emoji: '⇅', title: '並び順メニュー', desc: '検索バー右端の「⇅」をタップすると並び順を選べます。', illust: 'sort' },
-      { emoji: '📊', title: '多彩な並び順', desc: '最高スコア・記録回数・伸び率・五十音のほか、シャッフルでランダムに並べられます。', illust: 'sort' },
-      { emoji: '🔽', title: '昇順/降順', desc: 'メニュー上部で向きを切替。既定以外にすると「⇅」が紫色になります。', illust: 'sortdir' },
+      { emoji: '⇅', title: '並び順メニュー', desc: '検索バー右端の「⇅」で並び順を選びます（伸び率・シャッフル等）。', illust: 'sort' },
+      { emoji: '🔽', title: '昇順/降順', desc: '上部で向きを切替。既定以外にすると「⇅」が紫色になります。', illust: 'sortdir' },
     ],
   },
   {
-    id: 'setlist',
+    id: 'uc-setlist',
+    category: 'B',
     icon: '📋',
     title: '今日のセットリストを作る',
     subtitle: '当日歌う曲をまとめる',
     steps: [
-      { emoji: '📋', title: '今日歌う曲を選ぶ', desc: '右上の「📋」から曲にチェックして「設定する」。先頭に「📋今日」タブが出ます。', illust: 'setlist' },
-      { emoji: '➖', title: '外す・空にする', desc: '「今日」タブで曲を左スワイプ（長押し）で外す、タブ長押しでまとめて空にできます。', illust: 'setlist' },
+      { emoji: '📋', title: '今日の曲を選ぶ', desc: '「📋」で曲にチェック→設定。先頭に「📋今日」タブが出ます。', illust: 'setlist' },
+      { emoji: '➖', title: '外す・空にする', desc: '今日タブで左スワイプで外す、タブ長押しでまとめて空に。', illust: 'setlist' },
       { emoji: '🌅', title: '当日限り', desc: 'このリストはその日限り。翌日になると自動でクリアされます。', illust: 'calendar' },
     ],
   },
   {
-    id: 'random-pick',
+    id: 'uc-random',
+    category: 'B',
     icon: '🎲',
-    title: 'ランダムに曲を選ぶ',
-    subtitle: '範囲を選んで1曲おまかせ',
+    title: 'ランダムで選ぶ',
+    subtitle: '迷ったらおまかせ1曲',
     steps: [
-      { emoji: '🎲', title: '範囲を選ぶ', desc: '検索バー右の「🎲」で「すべて」や各タブから範囲を選びます。空のタブは選べません。', illust: 'dice' },
-      { emoji: '🎯', title: '1曲おまかせ', desc: '範囲からランダムに1曲選ばれ、詳細へ移動。今日のセットリストからも抽選できます。', illust: 'range' },
+      { emoji: '🎲', title: 'さいころを押す', desc: '検索バーのすぐ右にある「🎲」をタップします。', illust: 'dice' },
+      { emoji: '🎯', title: '範囲から1曲', desc: 'すべて／各タブ／今日 から範囲を選ぶと1曲選ばれ、詳細へ移動。', illust: 'range' },
     ],
   },
+
+  // ===== C. 記録・ふりかえり =====
   {
-    id: 'record-score',
+    id: 'uc-record',
+    category: 'C',
     icon: '🎤',
     title: '点数を記録する',
-    subtitle: 'テンキーで入力・履歴に保存',
+    subtitle: '入力 → 機種 → 編集',
     steps: [
-      { emoji: '🎤', title: '① 記録を始める', desc: '曲カードの「🎤」か、曲詳細の「点数を記録する」から始めます。', illust: 'recordbtn' },
-      { emoji: '🔢', title: '② 点数を入力', desc: '数字ボタンで入力し、日付を確認して「記録する」。何度でも記録できます。', illust: 'numpad' },
-      { emoji: '✏️', title: '③ 編集・削除', desc: '曲詳細の点数履歴の行を左にスワイプすると「編集」「削除」が出ます。', illust: 'historyswipe' },
+      { emoji: '🎤', title: '記録を始める', desc: '曲カードの「🎤」か、曲詳細の「点数を記録する」から始めます。', illust: 'recordbtn' },
+      { emoji: '🔢', title: '点数を入力', desc: 'テンキーで入力し、日付を確認して「記録する」。', illust: 'numpad' },
+      { emoji: '🎚️', title: '機種を選ぶ', desc: 'DAM/JOYSOUNDトグルで当日の機種を切替（当日限り）。', illust: 'toggle' },
+      { emoji: '✏️', title: '記録を直す', desc: '詳細の点数履歴の行を左スワイプで編集・削除できます。', illust: 'historyswipe' },
     ],
   },
   {
-    id: 'pb-banner',
-    icon: '🎉',
-    title: '自己ベスト更新をお知らせ',
-    subtitle: '最高点更新でお祝いバナー',
-    steps: [
-      { emoji: '🎉', title: '自動でお祝い', desc: 'これまでの最高点を超えて記録すると「自己ベスト更新！」バナーが自動表示されます。', illust: 'pb' },
-      { emoji: '⏳', title: '新規記録のみ', desc: 'バナーはしばらくで自動的に消えます。あとから編集したときには出ません。', illust: 'pb' },
-    ],
-  },
-  {
-    id: 'home-summary',
-    icon: '📅',
-    title: '今日・今月の記録を見る',
-    subtitle: 'ホーム上部のサマリー',
-    steps: [
-      { emoji: '🎤', title: '今日の記録', desc: '記録した日はホーム上部に「今日の記録 ◯曲」とベスト更新数が出ます。', illust: 'summary' },
-      { emoji: '📅', title: '今月の記録', desc: 'あわせて「今月 ◯回記録」も表示。記録のない日は出ません（操作不要）。', illust: 'summary' },
-    ],
-  },
-  {
-    id: 'graph',
+    id: 'uc-review',
+    category: 'C',
     icon: '📈',
-    title: '点数の推移をグラフで見る',
-    subtitle: 'DAM/JOYSOUND別の折れ線',
+    title: '上達をふりかえる',
+    subtitle: 'グラフ・自己ベスト・サマリー',
     steps: [
-      { emoji: '📈', title: '推移を折れ線で', desc: '曲詳細に点数の折れ線グラフが出ます。DAMとJOYSOUNDは別の色で表示されます。', illust: 'graph' },
-      { emoji: '2️⃣', title: '2件以上で描画', desc: '同じ機種に2件以上の記録があると線が描かれます。増えるほど傾向がわかります。', illust: 'graph' },
-      { emoji: '🟣', title: 'ベストと最新', desc: '最高点は紫、最新の記録は緑で強調され、ベストと最近の調子がひと目でわかります。', illust: 'graph' },
+      { emoji: '📈', title: '推移をグラフで', desc: '曲詳細に折れ線グラフ。DAMとJOYSOUNDは別の色で表示。', illust: 'graph' },
+      { emoji: '🟣', title: 'ベストと最新', desc: '最高点は紫・最新は緑で強調。2件以上の記録で描かれます。', illust: 'graph' },
+      { emoji: '🎉', title: '自己ベスト更新', desc: '最高点を超えて記録するとお祝いバナーが自動表示されます。', illust: 'pb' },
+      { emoji: '📅', title: '今日・今月', desc: 'ホーム上部に今日の曲数・今月の記録回数がまとまります。', illust: 'summary' },
     ],
   },
+
+  // ===== D. 設定・データ =====
   {
-    id: 'machine-switch',
+    id: 'uc-machine',
+    category: 'D',
     icon: '🔀',
-    title: 'DAM / JOYSOUND を切り替える',
-    subtitle: '機種ごとに点数を分けて管理',
+    title: '機種を設定する',
+    subtitle: 'デフォルトと当日の切替',
     steps: [
-      { emoji: '🔀', title: '機種で分離', desc: '機種ごとに点数を分けて管理。採点の傾向が違っても混ざりません。', illust: 'toggle' },
-      { emoji: '🎚️', title: '当日の機種', desc: '点数入力画面の上部トグルで切替。当日中だけ続き、翌日は初期設定に戻ります。', illust: 'toggle' },
-      { emoji: '⚙️', title: '初期設定を変える', desc: '設定の「デフォルト機種」から、ふだん使う機種を変更できます。', illust: 'machdefault' },
+      { emoji: '🎚️', title: '当日の機種', desc: '記録画面のトグルで、その日だけ機種を切り替えられます。', illust: 'toggle' },
+      { emoji: '⚙️', title: 'デフォルト機種', desc: '設定「デフォルト機種」で、ふだん使う機種を変更できます。', illust: 'machdefault' },
     ],
   },
   {
-    id: 'backup',
+    id: 'uc-data',
+    category: 'D',
     icon: '💾',
-    title: 'データのバックアップと復元',
-    subtitle: '書き出し・読み込み',
+    title: 'データを守る・初期化する',
+    subtitle: 'バックアップ・復元・全削除',
     steps: [
-      { emoji: '⤓', title: '書き出し', desc: '設定の「バックアップを書き出す」で全データをファイル保存。機種変更前におすすめです。', illust: 'export' },
-      { emoji: '⤒', title: '復元', desc: '設定の「バックアップを読み込む」でファイルを選ぶと復元。現在のデータは上書きされます。', illust: 'import' },
+      { emoji: '⤓', title: '書き出し', desc: '設定「バックアップを書き出す」で全データを保存（機種変更前に）。', illust: 'export' },
+      { emoji: '⤒', title: '復元', desc: '「バックアップを読み込む」で復元（直後は取り消しも可能）。', illust: 'import' },
+      { emoji: '🗑', title: 'すべて削除', desc: '「すべてのデータを削除」（バックアップして削除も選べます）。', illust: 'deleteall' },
     ],
   },
 ];
