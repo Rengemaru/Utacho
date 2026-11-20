@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../src/constants/colors';
 import { fonts } from '../src/constants/fonts';
 import { TutorialModal } from '../src/components/TutorialModal';
-import { TUTORIALS, type Tutorial } from '../src/data/tutorialContent';
+import { TUTORIALS, CATEGORIES, type Tutorial } from '../src/data/tutorialContent';
 
 export default function GuideScreen() {
   const insets = useSafeAreaInsets();
@@ -20,30 +20,39 @@ export default function GuideScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.intro}>
-          使い方を機能ごとに学べます。項目をタップすると、手順にそったチュートリアルが開きます。
+          「やりたいこと」から選べます。項目をタップすると、手順にそったチュートリアルが開きます。
         </Text>
 
-        {TUTORIALS.map((t) => (
-          <Pressable
-            key={t.id}
-            style={styles.row}
-            onPress={() => setSelected(t)}
-            accessibilityRole="button"
-            accessibilityLabel={`${t.title}のチュートリアルを開く`}
-          >
-            <View style={styles.iconWrap}>
-              <Text style={styles.icon}>{t.icon}</Text>
+        {CATEGORIES.map((cat) => {
+          const items = TUTORIALS.filter((t) => t.category === cat.key);
+          if (items.length === 0) return null;
+          return (
+            <View key={cat.key} style={styles.group}>
+              <Text style={styles.catLabel}>{cat.label}</Text>
+              {items.map((t) => (
+                <Pressable
+                  key={t.id}
+                  style={styles.row}
+                  onPress={() => setSelected(t)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${t.title}のチュートリアルを開く`}
+                >
+                  <View style={styles.iconWrap}>
+                    <Text style={styles.icon}>{t.icon}</Text>
+                  </View>
+                  <View style={styles.body}>
+                    <Text style={styles.title} numberOfLines={1}>{t.title}</Text>
+                    <Text style={styles.subtitle} numberOfLines={1}>{t.subtitle}</Text>
+                  </View>
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>全{t.steps.length}手順</Text>
+                  </View>
+                  <Text style={styles.chevron}>›</Text>
+                </Pressable>
+              ))}
             </View>
-            <View style={styles.body}>
-              <Text style={styles.title} numberOfLines={1}>{t.title}</Text>
-              <Text style={styles.subtitle} numberOfLines={1}>{t.subtitle}</Text>
-            </View>
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>全{t.steps.length}手順</Text>
-            </View>
-            <Text style={styles.chevron}>›</Text>
-          </Pressable>
-        ))}
+          );
+        })}
       </ScrollView>
 
       <TutorialModal
@@ -70,6 +79,18 @@ const styles = StyleSheet.create({
     color: colors.text2,
     lineHeight: 17,
     marginBottom: 4,
+  },
+  group: {
+    gap: 8,
+  },
+  catLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.accent,
+    letterSpacing: 0.5,
+    marginTop: 6,
+    marginBottom: 2,
+    paddingLeft: 2,
   },
   row: {
     flexDirection: 'row',
