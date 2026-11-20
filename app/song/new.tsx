@@ -26,9 +26,7 @@ import { useConfirm } from '../../src/components/ConfirmProvider';
 
 import { MAX_TAB_NAME_LENGTH, truncateTabName } from '../../src/constants/tabConfig';
 
-// 入力の最大文字数（長文貼り付けによるレイアウト崩壊を防ぐ）
-const MAX_NAME_LENGTH = 200;   // 曲名・アーティスト・各読み
-const MAX_MEMO_LENGTH = 1000;  // メモ
+import { MAX_MEMO_LENGTH, MAX_NAME_LENGTH } from '../../src/constants/songFields';
 
 export default function SongFormScreen() {
   const insets = useSafeAreaInsets();
@@ -61,9 +59,7 @@ export default function SongFormScreen() {
       if (!song) return;
       setTitle(song.title);
       setArtist(song.artist);
-      setKeyOffset(song.key_offset);
       setArtworkUrl(song.artwork_url);
-      setMemo(song.memo);
       setTitleReading(song.title_reading ?? '');
       setArtistReading(song.artist_reading ?? '');
       setSelectedTabIds(song.tabs?.map((t) => t.id) ?? []);
@@ -123,7 +119,7 @@ export default function SongFormScreen() {
     async function doSave() {
       try {
         if (isEdit) {
-          updateSong(Number(songId), title.trim(), artist.trim(), keyOffset, artworkUrl, memo, titleReading.trim(), artistReading.trim());
+          updateSong(Number(songId), title.trim(), artist.trim(), artworkUrl, titleReading.trim(), artistReading.trim());
           syncTabs(Number(songId), selectedTabIds);
         } else {
           const newId = insertSong(title.trim(), artist.trim(), keyOffset, artworkUrl, memo, titleReading.trim(), artistReading.trim(), tempoOffset);
@@ -280,35 +276,40 @@ export default function SongFormScreen() {
             </View>
           </View>
 
-          {/* キーステッパー */}
-          <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>キー（音域）</Text>
-            <KeyStepper value={keyOffset} onChange={setKeyOffset} />
-          </View>
-
-          {/* テンポステッパー（新規のみ。登録後は曲詳細で調整する） */}
-          {!isEdit && (
-            <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>テンポ</Text>
-              <KeyStepper value={tempoOffset} onChange={setTempoOffset} helperText={TEMPO_HELPER_TEXT} />
+          {/* キー・テンポ・メモは「歌い方」の情報。新規登録時はここで入力し、
+              登録後は曲詳細画面でその場で調整する（編集画面には出さない） */}
+          {isEdit ? (
+            <View style={styles.movedNote}>
+              <Text style={styles.movedNoteText}>💡 キー・テンポ・メモは曲詳細画面からすぐ変更できます</Text>
             </View>
-          )}
+          ) : (
+            <>
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>キー（音域）</Text>
+                <KeyStepper value={keyOffset} onChange={setKeyOffset} />
+              </View>
 
-          {/* メモ */}
-          <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>メモ</Text>
-            <TextInput
-              style={[styles.fieldInput, styles.memoInput]}
-              value={memo}
-              onChangeText={setMemo}
-              maxLength={MAX_MEMO_LENGTH}
-              placeholder="メモ（自由入力）"
-              placeholderTextColor={colors.text3}
-              multiline
-              numberOfLines={3}
-              textAlignVertical="top"
-            />
-          </View>
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>テンポ</Text>
+                <KeyStepper value={tempoOffset} onChange={setTempoOffset} helperText={TEMPO_HELPER_TEXT} />
+              </View>
+
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>メモ</Text>
+                <TextInput
+                  style={[styles.fieldInput, styles.memoInput]}
+                  value={memo}
+                  onChangeText={setMemo}
+                  maxLength={MAX_MEMO_LENGTH}
+                  placeholder="メモ（自由入力）"
+                  placeholderTextColor={colors.text3}
+                  multiline
+                  numberOfLines={3}
+                  textAlignVertical="top"
+                />
+              </View>
+            </>
+          )}
         </ScrollView>
 
         {/* 新規タブ作成モーダル */}
@@ -415,6 +416,16 @@ const styles = StyleSheet.create({
   memoInput: {
     minHeight: 72,
     paddingTop: 11,
+  },
+  movedNote: {
+    backgroundColor: colors.accentSoft,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  movedNoteText: {
+    fontSize: 11,
+    color: colors.accent,
   },
   // アルバムアート行
   songRow: {

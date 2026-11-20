@@ -4,7 +4,6 @@ import {
   FlatList,
   Image,
   Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -24,13 +23,15 @@ import { ScoreRow } from '../../src/types';
 import { ScoreBottomSheet } from '../../src/components/ScoreBottomSheet';
 import { ScoreChart } from '../../src/components/ScoreChart';
 import { EmptyState } from '../../src/components/EmptyState';
+import { SingingInfoCard } from '../../src/components/SingingInfoCard';
+import { SongSingingInfo } from '../../src/db/songs';
 import { useConfirm } from '../../src/components/ConfirmProvider';
 
 export default function SongDetailScreen() {
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const songId = Number(id);
-  const { song, scores, loading, error, reload } = useSongDetail(songId);
+  const { song, scores, loading, error, reload, updateSinging } = useSongDetail(songId);
   const { defaultMachine } = useMachine();
   const confirm = useConfirm();
 
@@ -52,6 +53,13 @@ export default function SongDetailScreen() {
   const [sheetVisible, setSheetVisible] = useState(false);
   const [editingScore, setEditingScore] = useState<ScoreRow | null>(null);
   const [artworkError, setArtworkError] = useState(false);
+
+  // キー・テンポ・メモの即保存。失敗したらエラーを表示する
+  async function handleSingingChange(patch: Partial<SongSingingInfo>) {
+    if (!updateSinging(patch)) {
+      await confirm({ title: 'エラー', message: '保存に失敗しました', options: [{ label: 'OK', style: 'primary' }], cancelLabel: null });
+    }
+  }
 
   async function handleDeleteScore(score: ScoreRow) {
     const r = await confirm({
@@ -206,15 +214,15 @@ export default function SongDetailScreen() {
               </View>
             )}
 
-            {/* メモ */}
-            {song.memo ? (
-              <View style={styles.memoCard}>
-                <Text style={styles.memoLabel}>メモ</Text>
-                <ScrollView scrollEnabled={false}>
-                  <Text style={styles.memoText}>{song.memo}</Text>
-                </ScrollView>
-              </View>
-            ) : null}
+            {/* キー・テンポ・メモ（その場で調整・即保存） */}
+            <SingingInfoCard
+              keyOffset={song.key_offset}
+              tempoOffset={song.tempo_offset}
+              memo={song.memo}
+              onChangeKey={(v) => handleSingingChange({ key_offset: v })}
+              onChangeTempo={(v) => handleSingingChange({ tempo_offset: v })}
+              onChangeMemo={(v) => handleSingingChange({ memo: v })}
+            />
 
             {/* 履歴セクションラベル */}
             {scores.length > 0 && (
@@ -508,25 +516,6 @@ const styles = StyleSheet.create({
     color: colors.text2,
     letterSpacing: 0.8,
     fontWeight: '500',
-  },
-  memoCard: {
-    backgroundColor: colors.surface,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    borderRadius: 12,
-    padding: 12,
-    gap: 4,
-  },
-  memoLabel: {
-    fontSize: 10,
-    color: colors.text2,
-    letterSpacing: 0.8,
-    fontWeight: '500',
-  },
-  memoText: {
-    fontSize: 13,
-    color: colors.text,
-    lineHeight: 20,
   },
   historyRow: {
     flexDirection: 'row',
