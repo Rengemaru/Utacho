@@ -58,17 +58,3 @@ export function paginate(items: SongCandidate[], visibleCount: number): SongCand
   return items.slice(0, visibleCount);
 }
 
-/**
- * 「曲を変更」で 04b を開くときの初期入力文字列を作る。§5.9。
- * 曲から＝曲名 / アーティスト＝アーティスト名 / キーワード＝曲名＋半角スペース＋アーティスト名
- */
-export function buildInitialQuery(mode: SearchMode, title: string, artist: string): string {
-  switch (mode) {
-    case 'song':
-      return title;
-    case 'artist':
-      return artist;
-    case 'keyword':
-      return `${title} ${artist}`.trim();
-  }
-}

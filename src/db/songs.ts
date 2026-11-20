@@ -131,29 +131,47 @@ export function insertSong(
   artworkUrl?: string | null,
   memo: string = '',
   titleReading: string = '',
-  artistReading: string = ''
+  artistReading: string = '',
+  tempoOffset: number | null = null
 ): number {
   const result = getDb().runSync(
-    'INSERT INTO songs (title, artist, key_offset, artwork_url, memo, title_reading, artist_reading, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-    [title, artist, keyOffset, artworkUrl ?? null, memo, titleReading, artistReading, new Date().toISOString()]
+    'INSERT INTO songs (title, artist, key_offset, tempo_offset, artwork_url, memo, title_reading, artist_reading, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [title, artist, keyOffset, tempoOffset, artworkUrl ?? null, memo, titleReading, artistReading, new Date().toISOString()]
   );
   return result.lastInsertRowId;
 }
 
+/** 曲そのものの情報（曲名・アーティスト・アート・読み）を更新する。編集画面で使用 */
 export function updateSong(
   id: number,
   title: string,
   artist: string,
-  keyOffset: number | null,
-  artworkUrl?: string | null,
-  memo: string = '',
+  artworkUrl: string | null,
   titleReading: string = '',
   artistReading: string = ''
 ): void {
   getDb().runSync(
-    'UPDATE songs SET title = ?, artist = ?, key_offset = ?, artwork_url = ?, memo = ?, title_reading = ?, artist_reading = ? WHERE id = ?',
-    [title, artist, keyOffset, artworkUrl ?? null, memo, titleReading, artistReading, id]
+    'UPDATE songs SET title = ?, artist = ?, artwork_url = ?, title_reading = ?, artist_reading = ? WHERE id = ?',
+    [title, artist, artworkUrl, titleReading, artistReading, id]
   );
+}
+
+/** 歌い方の情報（キー・テンポ・メモ）。曲詳細でその場で更新する */
+export type SongSingingInfo = {
+  key_offset: number | null;
+  tempo_offset: number | null;
+  memo: string;
+};
+
+/** 歌い方の情報を部分更新する（指定した項目だけ書き換える） */
+export function updateSongSingingInfo(id: number, patch: Partial<SongSingingInfo>): void {
+  const sets: string[] = [];
+  const values: (string | number | null)[] = [];
+  if ('key_offset' in patch) { sets.push('key_offset = ?'); values.push(patch.key_offset ?? null); }
+  if ('tempo_offset' in patch) { sets.push('tempo_offset = ?'); values.push(patch.tempo_offset ?? null); }
+  if ('memo' in patch) { sets.push('memo = ?'); values.push(patch.memo ?? ''); }
+  if (sets.length === 0) return;
+  getDb().runSync(`UPDATE songs SET ${sets.join(', ')} WHERE id = ?`, [...values, id]);
 }
 
 export function deleteSong(id: number): void {

@@ -1,11 +1,11 @@
-// 曲検索モーダル（04a 選択画面 ＋ 04b 検索画面）。spec-1.1.0-song-flow §5・§6.6。
-// ワイヤーフレーム v6 セクションC を基準にスタイリング。
+// 曲検索画面（フッター「さがす」タブの中身）。
+// 旧・曲検索モーダルの 04b 検索画面を、選択画面（04a）なしでタブ内に直接表示する形にしたもの。
+// 検索モード（曲から/アーティスト/キーワード）は検索欄の下のセグメントで切り替える。
 
-import { useCallback, useEffect, useState } from 'react';
+import { forwardRef, useCallback, useImperativeHandle, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
-  Modal,
   Platform,
   Pressable,
   StyleSheet,
@@ -14,7 +14,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SearchResultList } from '../../components/SearchResultList';
 import { SearchHistoryDropdown } from '../../components/SearchHistoryDropdown';
 import {
@@ -24,20 +23,12 @@ import {
   pushSearchHistory,
 } from '../../db/settings';
 import { colors } from '../../constants/colors';
-
-const HISTORY_KEY = 'search_history_itunes' as const;
-import { buildInitialQuery } from './logic';
+import { fonts } from '../../constants/fonts';
+import { useCoachTarget } from '../../lib/coachTargets';
 import { SearchMode, SongCandidate, SortKey } from './types';
 import { useSongSearch } from './useSongSearch';
 
-type Props = {
-  visible: boolean;
-  purpose: 'add' | 'change'; // add=手入力あり / change=手入力なし
-  currentSong?: { title: string; artist: string }; // change のときの初期入力用
-  onSelect: (candidate: SongCandidate) => void;
-  onManual?: () => void; // add のときのみ
-  onClose: () => void;
-};
+const HISTORY_KEY = 'search_history_itunes' as const;
 
 const MODE_PLACEHOLDER: Record<SearchMode, string> = {
   song: '曲名で検索',
@@ -60,21 +51,41 @@ const SORT_LABEL: Record<SortKey, string> = {
 
 const SORT_ORDER: SortKey[] = ['relevance', 'releaseDesc', 'releaseAsc', 'title'];
 
-export function SongSearchModal({ visible, purpose, currentSong, onSelect, onManual, onClose }: Props) {
-  const insets = useSafeAreaInsets();
-  const [screen, setScreen] = useState<'select' | 'search'>('select');
-  const [sortMenuOpen, setSortMenuOpen] = useState(false);
-  const [history, setHistory] = useState<string[]>([]);
-  const search = useSongSearch();
+export type SongSearchViewHandle = {
+  /** 検索欄にフォーカスを当てる（タブ表示時など） */
+  focus: () => void;
+  /** 履歴を読み直す（タブ表示時） */
+  reloadHistory: () => void;
+};
 
-  // モーダルを開くたびに 04a（選択画面）へリセット（§5.7）＋履歴を読み込む
-  useEffect(() => {
-    if (visible) {
-      setScreen('select');
-      setSortMenuOpen(false);
+type Props = {
+  onSelect: (candidate: SongCandidate) => void;
+  onManual: () => void;
+  bottomInset: number;
+};
+
+export const SongSearchView = forwardRef<SongSearchViewHandle, Props>(function SongSearchView(
+  { onSelect, onManual, bottomInset },
+  ref,
+) {
+  const search = useSongSearch();
+  const { query, setQuery, mode, setMode, sortKey, changeSort, status, visibleItems, totalCount, hasMore, showMore, retry } = search;
+  const [sortMenuOpen, setSortMenuOpen] = useState(false);
+  const [history, setHistory] = useState<string[]>(() => (Platform.OS === 'web' ? [] : getSearchHistory(HISTORY_KEY)));
+  // 履歴ドロップダウンはホームと同様フォーカス連動（検索欄から離れたら閉じる）
+  const [searchFocused, setSearchFocused] = useState(false);
+  const inputRef = useRef<TextInput>(null);
+  const searchTargetRef = useCoachTarget('search-input');
+  const manualTargetRef = useCoachTarget('manual-entry');
+
+  useImperativeHandle(ref, () => ({
+    focus: () => inputRef.current?.focus(),
+    reloadHistory: () => {
       if (Platform.OS !== 'web') setHistory(getSearchHistory(HISTORY_KEY));
-    }
-  }, [visible]);
+    },
+  }), []);
+
+  const showSortRow = status === 'complete' || status === 'truncated';
 
   // 検索キーワードを履歴へ記録（#91）。空・web は無視
   const recordHistory = useCallback((term: string) => {
@@ -96,240 +107,71 @@ export function SongSearchModal({ visible, purpose, currentSong, onSelect, onMan
   // 候補選択時はそのときの検索語を履歴へ残してから確定する
   const handleSelect = useCallback(
     (candidate: SongCandidate) => {
-      recordHistory(search.query);
+      recordHistory(query);
       onSelect(candidate);
     },
-    [recordHistory, search.query, onSelect],
+    [recordHistory, query, onSelect],
   );
 
-  function openSearch(mode: SearchMode) {
-    const initial =
-      purpose === 'change' && currentSong
-        ? buildInitialQuery(mode, currentSong.title, currentSong.artist)
-        : '';
-    search.reset(mode, initial);
-    setScreen('search');
-  }
-
-  // 戻る操作：04b→04a、04a→閉じる（§5.11）
-  function handleBack() {
-    if (sortMenuOpen) {
-      setSortMenuOpen(false);
-      return;
-    }
-    if (screen === 'search') setScreen('select');
-    else onClose();
-  }
-
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={handleBack}
-      onDismiss={() => { if (visible) onClose(); }}
-    >
-      {/* 登録フォームと同じネイティブのシート表示（pageSheet）で上部の見た目を完全一致させる。
-          上余白も new.tsx と同じ insets.top + 6 に揃える */}
-      <View style={[styles.sheet, { paddingTop: insets.top + 6 }]}>
-        {screen === 'select' ? (
-          <SelectScreen
-            purpose={purpose}
-            currentSong={currentSong}
-            onPickMode={openSearch}
-            onManual={onManual}
-            onClose={onClose}
-          />
-        ) : (
-          <SearchScreen
-            purpose={purpose}
-            search={search}
-            sortMenuOpen={sortMenuOpen}
-            setSortMenuOpen={setSortMenuOpen}
-            onBack={() => setScreen('select')}
-            onSelect={handleSelect}
-            onManual={onManual}
-            bottomInset={insets.bottom}
-            history={history}
-            onRecordHistory={recordHistory}
-            onRemoveHistory={removeHistory}
-            onClearHistory={clearHistory}
-          />
-        )}
-      </View>
-    </Modal>
-  );
-}
-
-// ---- 04a 選択画面 ----
-function SelectScreen({
-  purpose,
-  currentSong,
-  onPickMode,
-  onManual,
-  onClose,
-}: {
-  purpose: 'add' | 'change';
-  currentSong?: { title: string; artist: string };
-  onPickMode: (mode: SearchMode) => void;
-  onManual?: () => void;
-  onClose: () => void;
-}) {
-  const title = currentSong?.title ?? '';
-  const artist = currentSong?.artist ?? '';
-  const descFor = (mode: SearchMode): string => {
-    if (purpose !== 'change') {
-      return mode === 'song' ? '曲名で検索' : mode === 'artist' ? '歌手名で検索' : '曲名・歌手名・アルバム名から検索';
-    }
-    if (mode === 'song') return `曲名「${title}」で検索`;
-    if (mode === 'artist') return `「${artist}」で検索`;
-    return `「${`${title} ${artist}`.trim()}」で検索`;
-  };
-
-  return (
-    <>
+    <KeyboardAvoidingView style={styles.flex} behavior="padding">
       <View style={styles.header}>
-        <TouchableOpacity onPress={onClose} accessibilityRole="button" accessibilityLabel="閉じる">
-          <Text style={styles.headerClose}>✕</Text>
+        <Text style={styles.headerTitle}>さがす</Text>
+        {/* 手入力の導線は常に見える位置に置く（検索前・後・失敗時いつでも押せる） */}
+        <View ref={manualTargetRef} collapsable={false}>
+        <TouchableOpacity
+          style={styles.manualPill}
+          onPress={onManual}
+          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+          accessibilityRole="button"
+          accessibilityLabel="手入力で登録"
+        >
+          <Text style={styles.manualPillText}>✏️ 手入力で登録</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{purpose === 'change' ? '曲を変更' : '曲を追加'}</Text>
-      </View>
-
-      <View style={styles.choiceList}>
-        <ChoiceButton icon="🎵" name="曲から探す" desc={descFor('song')} first onPress={() => onPickMode('song')} />
-        <ChoiceButton icon="🎤" name="アーティストから探す" desc={descFor('artist')} onPress={() => onPickMode('artist')} />
-        <ChoiceButton icon="🔍" name="キーワードで探す" desc={descFor('keyword')} onPress={() => onPickMode('keyword')} />
-        {purpose === 'add' && onManual && (
-          <ChoiceButton icon="✏️" name="手入力で登録" desc="検索で見つからない曲・オフライン時" manual onPress={onManual} />
-        )}
-      </View>
-
-      <Text style={styles.choiceHint}>
-        {purpose === 'change'
-          ? '手入力で直したい場合は、編集画面の曲名・アーティスト名を書き換えてください。'
-          : '押したボタンが検索画面の最初のモードになります。'}
-      </Text>
-    </>
-  );
-}
-
-function ChoiceButton({
-  icon,
-  name,
-  desc,
-  first,
-  manual,
-  onPress,
-}: {
-  icon: string;
-  name: string;
-  desc: string;
-  first?: boolean;
-  manual?: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <TouchableOpacity
-      style={[styles.choice, first && styles.choiceFirst, manual && styles.choiceManual]}
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={name}
-    >
-      <View style={[styles.choiceIcon, manual && styles.choiceIconManual]}>
-        <Text style={styles.choiceIconText}>{icon}</Text>
-      </View>
-      <View style={styles.choiceBody}>
-        <Text style={styles.choiceName}>{name}</Text>
-        <Text style={styles.choiceDesc}>{desc}</Text>
-      </View>
-      <Text style={styles.choiceArrow}>›</Text>
-    </TouchableOpacity>
-  );
-}
-
-// ---- 04b 検索画面 ----
-function SearchScreen({
-  purpose,
-  search,
-  sortMenuOpen,
-  setSortMenuOpen,
-  onBack,
-  onSelect,
-  onManual,
-  bottomInset,
-  history,
-  onRecordHistory,
-  onRemoveHistory,
-  onClearHistory,
-}: {
-  purpose: 'add' | 'change';
-  search: ReturnType<typeof useSongSearch>;
-  sortMenuOpen: boolean;
-  setSortMenuOpen: (open: boolean) => void;
-  onBack: () => void;
-  onSelect: (candidate: SongCandidate) => void;
-  onManual?: () => void;
-  bottomInset: number;
-  history: string[];
-  onRecordHistory: (term: string) => void;
-  onRemoveHistory: (term: string) => void;
-  onClearHistory: () => void;
-}) {
-  const { query, setQuery, mode, setMode, sortKey, changeSort, status, visibleItems, totalCount, hasMore, showMore, retry } = search;
-  const showSortRow = status === 'complete' || status === 'truncated';
-  // 履歴ドロップダウンはホームと同様フォーカス連動（検索欄から離れたら閉じる）
-  const [searchFocused, setSearchFocused] = useState(false);
-
-  return (
-    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={onBack} accessibilityRole="button" accessibilityLabel="戻る">
-          <Text style={styles.headerBack}>‹</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{purpose === 'change' ? '曲を変更' : '曲を追加'}</Text>
+        </View>
       </View>
 
       {/* 検索欄（履歴ドロップダウンのアンカー） */}
-      <View style={styles.sInputZone}>
-      <View style={styles.sInput}>
-        <Text style={styles.sIcon}>🔍</Text>
-        <TextInput
-          style={styles.sField}
-          value={query}
-          onChangeText={setQuery}
-          placeholder={MODE_PLACEHOLDER[mode]}
-          placeholderTextColor={colors.text3}
-          autoFocus
-          returnKeyType="search"
-          onFocus={() => setSearchFocused(true)}
-          onBlur={() => setSearchFocused(false)}
-          onSubmitEditing={() => onRecordHistory(query)}
-        />
-        {query.length > 0 && (
-          <TouchableOpacity
-            onPress={() => setQuery('')}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            accessibilityRole="button"
-            accessibilityLabel="入力を消す"
-          >
-            <View style={styles.sClear}>
-              <Text style={styles.sClearText}>✕</Text>
-            </View>
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {/* 検索欄フォーカス中かつ検索前（idle）のとき、検索欄直下に履歴ドロップダウンを表示（#91） */}
-      {searchFocused && status === 'idle' && history.length > 0 && (
-        <View style={styles.historyDropdownAnchor}>
-          <SearchHistoryDropdown
-            history={history}
-            onSelect={setQuery}
-            onRemove={onRemoveHistory}
-            onClear={onClearHistory}
+      <View>
+        <View style={styles.sInput} ref={searchTargetRef} collapsable={false}>
+          <Text style={styles.sIcon}>🔍</Text>
+          <TextInput
+            ref={inputRef}
+            style={styles.sField}
+            value={query}
+            onChangeText={setQuery}
+            placeholder={MODE_PLACEHOLDER[mode]}
+            placeholderTextColor={colors.text3}
+            returnKeyType="search"
+            onFocus={() => setSearchFocused(true)}
+            onBlur={() => setSearchFocused(false)}
+            onSubmitEditing={() => recordHistory(query)}
           />
+          {query.length > 0 && (
+            <TouchableOpacity
+              onPress={() => setQuery('')}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel="入力を消す"
+            >
+              <View style={styles.sClear}>
+                <Text style={styles.sClearText}>✕</Text>
+              </View>
+            </TouchableOpacity>
+          )}
         </View>
-      )}
+
+        {/* 検索欄フォーカス中かつ検索前（idle）のとき、検索欄直下に履歴ドロップダウンを表示（#91） */}
+        {searchFocused && status === 'idle' && history.length > 0 && (
+          <View style={styles.historyDropdownAnchor}>
+            <SearchHistoryDropdown
+              history={history}
+              onSelect={setQuery}
+              onRemove={removeHistory}
+              onClear={clearHistory}
+            />
+          </View>
+        )}
       </View>
 
       {/* モード切り替え */}
@@ -396,8 +238,15 @@ function SearchScreen({
       {/* 外側タップで並び替えメニューを閉じる */}
       {sortMenuOpen && <Pressable style={styles.sortBackdrop} onPress={() => setSortMenuOpen(false)} />}
 
-      {/* 結果エリア（4状態） */}
+      {/* 結果エリア（検索前＋4状態） */}
       <View style={styles.results}>
+        {status === 'idle' && (
+          <View style={styles.idleBox}>
+            <Text style={styles.idleIcon}>🎵</Text>
+            <Text style={styles.idleText}>{'歌いたい曲を検索して\n持ち歌に追加しましょう'}</Text>
+          </View>
+        )}
+
         {status === 'loading' && (
           <View style={styles.centerBox}>
             <ActivityIndicator color={colors.accent} />
@@ -409,7 +258,7 @@ function SearchScreen({
             icon="🔎"
             title="見つかりませんでした"
             text={'アーティストやキーワードでも\n探してみてください'}
-            actions={purpose === 'add' && onManual ? [{ label: '✏️ 手入力で登録', kind: 'ghost' as const, onPress: onManual }] : []}
+            actions={[{ label: '✏️ 手入力で登録', kind: 'ghost', onPress: onManual }]}
           />
         )}
 
@@ -419,8 +268,8 @@ function SearchScreen({
             title="通信できませんでした"
             text={'電波の良い場所で再試行するか、\n手入力で登録してください'}
             actions={[
-              { label: '再試行', kind: 'primary' as const, onPress: retry },
-              ...(purpose === 'add' && onManual ? [{ label: '✏️ 手入力で登録', kind: 'ghost' as const, onPress: onManual }] : []),
+              { label: '再試行', kind: 'primary', onPress: retry },
+              { label: '✏️ 手入力で登録', kind: 'ghost', onPress: onManual },
             ]}
           />
         )}
@@ -435,7 +284,7 @@ function SearchScreen({
               artworkUrl: c.artworkUrl,
               meta: c.releaseDate ? c.releaseDate.slice(0, 4) : null,
             })}
-            onSelect={onSelect}
+            onSelect={handleSelect}
             ListFooterComponent={
               <View style={{ paddingBottom: bottomInset + 12 }}>
                 {hasMore && (
@@ -443,11 +292,9 @@ function SearchScreen({
                     <Text style={styles.moreBtnText}>もっと見る</Text>
                   </TouchableOpacity>
                 )}
-                {purpose === 'add' && onManual && (
-                  <TouchableOpacity style={styles.manualLink} onPress={onManual} accessibilityRole="button">
-                    <Text style={styles.manualLinkText}>見つからない場合は手入力で登録</Text>
-                  </TouchableOpacity>
-                )}
+                <TouchableOpacity style={styles.manualLink} onPress={onManual} accessibilityRole="button">
+                  <Text style={styles.manualLinkText}>見つからない場合は手入力で登録</Text>
+                </TouchableOpacity>
               </View>
             }
           />
@@ -455,7 +302,7 @@ function SearchScreen({
       </View>
     </KeyboardAvoidingView>
   );
-}
+});
 
 function StateBox({
   icon,
@@ -494,56 +341,33 @@ function StateBox({
 }
 
 const styles = StyleSheet.create({
-  // pageSheet の内側。角丸・上部余白・背景の縮小はOSが付与するので白地のみ。
-  // 上余白は呼び出し側で insets.top + 6（new.tsx と同一）を指定する
-  sheet: {
-    flex: 1,
-    backgroundColor: colors.white,
-  },
   flex: { flex: 1 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     gap: 10,
     paddingHorizontal: 18,
-    paddingBottom: 16,
+    paddingTop: 8,
+    paddingBottom: 12,
   },
-  headerClose: { fontSize: 18, color: colors.text2 },
-  headerBack: { fontSize: 26, color: colors.text2, lineHeight: 26 },
-  headerTitle: { fontSize: 16, fontWeight: '700', color: colors.text, flex: 1 },
-
-  // 04a
-  choiceList: { paddingHorizontal: 18, paddingTop: 4, gap: 10 },
-  // フォームのフィールドと同じ塗りカード（surface＋細ボーダー、影なし）
-  choice: {
+  headerTitle: {
+    fontFamily: fonts.jakartaExtraBold,
+    fontSize: 22,
+    letterSpacing: -0.4,
+    color: colors.text,
+  },
+  manualPill: {
     backgroundColor: colors.surface,
     borderWidth: 1.5,
     borderColor: colors.border,
-    borderRadius: 11,
-    padding: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
   },
-  choiceFirst: { borderColor: 'rgba(91,76,245,0.35)' },
-  choiceManual: { backgroundColor: 'transparent', borderStyle: 'dashed' },
-  choiceIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 11,
-    backgroundColor: colors.accentSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  choiceIconManual: { backgroundColor: colors.surface2 },
-  choiceIconText: { fontSize: 17 },
-  choiceBody: { flex: 1 },
-  choiceName: { fontSize: 14, fontWeight: '600', color: colors.text },
-  choiceDesc: { fontSize: 10, color: colors.text2, marginTop: 2 },
-  choiceArrow: { fontSize: 18, color: colors.text3 },
-  choiceHint: { marginHorizontal: 18, marginTop: 14, fontSize: 10, color: colors.text3, lineHeight: 16 },
+  manualPillText: { fontSize: 11, fontWeight: '700', color: colors.accent },
 
-  // 04b 検索欄（フォームの fieldInput と同じ surface 塗り＋細ボーダー）
+  // 検索欄（フォームの fieldInput と同じ surface 塗り＋細ボーダー）
   sInput: {
     marginHorizontal: 18,
     marginBottom: 8,
@@ -639,7 +463,6 @@ const styles = StyleSheet.create({
   sortBackdrop: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 10 },
 
   // 履歴ドロップダウンのアンカー。通常レイアウトに差し込み、下のコンテンツを押し下げる
-  sInputZone: {},
   historyDropdownAnchor: {
     marginHorizontal: 18,
     marginBottom: 8,
@@ -659,10 +482,12 @@ const styles = StyleSheet.create({
   // 結果エリア
   results: { flex: 1, paddingHorizontal: 18 },
   centerBox: { paddingTop: 40, alignItems: 'center' },
+  idleBox: { paddingTop: 48, alignItems: 'center', gap: 10 },
+  idleIcon: { fontSize: 30, opacity: 0.6 },
+  idleText: { fontSize: 12, color: colors.text3, lineHeight: 19, textAlign: 'center' },
 
   // 状態表示
   stateBox: {
-    marginHorizontal: 18,
     marginTop: 24,
     alignItems: 'center',
     paddingVertical: 26,
@@ -675,7 +500,7 @@ const styles = StyleSheet.create({
   stateIcon: { fontSize: 26, marginBottom: 8 },
   stateTitle: { fontSize: 14, fontWeight: '700', color: colors.text, marginBottom: 4 },
   stateText: { fontSize: 11, color: colors.text2, lineHeight: 18, textAlign: 'center' },
-  stateActions: { marginHorizontal: 18, marginTop: 14, gap: 8 },
+  stateActions: { marginTop: 14, gap: 8 },
   btnPrimary: { paddingVertical: 11, borderRadius: 11, backgroundColor: colors.accent, alignItems: 'center' },
   btnPrimaryText: { color: colors.white, fontSize: 12, fontWeight: '700' },
   btnGhost: {

@@ -13,9 +13,12 @@ import {
 } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { CoachMark } from '../../src/components/CoachMark';
+import type { CoachTourResult } from '../../src/components/CoachMarkTour';
+import { useCoachMark } from '../../src/contexts/CoachMarkContext';
 import { EmptyState } from '../../src/components/EmptyState';
-import { FirstLaunchGuide } from '../../src/components/FirstLaunchGuide';
+import { CoachPart, HOME_PART, INTRO_HOME_PART, MOVED_ADD_PART } from '../../src/data/tutorialSteps';
+import { useCoachTarget } from '../../src/lib/coachTargets';
+import { getIntroState, markHomeTutorialDone, setIntroState, shouldShowHomeTutorial } from '../../src/lib/tutorial';
 import { RandomPickModal } from '../../src/components/RandomPickModal';
 import { ScoreBottomSheet } from '../../src/components/ScoreBottomSheet';
 import { SetlistModal } from '../../src/components/SetlistModal';
@@ -25,7 +28,7 @@ import { fonts } from '../../src/constants/fonts';
 import { deleteSong, getAllSongs, getRandomSongId } from '../../src/db/songs';
 import { deleteTab } from '../../src/db/tabs';
 import { getSessionSummary, getMonthlyStats, getSongIdsScoredOn, SessionSummary, MonthlyStats } from '../../src/db/scores';
-import { getSetlistSongIds, saveSetlistSongIds, getSettingSync, setSettingSync, getSearchHistory, pushSearchHistory, deleteSearchHistoryEntry, clearSearchHistory } from '../../src/db/settings';
+import { getSetlistSongIds, saveSetlistSongIds, getSearchHistory, pushSearchHistory, deleteSearchHistoryEntry, clearSearchHistory } from '../../src/db/settings';
 import { SearchHistoryDropdown } from '../../src/components/SearchHistoryDropdown';
 import { useSongs, ALL_TAB, SETLIST_TAB } from '../../src/hooks/useSongs';
 import { useTabs } from '../../src/hooks/useTabs';
@@ -135,8 +138,12 @@ export default function HomeScreen() {
   const [allSongsForSetlist, setAllSongsForSetlist] = useState<SongWithStats[]>([]);
   const [sessionSummary, setSessionSummary] = useState<SessionSummary | null>(null);
   const [monthlyStats, setMonthlyStats] = useState<MonthlyStats | null>(null);
-  const [firstLaunchGuideVisible, setFirstLaunchGuideVisible] = useState(false);
-  const [coachMarkVisible, setCoachMarkVisible] = useState(false);
+  // チュートリアル（コーチマーク）。表示中のパートと、画面が前面にあるか
+  const { activePart, startTour } = useCoachMark();
+  const [isFocused, setIsFocused] = useState(false);
+  const songCardTargetRef = useCoachTarget('song-card');
+  const songRecordTargetRef = useCoachTarget('song-record');
+  const listToolsTargetRef = useCoachTarget('list-tools');
   const [randomModalVisible, setRandomModalVisible] = useState(false);
 
   const { songs, loading, error, reload } = useSongs(activeTabId, defaultMachine);
@@ -198,17 +205,8 @@ export default function HomeScreen() {
       reloadTabs();
       reload();
       reloadExtras();
-      // Onb-1/2: 初回ガイドとコーチマークは排他制御（同時表示しない）
-      if (Platform.OS !== 'web') {
-        const flag = getSettingSync('first_launch_guide');
-        if (flag === 'pending') {
-          setFirstLaunchGuideVisible(true);
-        } else {
-          // Onb-2: ガイドが出ないときのみコーチマークを確認
-          const coachShown = getSettingSync('coach_mark_shown');
-          if (coachShown !== 'true') setCoachMarkVisible(true);
-        }
-      }
+      setIsFocused(true);
+      return () => setIsFocused(false);
     }, [reloadTabs, reload, refreshMachine])
   );
 
@@ -221,25 +219,49 @@ export default function HomeScreen() {
     }
   }, [tabsWithAll, activeTabId]);
 
-  function handleFirstLaunchRegister() {
-    setSettingSync('first_launch_guide', 'done');
-    // 「今すぐ登録」を選んだユーザーはコーチマーク不要（ガイドで十分）
-    setSettingSync('coach_mark_shown', 'true');
-    setFirstLaunchGuideVisible(false);
-    router.push('/song/new');
-  }
+  // どのチュートリアルを出すか。画面が前面にあり、一覧の読み込みが終わってから判定する。
+  // 初回（新規ユーザー）→ ようこそ＋さがす案内 / 既存ユーザー → ＋ボタン移動のお知らせ /
+  // 初回の案内後に曲が1件以上になったら → 曲カードまわりの案内
+  useEffect(() => {
+    if (Platform.OS === 'web' || !isFocused || loading || activePart) return;
+    try {
+      const intro = getIntroState();
+      let part: CoachPart | null = null;
+      if (intro === 'pending') part = INTRO_HOME_PART;
+      else if (intro === null) part = MOVED_ADD_PART;
+      else if (intro === 'done' && songs.length > 0 && activeTabId === ALL_TAB.id && shouldShowHomeTutorial()) {
+        part = HOME_PART;
+      }
+      if (part) {
+        const started = part;
+        startTour(started, { onFinish: (result) => handleTourFinish(started, result) });
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    // handleTourFinish は毎回作られるが、判定条件が変わったときだけ再評価する
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isFocused, loading, songs.length, activeTabId, activePart, startTour]);
 
-  function handleFirstLaunchLater() {
-    setSettingSync('first_launch_guide', 'done');
-    setFirstLaunchGuideVisible(false);
-    // 「あとで」の場合のみコーチマークを表示
-    const coachShown = getSettingSync('coach_mark_shown');
-    if (coachShown !== 'true') setCoachMarkVisible(true);
-  }
-
-  function handleCoachMarkDismiss() {
-    setSettingSync('coach_mark_shown', 'true');
-    setCoachMarkVisible(false);
+  function handleTourFinish(finished: CoachPart, result: CoachTourResult) {
+    try {
+      if (finished === INTRO_HOME_PART) {
+        // 最後まで見たら、さがすタブで続き（検索欄・手入力）を出す。スキップなら終了
+        if (result === 'done') {
+          setIntroState('search');
+          router.navigate('/search');
+        } else {
+          setIntroState('done');
+        }
+      } else if (finished === MOVED_ADD_PART) {
+        setIntroState('done');
+        markHomeTutorialDone();
+      } else if (finished === HOME_PART) {
+        markHomeTutorialDone();
+      }
+    } catch (e) {
+      console.error(e);
+    }
   }
 
   // タブピル長押し → タブの詳細設定（対応曲の一括変更）への導線（#117）。
@@ -512,14 +534,6 @@ export default function HomeScreen() {
           >
             <Text style={[styles.helpBtnText, isTablet && styles.iconBtnTextTablet]}>？</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.addBtn, isTablet && styles.iconBtnTablet]}
-            onPress={() => router.push('/song/new')}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            accessibilityLabel="曲を追加"
-          >
-            <Text style={[styles.addBtnText, isTablet && styles.addBtnTextTablet]}>＋</Text>
-          </TouchableOpacity>
         </View>
       </View>
 
@@ -543,9 +557,6 @@ export default function HomeScreen() {
           )}
         </View>
       )}
-
-      {/* Onb-2: コアループのコーチマーク（初回のみ） */}
-      <CoachMark visible={coachMarkVisible} onDismiss={handleCoachMarkDismiss} />
 
       {/* 月次統計バー */}
       {monthlyStats && (
@@ -626,6 +637,7 @@ export default function HomeScreen() {
             </TouchableOpacity>
           )}
         </View>
+        <View style={styles.listTools} ref={listToolsTargetRef} collapsable={false}>
         {hasAnySong && (
           <TouchableOpacity
             style={styles.diceBtn}
@@ -644,6 +656,7 @@ export default function HomeScreen() {
         >
           <Text style={[styles.sortBtnText, !isDefaultSort && styles.sortBtnTextActive]}>⇅</Text>
         </TouchableOpacity>
+        </View>
       </View>
 
       {/* 検索履歴ドロップダウン（#91）。検索欄フォーカス中かつ未入力のとき検索欄直下にフロート表示 */}
@@ -679,8 +692,8 @@ export default function HomeScreen() {
             emoji="🎵"
             title={query ? '検索結果がありません' : 'まだ曲がありません'}
             subtitle={query ? '別のキーワードで試してみてください' : 'カラオケで歌った曲を追加しましょう'}
-            actionLabel={query ? undefined : '＋ 最初の曲を追加する'}
-            onAction={query ? undefined : () => router.push('/song/new')}
+            actionLabel={query ? undefined : '🔍 曲をさがして追加する'}
+            onAction={query ? undefined : () => router.navigate('/search')}
           />
         </View>
       ) : (
@@ -694,8 +707,12 @@ export default function HomeScreen() {
           style={styles.list}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
-          renderItem={({ item }) => (
-            <View style={twoColumn ? styles.gridItem : undefined}>
+          renderItem={({ item, index }) => (
+            <View
+              style={twoColumn ? styles.gridItem : undefined}
+              ref={index === 0 ? songCardTargetRef : undefined}
+              collapsable={false}
+            >
             <Swipeable
               ref={(ref) => { swipeRefs.current.set(item.id, ref); }}
               onSwipeableWillOpen={() => closeOtherSwipeables(item.id)}
@@ -736,6 +753,7 @@ export default function HomeScreen() {
                   song={item}
                   machine={defaultMachine}
                   onPressRecord={() => setScoringsSong(item)}
+                  recordButtonRef={index === 0 ? songRecordTargetRef : undefined}
                 />
               </TouchableOpacity>
             </Swipeable>
@@ -821,13 +839,6 @@ export default function HomeScreen() {
         onClose={() => setSetlistModalVisible(false)}
       />
 
-      {/* Onb-1: 初回起動ガイド */}
-      <FirstLaunchGuide
-        visible={firstLaunchGuideVisible}
-        onRegister={handleFirstLaunchRegister}
-        onLater={handleFirstLaunchLater}
-        onRequestClose={handleFirstLaunchLater}
-      />
 
       {/* ランダム選曲モーダル */}
       <RandomPickModal
@@ -901,24 +912,9 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     lineHeight: 20,
   },
-  addBtn: {
-    width: 34,
-    height: 34,
-    backgroundColor: colors.accent,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: colors.accent,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  addBtnText: { fontSize: 20, color: colors.white, lineHeight: 24 },
   // タブレット時：ヘッダーアイコンボタンを44pxに拡大（押しやすさ・#92）
   iconBtnTablet: { width: 44, height: 44, borderRadius: 13 },
   iconBtnTextTablet: { fontSize: 20, lineHeight: 26 },
-  addBtnTextTablet: { fontSize: 26, lineHeight: 30 },
   sessionBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1023,6 +1019,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   searchClearText: { color: colors.white, fontSize: 10 },
+  listTools: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   diceBtn: {
     width: 36,
     height: 36,

@@ -10,7 +10,7 @@ const SETTINGS_WHITELIST = ['default_machine', 'onboarding_completed'] as const;
 type BackupRow = Record<string, unknown>;
 
 // 現行DBスキーマのバージョン（migrations の最新。これより新しいバックアップは一部復元されない可能性）
-const CURRENT_SCHEMA_VERSION = 4;
+const CURRENT_SCHEMA_VERSION = 5;
 
 export type BackupData = {
   version: string;
@@ -160,12 +160,14 @@ export function restoreFromBackup(data: BackupData): void {
 
     for (const song of data.songs) {
       db.runSync(
-        'INSERT INTO songs (id, title, artist, key_offset, artwork_url, memo, title_reading, artist_reading, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        'INSERT INTO songs (id, title, artist, key_offset, tempo_offset, artwork_url, memo, title_reading, artist_reading, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         [
           song.id as number,
           song.title as string,
           (song.artist as string) ?? '',
           (song.key_offset as number | null) ?? null,
+          // 旧バックアップ（テンポ列なし）は NULL（未設定）フォールバック
+          (song.tempo_offset as number | null | undefined) ?? null,
           (song.artwork_url as string | null) ?? null,
           (song.memo as string) ?? '',
           // 旧バックアップ（読み列なし）は '' フォールバック

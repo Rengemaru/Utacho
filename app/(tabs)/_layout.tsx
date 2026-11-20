@@ -1,6 +1,7 @@
 import { Tabs } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { CoachTargetName, useCoachTarget } from '../../src/lib/coachTargets';
 
 const colors = {
   accent: '#5b4cf5',
@@ -8,9 +9,11 @@ const colors = {
   border: 'rgba(0, 0, 0, 0.07)',
 };
 
-function NavIcon({ emoji, label, focused }: { emoji: string; label: string; focused: boolean }) {
+function NavIcon({ emoji, label, focused, coachTarget }: { emoji: string; label: string; focused: boolean; coachTarget?: CoachTargetName }) {
+  // チュートリアルで照らす対象として登録（未指定のタブはダミー名で登録しない）
+  const targetRef = useCoachTarget(coachTarget ?? 'tab-search');
   return (
-    <View style={styles.navItem}>
+    <View style={styles.navItem} ref={coachTarget ? targetRef : undefined} collapsable={false}>
       <Text style={styles.navEmoji}>{emoji}</Text>
       <Text style={[styles.navLabel, focused && styles.navLabelActive]}>{label}</Text>
     </View>
@@ -32,6 +35,14 @@ export default function TabLayout() {
         options={{
           tabBarIcon: ({ focused }) => (
             <NavIcon emoji="♪" label="曲一覧" focused={focused} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="search"
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <NavIcon emoji="🔍" label="さがす" focused={focused} coachTarget="tab-search" />
           ),
         }}
       />

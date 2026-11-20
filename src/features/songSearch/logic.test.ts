@@ -2,7 +2,6 @@
 // B6: 純粋関数の単体テスト。spec-1.1.0-song-flow §6.4・§8。
 import { FETCH_LIMIT } from './constants';
 import {
-  buildInitialQuery,
   getSearchStatus,
   paginate,
   sortCandidates,
@@ -122,21 +121,3 @@ describe('paginate', () => {
   });
 });
 
-describe('buildInitialQuery', () => {
-  it('曲からは曲名', () => {
-    expect(buildInitialQuery('song', '残酷な天使のテーゼ', '高橋洋子')).toBe('残酷な天使のテーゼ');
-  });
-
-  it('アーティストはアーティスト名', () => {
-    expect(buildInitialQuery('artist', '残酷な天使のテーゼ', '高橋洋子')).toBe('高橋洋子');
-  });
-
-  it('キーワードは曲名＋半角スペース＋アーティスト名', () => {
-    expect(buildInitialQuery('keyword', '残酷な天使のテーゼ', '高橋洋子')).toBe('残酷な天使のテーゼ 高橋洋子');
-  });
-
-  it('片方が空なら前後の空白を除去する', () => {
-    expect(buildInitialQuery('keyword', '残酷な天使のテーゼ', '')).toBe('残酷な天使のテーゼ');
-    expect(buildInitialQuery('keyword', '', '高橋洋子')).toBe('高橋洋子');
-  });
-});

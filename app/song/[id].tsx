@@ -4,10 +4,10 @@ import {
   FlatList,
   Image,
   Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -24,13 +24,22 @@ import { ScoreRow } from '../../src/types';
 import { ScoreBottomSheet } from '../../src/components/ScoreBottomSheet';
 import { ScoreChart } from '../../src/components/ScoreChart';
 import { EmptyState } from '../../src/components/EmptyState';
+import { SingingInfoCard } from '../../src/components/SingingInfoCard';
+import { SongSingingInfo } from '../../src/db/songs';
+import { useCoachMark } from '../../src/contexts/CoachMarkContext';
+import { CoachStep, DETAIL_PART } from '../../src/data/tutorialSteps';
+import { measureCoachTarget, useCoachTarget } from '../../src/lib/coachTargets';
+import { markDetailTutorialDone, shouldShowDetailTutorial } from '../../src/lib/tutorial';
+
+// 下部固定の「点数を記録する」ボタンの領域（チュートリアルで照らす対象が隠れないようにする）
+const RECORD_AREA_HEIGHT = 140;
 import { useConfirm } from '../../src/components/ConfirmProvider';
 
 export default function SongDetailScreen() {
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const songId = Number(id);
-  const { song, scores, loading, error, reload } = useSongDetail(songId);
+  const { song, scores, loading, error, reload, updateSinging } = useSongDetail(songId);
   const { defaultMachine } = useMachine();
   const confirm = useConfirm();
 
@@ -52,6 +61,55 @@ export default function SongDetailScreen() {
   const [sheetVisible, setSheetVisible] = useState(false);
   const [editingScore, setEditingScore] = useState<ScoreRow | null>(null);
   const [artworkError, setArtworkError] = useState(false);
+
+  // チュートリアル（曲詳細を初めて開いたとき）
+  const { height: windowHeight } = useWindowDimensions();
+  const { startTour } = useCoachMark();
+  const listRef = useRef<FlatList<ScoreRow>>(null);
+  const scrollYRef = useRef(0);
+  const machineToggleTargetRef = useCoachTarget('machine-toggle');
+  const singingCardTargetRef = useCoachTarget('singing-card');
+  const songLoaded = !!song;
+  useEffect(() => {
+    if (Platform.OS === 'web' || !songLoaded) return;
+    try {
+      if (shouldShowDetailTutorial()) {
+        startTour(DETAIL_PART, { onFinish: handleTourFinish, onBeforeStep: prepareTourStep });
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    // 曲の読み込み完了時に1回だけ判定する
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [songLoaded]);
+
+  // 照らす対象が記録ボタンの裏に隠れているときは、見える位置までスクロールしてから表示する
+  async function prepareTourStep(step: CoachStep) {
+    if (step.target !== 'singing-card') return;
+    const rect = await measureCoachTarget('singing-card');
+    if (!rect) return;
+    const visibleBottom = windowHeight - insets.bottom - RECORD_AREA_HEIGHT;
+    const overflow = rect.y + rect.height - visibleBottom;
+    if (overflow > 0) {
+      listRef.current?.scrollToOffset({ offset: scrollYRef.current + overflow + 16, animated: true });
+      await new Promise((r) => setTimeout(r, 350));
+    }
+  }
+
+  function handleTourFinish() {
+    try {
+      markDetailTutorialDone();
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  // キー・テンポ・メモの即保存。失敗したらエラーを表示する
+  async function handleSingingChange(patch: Partial<SongSingingInfo>) {
+    if (!updateSinging(patch)) {
+      await confirm({ title: 'エラー', message: '保存に失敗しました', options: [{ label: 'OK', style: 'primary' }], cancelLabel: null });
+    }
+  }
 
   async function handleDeleteScore(score: ScoreRow) {
     const r = await confirm({
@@ -130,6 +188,9 @@ export default function SongDetailScreen() {
       </View>
 
       <FlatList
+        ref={listRef}
+        onScroll={(e) => { scrollYRef.current = e.nativeEvent.contentOffset.y; }}
+        scrollEventThrottle={64}
         data={scores}
         keyExtractor={(item) => String(item.id)}
         showsVerticalScrollIndicator={false}
@@ -156,7 +217,7 @@ export default function SongDetailScreen() {
             </View>
 
             {/* 機種切替トグル（最高点・グラフを DAM/JOYSOUND で切替・#71） */}
-            <View style={styles.machineToggle}>
+            <View style={styles.machineToggle} ref={machineToggleTargetRef} collapsable={false}>
               {MACHINES.map((m) => {
                 const on = m === selectedMachine;
                 const label = m === 'DAM' ? 'DAM' : 'JOYSOUND';
@@ -206,15 +267,17 @@ export default function SongDetailScreen() {
               </View>
             )}
 
-            {/* メモ */}
-            {song.memo ? (
-              <View style={styles.memoCard}>
-                <Text style={styles.memoLabel}>メモ</Text>
-                <ScrollView scrollEnabled={false}>
-                  <Text style={styles.memoText}>{song.memo}</Text>
-                </ScrollView>
-              </View>
-            ) : null}
+            {/* キー・テンポ・メモ（その場で調整・即保存） */}
+            <View ref={singingCardTargetRef} collapsable={false}>
+            <SingingInfoCard
+              keyOffset={song.key_offset}
+              tempoOffset={song.tempo_offset}
+              memo={song.memo}
+              onChangeKey={(v) => handleSingingChange({ key_offset: v })}
+              onChangeTempo={(v) => handleSingingChange({ tempo_offset: v })}
+              onChangeMemo={(v) => handleSingingChange({ memo: v })}
+            />
+            </View>
 
             {/* 履歴セクションラベル */}
             {scores.length > 0 && (
@@ -508,25 +571,6 @@ const styles = StyleSheet.create({
     color: colors.text2,
     letterSpacing: 0.8,
     fontWeight: '500',
-  },
-  memoCard: {
-    backgroundColor: colors.surface,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    borderRadius: 12,
-    padding: 12,
-    gap: 4,
-  },
-  memoLabel: {
-    fontSize: 10,
-    color: colors.text2,
-    letterSpacing: 0.8,
-    fontWeight: '500',
-  },
-  memoText: {
-    fontSize: 13,
-    color: colors.text,
-    lineHeight: 20,
   },
   historyRow: {
     flexDirection: 'row',

@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Image,
   Keyboard,
@@ -15,34 +15,33 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { KeyStepper } from '../../src/components/KeyStepper';
+import { KeyStepper, TEMPO_HELPER_TEXT } from '../../src/components/KeyStepper';
 import { colors } from '../../src/constants/colors';
 import { insertSong, updateSong, getSongById, findDuplicateSong } from '../../src/db/songs';
 import { insertTab, findDuplicateTab } from '../../src/db/tabs';
 import { syncTabs } from '../../src/db/songTabs';
 import { useTabs } from '../../src/hooks/useTabs';
 import { MOCK_SONGS } from '../../src/db/mockData';
-import { SongSearchModal } from '../../src/features/songSearch/SongSearchModal';
-import { SongCandidate } from '../../src/features/songSearch/types';
 import { useConfirm } from '../../src/components/ConfirmProvider';
 
 import { MAX_TAB_NAME_LENGTH, truncateTabName } from '../../src/constants/tabConfig';
 
-// 入力の最大文字数（長文貼り付けによるレイアウト崩壊を防ぐ）
-const MAX_NAME_LENGTH = 200;   // 曲名・アーティスト・各読み
-const MAX_MEMO_LENGTH = 1000;  // メモ
+import { MAX_MEMO_LENGTH, MAX_NAME_LENGTH } from '../../src/constants/songFields';
 
 export default function SongFormScreen() {
   const insets = useSafeAreaInsets();
-  const { songId } = useLocalSearchParams<{ songId?: string }>();
+  // 新規追加は「さがす」タブで選んだ候補（title/artist/artworkUrl）を受け取る。手入力時はパラメータなし
+  const params = useLocalSearchParams<{ songId?: string; title?: string; artist?: string; artworkUrl?: string }>();
+  const { songId } = params;
   const isEdit = !!songId;
 
   const { tabs, loading: tabsLoading, reload: reloadTabs } = useTabs();
   const confirm = useConfirm();
-  const [title, setTitle] = useState('');
-  const [artist, setArtist] = useState('');
+  const [title, setTitle] = useState(isEdit ? '' : params.title ?? '');
+  const [artist, setArtist] = useState(isEdit ? '' : params.artist ?? '');
   const [keyOffset, setKeyOffset] = useState<number | null>(null);
-  const [artworkUrl, setArtworkUrl] = useState<string | null>(null);
+  const [tempoOffset, setTempoOffset] = useState<number | null>(null);
+  const [artworkUrl, setArtworkUrl] = useState<string | null>(isEdit ? null : params.artworkUrl || null);
   const [memo, setMemo] = useState('');
   const [titleReading, setTitleReading] = useState('');
   const [artistReading, setArtistReading] = useState('');
@@ -50,12 +49,6 @@ export default function SongFormScreen() {
   const [newTabModalVisible, setNewTabModalVisible] = useState(false);
   const [newTabName, setNewTabName] = useState('');
 
-  // 新規追加は検索モーダル（04a）から開始する。編集は「曲を変更」押下で開く
-  const [searchVisible, setSearchVisible] = useState(!isEdit);
-  // 新規追加で初回の検索を抜けたか（選択 or 手入力）。初回キャンセルのみホームに戻すために使う
-  const [addStarted, setAddStarted] = useState(false);
-  // onClose が ✕/戻る と onDismiss(iOS) で二重に呼ばれても router.back() を1回に抑える
-  const canceledToHomeRef = useRef(false);
 
   useEffect(() => {
     if (!isEdit) return;
@@ -66,9 +59,7 @@ export default function SongFormScreen() {
       if (!song) return;
       setTitle(song.title);
       setArtist(song.artist);
-      setKeyOffset(song.key_offset);
       setArtworkUrl(song.artwork_url);
-      setMemo(song.memo);
       setTitleReading(song.title_reading ?? '');
       setArtistReading(song.artist_reading ?? '');
       setSelectedTabIds(song.tabs?.map((t) => t.id) ?? []);
@@ -86,47 +77,6 @@ export default function SongFormScreen() {
     if (!isEdit || tabsLoading) return;
     setSelectedTabIds((prev) => prev.filter((id) => tabs.some((t) => t.id === id)));
   }, [tabs, tabsLoading, isEdit]);
-
-  function applyCandidate(c: SongCandidate) {
-    setTitle(c.title);
-    setArtist(c.artist);
-    setArtworkUrl(c.artworkUrl);
-  }
-
-  // 検索モーダルで候補を選んだとき。編集時は確認ダイアログを挟む（§5.9）
-  async function handleSearchSelect(c: SongCandidate) {
-    if (isEdit) {
-      const r = await confirm({
-        title: '曲を変更しますか？',
-        message: `「${c.title}（${c.artist}）」に置き換えます。キー・メモ・タブ・点数はそのまま引き継がれ、「変更を保存する」で確定します。別の曲として記録する場合は、新しく追加してください。`,
-        icon: '🎵',
-        options: [{ label: '変更する', style: 'primary' }],
-        cancelLabel: '戻る',
-      });
-      if (r === 0) { applyCandidate(c); setSearchVisible(false); }
-    } else {
-      applyCandidate(c);
-      setAddStarted(true);
-      setSearchVisible(false);
-    }
-  }
-
-  // 「手入力で登録」（新規のみ）。空のフォームのまま進む
-  function handleSearchManual() {
-    setAddStarted(true);
-    setSearchVisible(false);
-  }
-
-  // モーダルを閉じる（✕・戻る）。新規の初回検索をキャンセルしたときだけホームに戻す。
-  // フォーム表示後に「曲を変更」から開いた検索をキャンセルしても、入力を失わずフォームに留まる。
-  function handleSearchClose() {
-    setSearchVisible(false);
-    // 新規の初回検索キャンセルのみホームへ。二重発火でも1回だけ戻す（戻ると画面はアンマウントされる）
-    if (!isEdit && !addStarted && !canceledToHomeRef.current) {
-      canceledToHomeRef.current = true;
-      router.back();
-    }
-  }
 
   function toggleTab(tabId: number) {
     setSelectedTabIds((prev) =>
@@ -169,11 +119,14 @@ export default function SongFormScreen() {
     async function doSave() {
       try {
         if (isEdit) {
-          updateSong(Number(songId), title.trim(), artist.trim(), keyOffset, artworkUrl, memo, titleReading.trim(), artistReading.trim());
+          updateSong(Number(songId), title.trim(), artist.trim(), artworkUrl, titleReading.trim(), artistReading.trim());
           syncTabs(Number(songId), selectedTabIds);
         } else {
-          const newId = insertSong(title.trim(), artist.trim(), keyOffset, artworkUrl, memo, titleReading.trim(), artistReading.trim());
+          const newId = insertSong(title.trim(), artist.trim(), keyOffset, artworkUrl, memo, titleReading.trim(), artistReading.trim(), tempoOffset);
           syncTabs(newId, selectedTabIds);
+          // 追加後は「さがす」タブではなく曲一覧に戻し、登録した曲が見えるようにする
+          router.dismissTo('/');
+          return;
         }
         router.back();
       } catch (e) {
@@ -206,9 +159,12 @@ export default function SongFormScreen() {
   }
 
   return (
+    // Android もキーボードぶん下に余白を足す。Expo SDK 54 以降は edge-to-edge が必須で、
+    // softwareKeyboardLayoutMode: "resize"（adjustResize）を指定してもウィンドウが縮まず、
+    // 下の方のメモ欄や保存ボタンがキーボードに隠れていたため
     <KeyboardAvoidingView
       style={styles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior="padding"
     >
       <View style={[styles.screen, { paddingTop: insets.top + 6 }]}>
         {/* ヘッダー */}
@@ -282,7 +238,7 @@ export default function SongFormScreen() {
             />
           </View>
 
-          {/* アルバムアート + 「曲を変更」（新規・編集とも表示。検索をやり直せる） */}
+          {/* アルバムアート（別の曲にしたい場合は、さがすタブから新しく追加する） */}
           <View style={styles.songRow}>
             {artworkUrl ? (
               <Image source={{ uri: artworkUrl }} style={styles.songArt} />
@@ -295,9 +251,6 @@ export default function SongFormScreen() {
               <Text style={styles.songRowLabel}>アルバムアート</Text>
               <Text style={styles.songRowSub}>{artworkUrl ? '検索で選んだ曲のもの' : '未設定'}</Text>
             </View>
-            <TouchableOpacity style={styles.changeBtn} onPress={() => setSearchVisible(true)} accessibilityRole="button">
-              <Text style={styles.changeBtnText}>曲を変更</Text>
-            </TouchableOpacity>
           </View>
 
           {/* タブ選択 */}
@@ -326,32 +279,45 @@ export default function SongFormScreen() {
             </View>
           </View>
 
-          {/* キーステッパー */}
-          <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>キー（音域）</Text>
-            <KeyStepper value={keyOffset} onChange={setKeyOffset} />
-          </View>
+          {/* キー・テンポ・メモは「歌い方」の情報。新規登録時はここで入力し、
+              登録後は曲詳細画面でその場で調整する（編集画面には出さない） */}
+          {isEdit ? (
+            <View style={styles.movedNote}>
+              <Text style={styles.movedNoteText}>💡 キー・テンポ・メモは曲詳細画面からすぐ変更できます</Text>
+            </View>
+          ) : (
+            <>
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>キー（音域）</Text>
+                <KeyStepper value={keyOffset} onChange={setKeyOffset} />
+              </View>
 
-          {/* メモ */}
-          <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>メモ</Text>
-            <TextInput
-              style={[styles.fieldInput, styles.memoInput]}
-              value={memo}
-              onChangeText={setMemo}
-              maxLength={MAX_MEMO_LENGTH}
-              placeholder="メモ（自由入力）"
-              placeholderTextColor={colors.text3}
-              multiline
-              numberOfLines={3}
-              textAlignVertical="top"
-            />
-          </View>
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>テンポ</Text>
+                <KeyStepper value={tempoOffset} onChange={setTempoOffset} helperText={TEMPO_HELPER_TEXT} />
+              </View>
+
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>メモ</Text>
+                <TextInput
+                  style={[styles.fieldInput, styles.memoInput]}
+                  value={memo}
+                  onChangeText={setMemo}
+                  maxLength={MAX_MEMO_LENGTH}
+                  placeholder="メモ（自由入力）"
+                  placeholderTextColor={colors.text3}
+                  multiline
+                  numberOfLines={3}
+                  textAlignVertical="top"
+                />
+              </View>
+            </>
+          )}
         </ScrollView>
 
         {/* 新規タブ作成モーダル */}
         <Modal visible={newTabModalVisible} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setNewTabModalVisible(false)}>
-          <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <KeyboardAvoidingView style={styles.flex} behavior="padding">
             <TouchableWithoutFeedback onPress={() => setNewTabModalVisible(false)}>
               <View style={styles.modalOverlay} />
             </TouchableWithoutFeedback>
@@ -388,16 +354,6 @@ export default function SongFormScreen() {
           </View>
           </KeyboardAvoidingView>
         </Modal>
-
-        {/* 曲検索モーダル（新規=手入力あり / 編集=手入力なし） */}
-        <SongSearchModal
-          visible={searchVisible}
-          purpose={isEdit ? 'change' : 'add'}
-          currentSong={isEdit ? { title, artist } : undefined}
-          onSelect={handleSearchSelect}
-          onManual={isEdit ? undefined : handleSearchManual}
-          onClose={handleSearchClose}
-        />
 
         {/* 保存ボタン */}
         <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
@@ -464,7 +420,17 @@ const styles = StyleSheet.create({
     minHeight: 72,
     paddingTop: 11,
   },
-  // アルバムアート + 「曲を変更」行（編集時）
+  movedNote: {
+    backgroundColor: colors.accentSoft,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  movedNoteText: {
+    fontSize: 11,
+    color: colors.accent,
+  },
+  // アルバムアート行
   songRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -500,19 +466,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: colors.text3,
     marginTop: 2,
-  },
-  changeBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 9,
-    borderWidth: 1.5,
-    borderColor: colors.accent,
-    backgroundColor: colors.accentSoft,
-  },
-  changeBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.accent,
   },
   tabSelector: {
     flexDirection: 'row',

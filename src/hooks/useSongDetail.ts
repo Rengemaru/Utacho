@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Platform } from 'react-native';
 import { SongWithStats, ScoreRow } from '../types';
-import { getSongById } from '../db/songs';
+import { getSongById, updateSongSingingInfo, SongSingingInfo } from '../db/songs';
 import { getScoresBySong } from '../db/scores';
 import { MOCK_SONGS, MOCK_SCORES } from '../db/mockData';
 
@@ -40,5 +40,17 @@ export function useSongDetail(songId: number) {
     reload();
   }, [reload]);
 
-  return { song, scores, loading, error, reload };
+  // キー・テンポ・メモを即保存する。再取得（loading 表示）はせず、手元の song を差し替えるだけにする
+  const updateSinging = useCallback((patch: Partial<SongSingingInfo>) => {
+    try {
+      if (Platform.OS !== 'web') updateSongSingingInfo(songId, patch);
+      setSong((prev) => (prev ? { ...prev, ...patch } : prev));
+      return true;
+    } catch (e) {
+      console.error(e);
+      return false;
+    }
+  }, [songId]);
+
+  return { song, scores, loading, error, reload, updateSinging };
 }

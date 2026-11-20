@@ -48,6 +48,7 @@ Utacho/                           # リポジトリルート（アプリ slug / 
 │   ├── (tabs)/
 │   │   ├── _layout.tsx           # タブナビゲーションのレイアウト
 │   │   ├── index.tsx             # 01 ホーム（曲一覧）
+│   │   ├── search.tsx            # 04 さがす（曲を追加する唯一の入口）
 │   │   └── settings.tsx          # 05 設定
 │   ├── song/
 │   │   ├── [id].tsx              # 02 曲詳細
@@ -103,7 +104,7 @@ Utacho/                           # リポジトリルート（アプリ slug / 
 │   │       ├── logic.ts          # 純粋関数（状態判定・並び替え・ページング・初期クエリ）
 │   │       ├── logic.test.ts     # 純粋関数の単体テスト（Jest）
 │   │       ├── useSongSearch.ts  # 検索状態フック（デバウンス・stale防止・retry）
-│   │       └── SongSearchModal.tsx # 検索モーダル本体（04a 選択・04b 検索）
+│   │       └── SongSearchView.tsx  # さがすタブの検索画面本体（選択画面なしで検索欄から開始）
 │   └── components/
 │       ├── SongCard.tsx          # 曲カード（ホーム用）
 │       ├── SearchResultList.tsx  # 検索候補の汎用リスト（FlatList・toRowで任意型対応）
@@ -111,8 +112,9 @@ Utacho/                           # リポジトリルート（アプリ slug / 
 │       ├── ScoreChart.tsx        # 折れ線グラフ（gifted-charts、曲詳細トグルで選択機種1系列 #71）
 │       ├── SetlistModal.tsx      # 今日のセットリスト選曲モーダル
 │       ├── RandomPickModal.tsx   # ランダム選曲モーダル（範囲選択）
-│       ├── CoachMark.tsx         # コーチマーク（操作ガイドの吹き出し）
-│       ├── FirstLaunchGuide.tsx  # 初回起動ガイド
+│       ├── CoachMarkOverlay.tsx  # コーチマーク1枚分（穴あき暗幕＋吹き出し・react-native-svg）
+│       ├── CoachMarkTour.tsx     # コーチマークのステップ送り（対象の位置を計測）
+│       ├── SingingInfoCard.tsx   # 曲詳細のキー・テンポ・メモ（その場で調整・即保存）
 │       ├── KeyStepper.tsx        # キー（音域）ステッパー
 │       └── EmptyState.tsx        # 空状態・ローディング・エラー表示
 ├── assets/
@@ -142,6 +144,7 @@ CREATE TABLE IF NOT EXISTS songs (
   title       TEXT    NOT NULL,
   artist      TEXT    NOT NULL DEFAULT '',
   key_offset  INTEGER,                    -- NULL=未設定、+2、-1 など整数
+  tempo_offset INTEGER,                   -- テンポ調整。NULL=未設定、+1、-2 など整数（v5）
   artwork_url TEXT,                       -- iTunes APIから取得
   memo        TEXT    NOT NULL DEFAULT '', -- メモ（自由入力）
   title_reading  TEXT NOT NULL DEFAULT '', -- 曲名の読み（手入力・任意・ローカル検索用）
@@ -187,6 +190,8 @@ CREATE TABLE IF NOT EXISTS db_version (
 | `onboarding_completed` | オンボーディング完了フラグ（`"true"`） | 初回起動後に書き込み |
 | `session_machine` | セッション中の機種 | バックアップ対象外 |
 | `session_date` | セッション日付（ローカル日付 YYYY-MM-DD） | バックアップ対象外 |
+| `tutorial_intro` | 初回チュートリアルの進み具合（`pending` / `search` / `done`。未作成＝既存ユーザー） | バックアップ対象外 |
+| `tutorial_home` / `tutorial_detail` | ホーム・曲詳細のチュートリアル完了フラグ（`done`） | バックアップ対象外 |
 
 ### 3-2. マイグレーション機構
 
@@ -194,7 +199,7 @@ CREATE TABLE IF NOT EXISTS db_version (
 - `db_version` テーブルで適用済みバージョンを追跡
 - `initDatabase()` 呼び出し時に未適用のマイグレーションを自動実行
 - **新しいカラム/テーブルを追加する際は必ずマイグレーションを追加する**
-- 現在のマイグレーション：v1（memo列）→ v2（settingsテーブル）→ v3（machine列）→ v4（title_reading/artist_reading列）
+- 現在のマイグレーション：v1（memo列）→ v2（settingsテーブル）→ v3（machine列）→ v4（title_reading/artist_reading列）→ v5（tempo_offset列）
 
 ### 3-3. 設計方針
 
@@ -220,6 +225,7 @@ export interface SongRow {
   title: string;
   artist: string;
   key_offset: number | null;
+  tempo_offset: number | null; // テンポ調整（NULL=未設定）
   artwork_url: string | null;
   memo: string;
   title_reading: string;   // 曲名の読み（手入力・任意・空可）
@@ -297,6 +303,7 @@ export const schema = `
     title       TEXT    NOT NULL,
     artist      TEXT    NOT NULL DEFAULT '',
     key_offset  INTEGER,
+    tempo_offset INTEGER,
     artwork_url TEXT,
     memo        TEXT    NOT NULL DEFAULT '',
     title_reading  TEXT NOT NULL DEFAULT '',
@@ -459,11 +466,14 @@ export function syncTabs(songId: number, tabIds: number[]): void {
 ```
 ホーム（01）
 ├─ 曲カードをタップ              → 02 曲詳細
-├─ 曲カードの ✏️ をタップ        → 03 点数入力ボトムシート（新規）
-├─ 曲カードを左スワイプ
-│   ├─ [✏️ 編集]               → 04 曲編集フォーム（入力済み）
-│   └─ [🗑 削除]               → 確認ダイアログ → 削除
-└─ ＋ボタンをタップ              → 04 曲登録
+├─ 曲カードの 🎤 をタップ        → 03 点数入力ボトムシート（新規）
+└─ 曲カードを左スワイプ
+    ├─ [✏️ 編集]               → 04 曲編集フォーム（入力済み）
+    └─ [🗑 削除]               → 確認ダイアログ → 削除
+
+さがす（フッター中央）
+├─ 候補をタップ                  → 04 曲登録（曲名・アーティスト・アート入力済み）
+└─ 「✏️ 手入力で登録」           → 04 曲登録（空）
 
 曲詳細（02）
 ├─ 「点数を記録する」ボタン       → 03 点数入力ボトムシート（新規）
@@ -506,7 +516,7 @@ const colors = {
 
 #### 01 ホーム（曲一覧）
 
-- ヘッダー: `歌帳`（Plus Jakarta Sans / 22px / Bold）+ ＋ボタン（右上・アクセント背景）
+- ヘッダー: `歌帳`（Plus Jakarta Sans / 22px / Bold）+ 📋 / ？ボタン（曲の追加はフッターの「さがす」）
 - タブ: 横スクロール。「すべて」タブは先頭固定・削除不可
 - 検索バー: 曲名・アーティスト名でクライアントサイドフィルタリング
 - 曲カード構成:
@@ -524,6 +534,7 @@ const colors = {
 - DAM/JOYSOUND トグル: 最高点カード・グラフの対象機種を切替（初期＝デフォルト機種・#71）
 - 最高スコアカード: 選択機種の最高スコア + 前回比（±pt）+ 記録回数（すべて機種別）
 - 点数推移グラフ: 選択機種の1系列（gifted-charts。2件以上で表示）
+- キー・テンポ・メモカード: キー・テンポは －／＋ で即保存、メモはダイアログで編集（`SingingInfoCard`）
 - 記録履歴リスト: 日付・スコア（全機種・機種バッジ付き）。左スワイプで `[✏️ 編集]` `[🗑 削除]`
 - 下部固定: `🎤 点数を記録する` ボタン（accent色）
 
@@ -537,14 +548,14 @@ const colors = {
 
 #### 04 曲登録・編集（共通フォーム）
 
-> 1.1.0 で曲の追加・編集フローを検索モーダル方式に再設計。新規追加は「＋」→ 検索モーダル（04a 選択 / 04b 検索）→ フォーム。フォームの曲名・アーティストは**サジェストなしのテキスト欄**（インライン候補は廃止）。詳細は `docs/specs/spec-1.1.0-song-flow.md`。
+> 新規追加はフッターの「さがす」タブ（検索欄から開始・選択画面なし）→ フォーム。ホームの＋ボタンと「曲を変更」（別の曲への差し替え）は廃止。フォームの曲名・アーティストは**サジェストなしのテキスト欄**。旧仕様は `docs/specs/spec-1.1.0-song-flow.md`。
 
 - 入力項目:
-  1. 曲名（テキスト入力。検索モーダルで選ぶと自動入力される）
+  1. 曲名（テキスト入力。さがすタブで選ぶと自動入力される）
   2. アーティスト名（テキスト入力）
   3. タブ選択（複数選択可。選択済みはアクセント色。「＋ 新規作成」も表示）
-  4. キー（音域）ステッパー: `－` / 値 / `＋`。未設定可能
-- 編集フォームには「曲を変更」ボタン（別の曲へ差し替え。キー・メモ・タブ・点数は引き継ぐ）
+  4. キー・テンポ（ステッパー: `－` / 値 / `＋`。±7・未設定可能）とメモ — **新規のみ**
+- 編集フォームは曲そのものの情報（曲名・読み・アーティスト・アート・タブ）だけ。キー・テンポ・メモは曲詳細で変更する
 - 保存時に重複登録チェック（新規・編集とも。編集は自分自身を除外）
 - 下部固定ボタン: 新規→「曲を追加する」、編集→「変更を保存する」
 
@@ -1124,7 +1135,7 @@ eas submit --platform android --profile production
 
 | 機能 | 実装内容 |
 |---|---|
-| 曲検索モーダル（1.1.0） | 「＋」→ 検索モーダル。曲/アーティスト/キーワードの3モード・並び替え・ページング・4状態表示。候補選択で曲名/アーティスト/アート取り込み。アルバムアート取得（iTunes Search API） |
+| 曲検索（さがすタブ） | フッター「さがす」→ 検索画面（選択画面なし・右上に手入力ボタン）。曲/アーティスト/キーワードの3モード・並び替え・ページング・4状態表示。候補選択で曲名/アーティスト/アート取り込み。アルバムアート取得（iTunes Search API） |
 | 機種選択（DAM / JOYSOUND） | オンボーディング・記録時・設定画面で選択可。セッション記憶付き |
 | メモ機能 | 曲登録・編集フォームに自由入力欄。詳細画面に表示 |
 | 重複登録チェック | 新規・編集の保存時に確認ダイアログ（大文字小文字・スペース無視。編集は自身を除外） |
@@ -1142,7 +1153,7 @@ eas submit --platform android --profile production
 | 復元のアンドゥ・全削除の3択（#19） | バックアップ復元・全データ削除の操作に確認/取り消しの導線 |
 | キー上限・下限（±7） | KeyStepper のキー調整に上限下限（±7）を設定 |
 | タブ名の重複チェック | タブの追加・リネーム時に同名を弾く |
-| コーチマーク・初回ガイド | 初回起動時の操作ガイド（`CoachMark.tsx` / `FirstLaunchGuide.tsx`） |
+| コーチマーク（チュートリアル） | 機能を初めて使う場面で対象を照らして説明（はじめに／曲を追加したら／曲詳細の3パート。`CoachMarkTour.tsx`・文言は `src/data/tutorialSteps.ts`・進み具合は settings の `tutorial_intro` / `tutorial_home` / `tutorial_detail`） |
 | ヘルプ画面 | アプリ内ヘルプ（`app/help.tsx` ＋ `src/data/helpContent.ts`）。v1.0 から実機に存在 |
 
 ## 12. 今後の対応候補
@@ -1194,7 +1205,7 @@ const score = song.best_score; // useSongs(tabId, defaultMachine) で機種別�
 
 ### Android 対応（実装済み）
 - ステータスバー制御
-- `KeyboardAvoidingView`（iOS=`padding` / Android=`undefined`。Android は `app.json` の `softwareKeyboardLayoutMode: "resize"`＝ネイティブ `adjustResize` に任せる。※ 旧 `behavior="height"` は `adjustResize` と二重補正になりスクロールが往復する不具合の原因だったため撤去）
+- `KeyboardAvoidingView`（iOS / Android とも `behavior="padding"`。Expo SDK 54 以降は edge-to-edge が必須で、`app.json` の `softwareKeyboardLayoutMode: "resize"`（`adjustResize`）を指定してもウィンドウが縮まず、曲の登録フォームのメモ欄・保存ボタンがキーボードに隠れていたため、Android も `padding` にした（エミュレータ Android 15 で確認）。※ 旧 `behavior="height"` は `adjustResize` が効いていた頃に二重補正でスクロールが往復する不具合の原因だったため撤去済み）
 - `Modal`（Android互換）
 - スプラッシュ画面
 - アダプティブアイコン（foreground / background / monochrome）

@@ -1,3 +1,4 @@
+import { CoachMarkProvider } from '../src/contexts/CoachMarkContext';
 import { useEffect, useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 import { router, Stack } from 'expo-router';
@@ -53,6 +54,7 @@ export default function RootLayout() {
       <StatusBar style="dark" />
       <MachineProvider>
         <ConfirmProvider>
+        <CoachMarkProvider>
         <Stack>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="song/new" options={{ presentation: 'modal', animation: 'slide_from_bottom', headerShown: false }} />
@@ -62,6 +64,7 @@ export default function RootLayout() {
           <Stack.Screen name="onboarding" options={{ headerShown: false }} />
           <Stack.Screen name="settings/machine" options={{ headerShown: false }} />
         </Stack>
+        </CoachMarkProvider>
         </ConfirmProvider>
       </MachineProvider>
     </GestureHandlerRootView>
