@@ -25,6 +25,7 @@ import { useTabs } from '../../src/hooks/useTabs';
 import { MOCK_SONGS } from '../../src/db/mockData';
 import { useConfirm } from '../../src/components/ConfirmProvider';
 import { DiscardChangesModal } from '../../src/components/DiscardChangesModal';
+import { setLastAdded } from '../../src/features/songSearch/lastAdded';
 
 import { MAX_TAB_NAME_LENGTH, truncateTabName } from '../../src/constants/tabConfig';
 
@@ -198,8 +199,9 @@ export default function SongFormScreen() {
         } else {
           const newId = insertSong(title.trim(), artist.trim(), keyOffset, artworkUrl, memo, titleReading.trim(), artistReading.trim(), tempoOffset);
           syncTabs(newId, selectedTabIds);
-          // 追加後は「さがす」タブではなく曲一覧に戻し、登録した曲が見えるようにする
-          router.dismissTo('/');
+          // U05: 追加後は「さがす」に戻り、検索状態を保ったままバナーで3択（検索継続／点数記録／曲を開く）を出す。
+          setLastAdded({ id: newId, title: title.trim() });
+          router.back();
           return;
         }
         router.back();
