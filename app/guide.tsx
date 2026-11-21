@@ -1,11 +1,19 @@
+import Constants from 'expo-constants';
 import { Stack } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../src/constants/colors';
 import { fonts } from '../src/constants/fonts';
 import { TutorialModal } from '../src/components/TutorialModal';
 import { TUTORIALS, CATEGORIES, type Tutorial } from '../src/data/tutorialContent';
+
+const CONTACT_FORM_URL =
+  'https://docs.google.com/forms/d/e/1FAIpQLSf3TQNxt8K_TyOfBKiAt0Kty42A6T8TADIvLtAzhDy9htXHOQ/viewform';
+const CONTACT_MAIL_URL = 'mailto:ren0304game@gmail.com';
+const PRIVACY_URL = 'https://rengemaru.github.io/Utacho/privacy-policy.html';
+const APP_VERSION =
+  Constants.expoConfig?.version ?? (Constants as any).manifest?.version ?? '—';
 
 export default function GuideScreen() {
   const insets = useSafeAreaInsets();
@@ -61,6 +69,44 @@ export default function GuideScreen() {
             </View>
           );
         })}
+
+        {/* お問い合わせ・アプリ情報（図解にできない外部リンク・バージョン） */}
+        <View style={styles.group}>
+          <Text style={styles.catLabel}>お問い合わせ・アプリ情報</Text>
+          <Pressable
+            style={styles.linkRow}
+            onPress={() => Linking.openURL(CONTACT_FORM_URL)}
+            accessibilityRole="link"
+            accessibilityLabel="お問い合わせフォームを開く"
+          >
+            <View style={styles.iconWrap}><Text style={styles.icon}>✉️</Text></View>
+            <Text style={styles.linkLabel}>お問い合わせフォーム</Text>
+            <Text style={styles.chevron}>↗</Text>
+          </Pressable>
+          <Pressable
+            style={styles.linkRow}
+            onPress={() => Linking.openURL(CONTACT_MAIL_URL)}
+            accessibilityRole="link"
+            accessibilityLabel="メールで問い合わせる"
+          >
+            <View style={styles.iconWrap}><Text style={styles.icon}>📮</Text></View>
+            <Text style={styles.linkLabel}>メールで問い合わせる</Text>
+            <Text style={styles.chevron}>↗</Text>
+          </Pressable>
+          <Pressable
+            style={styles.linkRow}
+            onPress={() => Linking.openURL(PRIVACY_URL)}
+            accessibilityRole="link"
+            accessibilityLabel="プライバシーポリシーを開く"
+          >
+            <View style={styles.iconWrap}><Text style={styles.icon}>🔒</Text></View>
+            <Text style={styles.linkLabel}>プライバシーポリシー</Text>
+            <Text style={styles.chevron}>↗</Text>
+          </Pressable>
+          <View style={styles.versionRow}>
+            <Text style={styles.versionText}>バージョン {APP_VERSION}</Text>
+          </View>
+        </View>
       </ScrollView>
 
       <TutorialModal
@@ -156,5 +202,30 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: colors.text3,
     marginLeft: 2,
+  },
+  linkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: colors.white,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  linkLabel: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  versionRow: {
+    paddingHorizontal: 4,
+    paddingTop: 4,
+  },
+  versionText: {
+    fontSize: 11,
+    color: colors.text3,
   },
 });
