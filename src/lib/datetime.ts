@@ -56,3 +56,30 @@ export function shiftDatePart(s: string, days: number): string {
 export function isFutureDatePart(s: string): boolean {
   return datePartOf(s) > todayDateString();
 }
+
+/** 日付を置き換え、記録に含まれる時刻（旧データでは時刻なし）を保持する。 */
+export function replaceDatePart(value: string, date: string): string {
+  const timeIndex = value.indexOf('T');
+  return datePartOf(date) + (timeIndex < 0 ? '' : value.slice(timeIndex));
+}
+
+/** 月（YYYY-MM）を移動する。月末の日付に左右されないよう1日を基準にする。 */
+export function shiftCalendarMonth(yearMonth: string, months: number): string {
+  const [year, month] = yearMonth.split('-').map(Number);
+  const date = new Date(year, month - 1 + months, 1);
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}`;
+}
+
+/** 月曜始まりのカレンダー。月外のセルは選択できない空欄として返す。 */
+export function calendarWeeks(yearMonth: string): (string | null)[][] {
+  const [year, month] = yearMonth.split('-').map(Number);
+  const offset = (new Date(year, month - 1, 1).getDay() + 6) % 7;
+  const days = new Date(year, month, 0).getDate();
+  const weekCount = Math.ceil((offset + days) / 7);
+  return Array.from({ length: weekCount }, (_, week) =>
+    Array.from({ length: 7 }, (_, weekday) => {
+      const day = week * 7 + weekday - offset + 1;
+      return day > 0 && day <= days ? `${yearMonth}-${pad2(day)}` : null;
+    }),
+  );
+}

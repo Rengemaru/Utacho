@@ -18,6 +18,7 @@ import { getSettingSync, setSettingSync } from '../db/settings';
 import { ScoreRow, SongWithStats } from '../types';
 import { useMachine } from '../contexts/MachineContext';
 import { useConfirm } from './ConfirmProvider';
+import { ScoreDatePicker } from './ScoreDatePicker';
 import type { Machine } from '../lib/machine';
 import {
   formatDateTime,
@@ -26,6 +27,7 @@ import {
   shiftDatePart,
   isFutureDatePart,
   todayDateString,
+  replaceDatePart,
 } from '../lib/datetime';
 
 const MAX_SCORE = 100;
@@ -48,9 +50,11 @@ export function ScoreBottomSheet({ visible, song, editingScore, onClose, onSaved
   const [pbScore, setPbScore] = useState<number | null>(null);
   const pbAnim = useRef(new Animated.Value(0)).current;
   const [isSaving, setIsSaving] = useState(false);
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
 
   useEffect(() => {
     if (visible) {
+      setDatePickerOpen(false);
       if (editingScore) {
         setInput(String(editingScore.score));
         setMachine((editingScore.machine as Machine) || currentMachine);
@@ -125,6 +129,10 @@ export function ScoreBottomSheet({ visible, song, editingScore, onClose, onSaved
       await confirm({ title: '入力エラー', message: '0〜100の数値を入力してください', options: [{ label: 'OK', style: 'primary' }], cancelLabel: null });
       return;
     }
+    if (isFutureDatePart(scoredAt)) {
+      await confirm({ title: '記録日を確認してください', message: '未来の日付は選べません。今日以前の日付を選んでください。', options: [{ label: 'OK', style: 'primary' }], cancelLabel: null });
+      return;
+    }
     if (Platform.OS === 'web') {
       onSaved();
       return;
@@ -161,138 +169,161 @@ export function ScoreBottomSheet({ visible, song, editingScore, onClose, onSaved
   const nextDayIsFuture = isFutureDatePart(shiftDatePart(scoredAt, 1));
   const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', '⌫'];
 
+  function handleClose() {
+    if (datePickerOpen) setDatePickerOpen(false);
+    else onClose();
+  }
+
   return (
-    <Modal visible={visible} transparent animationType="slide" statusBarTranslucent onRequestClose={onClose}>
-      <TouchableWithoutFeedback onPress={onClose}>
+    <Modal visible={visible} transparent animationType="slide" statusBarTranslucent onRequestClose={handleClose}>
+      <TouchableWithoutFeedback onPress={handleClose}>
         <View style={styles.overlay} />
       </TouchableWithoutFeedback>
 
-      <View style={[styles.sheet, { paddingBottom: insets.bottom + 16 }]}>
+      <View style={[styles.sheet, { paddingBottom: insets.bottom + 16, maxHeight: '90%' }]}>
         <View style={styles.handle} />
 
-        <Text style={styles.title}>
-          {isEdit ? '点数を編集する' : '点数を記録する'}
-        </Text>
-        <Text style={styles.subtitle}>
-          {song.title} ／ {song.artist || '—'}
-          {isEdit ? ` ／ ${formatDateTime(editingScore.scored_at)}` : ''}
-        </Text>
+        {datePickerOpen ? (
+          <ScoreDatePicker
+            initialDate={datePartOf(scoredAt)}
+            onCancel={() => setDatePickerOpen(false)}
+            onSelect={(date) => {
+              setScoredAt((value) => replaceDatePart(value, date));
+              setDatePickerOpen(false);
+            }}
+          />
+        ) : (
+          <>
+            <Text style={styles.title}>
+              {isEdit ? '点数を編集する' : '点数を記録する'}
+            </Text>
+            <Text style={styles.subtitle}>
+              {song.title} ／ {song.artist || '—'}
+              {isEdit ? ` ／ ${formatDateTime(editingScore.scored_at)}` : ''}
+            </Text>
 
-        {/* スコア表示 */}
-        <View style={styles.scoreDisplay}>
-          <Text style={styles.scoreNum}>{input || '0'}</Text>
-          <Text style={styles.scoreUnit}>点</Text>
-        </View>
+            {/* スコア表示 */}
+            <View style={styles.scoreDisplay}>
+              <Text style={styles.scoreNum}>{input || '0'}</Text>
+              <Text style={styles.scoreUnit}>点</Text>
+            </View>
 
-        {/* 機種トグル */}
-        <View style={styles.toggleRow}>
-          <Text style={styles.toggleLabel}>機種</Text>
-          <View style={styles.toggleBtns}>
-            {(['DAM', 'JOYSOUND'] as Machine[]).map((m) => {
-              const isSelected = machine === m;
-              const machineColor = m === 'DAM' ? colors.dam : colors.joy;
-              return (
+            {/* 機種トグル */}
+            <View style={styles.toggleRow}>
+              <Text style={styles.toggleLabel}>機種</Text>
+              <View style={styles.toggleBtns}>
+                {(['DAM', 'JOYSOUND'] as Machine[]).map((m) => {
+                  const isSelected = machine === m;
+                  const machineColor = m === 'DAM' ? colors.dam : colors.joy;
+                  return (
+                    <TouchableOpacity
+                      key={m}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: isSelected }}
+                      accessibilityLabel={`機種 ${m}${isSelected ? '（選択中）' : ''}`}
+                      style={[
+                        styles.toggleBtn,
+                        isSelected && (m === 'DAM' ? styles.toggleBtnDam : styles.toggleBtnJoy),
+                      ]}
+                      onPress={() => handleSelectMachine(m)}
+                    >
+                      {isSelected ? (
+                        <Text style={[styles.toggleCheck, { color: machineColor }]}>✓</Text>
+                      ) : (
+                        <View style={[styles.toggleDot, { backgroundColor: machineColor }]} />
+                      )}
+                      <Text style={[
+                        styles.toggleBtnText,
+                        isSelected && { color: machineColor, fontWeight: '700' },
+                      ]}>
+                        {m}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+            <Text style={styles.sessionHint}>
+              {isEdit
+                ? '※ 既存記録の機種を表示。変更してもセッションには影響しない'
+                : '※ 今日中はこの機種が記憶されます'}
+            </Text>
+
+            {/* テンキー */}
+            <View style={styles.numpad}>
+              {KEYS.map((key) => (
                 <TouchableOpacity
-                  key={m}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: isSelected }}
-                  accessibilityLabel={`機種 ${m}${isSelected ? '（選択中）' : ''}`}
-                  style={[
-                    styles.toggleBtn,
-                    isSelected && (m === 'DAM' ? styles.toggleBtnDam : styles.toggleBtnJoy),
-                  ]}
-                  onPress={() => handleSelectMachine(m)}
+                  key={key}
+                  style={styles.numKey}
+                  onPress={() => handleKey(key)}
                 >
-                  {isSelected ? (
-                    <Text style={[styles.toggleCheck, { color: machineColor }]}>✓</Text>
-                  ) : (
-                    <View style={[styles.toggleDot, { backgroundColor: machineColor }]} />
-                  )}
-                  <Text style={[
-                    styles.toggleBtnText,
-                    isSelected && { color: machineColor, fontWeight: '700' },
-                  ]}>
-                    {m}
+                  <Text style={[styles.numKeyText, key === '⌫' && styles.delKeyText]}>
+                    {key}
                   </Text>
                 </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
-        <Text style={styles.sessionHint}>
-          {isEdit
-            ? '※ 既存記録の機種を表示。変更してもセッションには影響しない'
-            : '※ 今日中はこの機種が記憶されます'}
-        </Text>
-
-        {/* テンキー */}
-        <View style={styles.numpad}>
-          {KEYS.map((key) => (
-            <TouchableOpacity
-              key={key}
-              style={styles.numKey}
-              onPress={() => handleKey(key)}
-            >
-              <Text style={[styles.numKeyText, key === '⌫' && styles.delKeyText]}>
-                {key}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* 記録日ステッパー（未来日は選べない） */}
-        <View style={styles.dateRow}>
-          <Text style={styles.dateLabel}>記録日</Text>
-          <View style={styles.dateStepper}>
-            <TouchableOpacity
-              style={styles.dateBtn}
-              onPress={() => setScoredAt((s) => shiftDatePart(s, -1))}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Text style={styles.dateBtnText}>‹</Text>
-            </TouchableOpacity>
-            <View style={styles.dateValueWrap}>
-              <Text style={styles.dateValue}>{formatDateTime(datePartOf(scoredAt))}</Text>
-              {datePartOf(scoredAt) === todayDateString() && (
-                <Text style={styles.dateTodayTag}>今日</Text>
-              )}
+              ))}
             </View>
-            <TouchableOpacity
-              style={[styles.dateBtn, nextDayIsFuture && styles.dateBtnDisabled]}
-              onPress={() => setScoredAt((s) => (isFutureDatePart(shiftDatePart(s, 1)) ? s : shiftDatePart(s, 1)))}
-              disabled={nextDayIsFuture}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Text style={[styles.dateBtnText, nextDayIsFuture && styles.dateBtnTextDisabled]}>›</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
 
-        {/* 保存ボタン */}
-        <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={isSaving}>
-          {isSaving
-            ? <ActivityIndicator color={colors.white} />
-            : <Text style={styles.saveBtnText}>{isEdit ? '変更を保存する' : '記録する'}</Text>
-          }
-        </TouchableOpacity>
-
-        {/* 自己ベスト更新バナー */}
-        {pbScore !== null && (
-          <Animated.View
-            style={[
-              styles.pbBanner,
-              {
-                opacity: pbAnim,
-                transform: [{ scale: pbAnim.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1] }) }],
-              },
-            ]}
-          >
-            <Text style={styles.pbEmoji}>🎉</Text>
-            <View>
-              <Text style={styles.pbTitle}>自己ベスト更新！</Text>
-              <Text style={styles.pbScore}>{pbScore.toFixed(3)} 点</Text>
+            {/* 記録日ステッパー（未来日は選べない） */}
+            <View style={styles.dateRow}>
+              <Text style={styles.dateLabel}>記録日</Text>
+              <View style={styles.dateStepper}>
+                <TouchableOpacity
+                  style={styles.dateBtn}
+                  onPress={() => setScoredAt((s) => shiftDatePart(s, -1))}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Text style={styles.dateBtnText}>‹</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.dateValueWrap}
+                  accessibilityRole="button"
+                  accessibilityLabel={`記録日 ${formatDateTime(datePartOf(scoredAt))}、カレンダーで変更`}
+                  onPress={() => setDatePickerOpen(true)}
+                >
+                  <Text style={styles.dateValue}>{formatDateTime(datePartOf(scoredAt))}</Text>
+                  {datePartOf(scoredAt) === todayDateString() && (
+                    <Text style={styles.dateTodayTag}>今日</Text>
+                  )}
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.dateBtn, nextDayIsFuture && styles.dateBtnDisabled]}
+                  onPress={() => setScoredAt((s) => (isFutureDatePart(shiftDatePart(s, 1)) ? s : shiftDatePart(s, 1)))}
+                  disabled={nextDayIsFuture}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Text style={[styles.dateBtnText, nextDayIsFuture && styles.dateBtnTextDisabled]}>›</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          </Animated.View>
+
+            {/* 保存ボタン */}
+            <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={isSaving}>
+              {isSaving
+                ? <ActivityIndicator color={colors.white} />
+                : <Text style={styles.saveBtnText}>{isEdit ? '変更を保存する' : '記録する'}</Text>
+              }
+            </TouchableOpacity>
+
+            {/* 自己ベスト更新バナー */}
+            {pbScore !== null && (
+              <Animated.View
+                style={[
+                  styles.pbBanner,
+                  {
+                    opacity: pbAnim,
+                    transform: [{ scale: pbAnim.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1] }) }],
+                  },
+                ]}
+              >
+                <Text style={styles.pbEmoji}>🎉</Text>
+                <View>
+                  <Text style={styles.pbTitle}>自己ベスト更新！</Text>
+                  <Text style={styles.pbScore}>{pbScore.toFixed(3)} 点</Text>
+                </View>
+              </Animated.View>
+            )}
+          </>
         )}
       </View>
     </Modal>
@@ -491,8 +522,11 @@ const styles = StyleSheet.create({
     color: colors.text3,
   },
   dateValueWrap: {
+    flex: 1,
+    minHeight: 36,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 6,
   },
   dateValue: {
