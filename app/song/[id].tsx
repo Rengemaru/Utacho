@@ -37,7 +37,7 @@ import { useConfirm } from '../../src/components/ConfirmProvider';
 
 export default function SongDetailScreen() {
   const insets = useSafeAreaInsets();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, record } = useLocalSearchParams<{ id: string; record?: string }>();
   const songId = Number(id);
   const { song, scores, loading, error, reload, updateSinging } = useSongDetail(songId);
   const { defaultMachine } = useMachine();
@@ -61,6 +61,16 @@ export default function SongDetailScreen() {
   const [sheetVisible, setSheetVisible] = useState(false);
   const [editingScore, setEditingScore] = useState<ScoreRow | null>(null);
   const [artworkError, setArtworkError] = useState(false);
+
+  // U05: 登録直後の「点数を記録」導線から来たとき（?record=1）、点数記録シートを自動で開く。一度だけ。
+  const autoRecordDoneRef = useRef(false);
+  useEffect(() => {
+    if (record === '1' && song && !autoRecordDoneRef.current) {
+      autoRecordDoneRef.current = true;
+      setEditingScore(null);
+      setSheetVisible(true);
+    }
+  }, [record, song]);
 
   // チュートリアル（曲詳細を初めて開いたとき）
   const { height: windowHeight } = useWindowDimensions();

@@ -27,6 +27,7 @@ import { fonts } from '../../constants/fonts';
 import { useCoachTarget } from '../../lib/coachTargets';
 import { SearchMode, SongCandidate, SortKey } from './types';
 import { useSongSearch } from './useSongSearch';
+import type { LastAddedSong } from './lastAdded';
 
 const HISTORY_KEY = 'search_history_itunes' as const;
 
@@ -62,10 +63,15 @@ type Props = {
   onSelect: (candidate: SongCandidate) => void;
   onManual: () => void;
   bottomInset: number;
+  /** U05: 直前に追加した曲（あればバナーを出す） */
+  added?: LastAddedSong | null;
+  onRecordAdded?: (id: number) => void;
+  onOpenAdded?: (id: number) => void;
+  onDismissAdded?: () => void;
 };
 
 export const SongSearchView = forwardRef<SongSearchViewHandle, Props>(function SongSearchView(
-  { onSelect, onManual, bottomInset },
+  { onSelect, onManual, bottomInset, added, onRecordAdded, onOpenAdded, onDismissAdded },
   ref,
 ) {
   const search = useSongSearch();
@@ -191,6 +197,42 @@ export const SongSearchView = forwardRef<SongSearchViewHandle, Props>(function S
           );
         })}
       </View>
+
+      {/* U05: 追加完了バナー（Figma 105-2147 準拠）。さがすに留まり3択を出す */}
+      {added && (
+        <View style={styles.addedBanner}>
+          <View style={styles.addedBannerTop}>
+            <Text style={styles.addedBannerTitle} numberOfLines={1}>
+              「{added.title}」を追加しました
+            </Text>
+            <TouchableOpacity
+              onPress={onDismissAdded}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel="閉じる"
+            >
+              <Text style={styles.addedBannerClose}>✕</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.addedBannerBtns}>
+            <TouchableOpacity
+              style={styles.addedBtnPrimary}
+              onPress={() => onRecordAdded?.(added.id)}
+              accessibilityRole="button"
+            >
+              <Text style={styles.addedBtnPrimaryText}>点数を記録</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.addedBtnGhost}
+              onPress={() => onOpenAdded?.(added.id)}
+              accessibilityRole="button"
+            >
+              <Text style={styles.addedBtnGhostText}>曲を開く</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.addedBannerHint}>続けてほかの曲も検索できます。</Text>
+        </View>
+      )}
 
       {/* 件数・並び替え */}
       {showSortRow && (
@@ -414,6 +456,35 @@ const styles = StyleSheet.create({
   },
   modeText: { fontSize: 11, fontWeight: '600', color: colors.text2 },
   modeTextOn: { color: colors.accent },
+
+  // U05: 追加完了バナー
+  addedBanner: {
+    marginHorizontal: 18,
+    marginBottom: 10,
+    backgroundColor: colors.accentSoft,
+    borderWidth: 1.5,
+    borderColor: 'rgba(91, 76, 245, 0.15)',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  addedBannerTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  addedBannerTitle: { flex: 1, fontSize: 13, fontWeight: '700', color: colors.accent },
+  addedBannerClose: { fontSize: 13, color: colors.text3, fontWeight: '700' },
+  addedBannerBtns: { flexDirection: 'row', gap: 10, marginTop: 10 },
+  addedBtnPrimary: { flex: 1, alignItems: 'center', paddingVertical: 11, borderRadius: 11, backgroundColor: colors.accent },
+  addedBtnPrimaryText: { fontSize: 13, fontWeight: '700', color: colors.white },
+  addedBtnGhost: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 11,
+    borderRadius: 11,
+    backgroundColor: colors.white,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+  },
+  addedBtnGhostText: { fontSize: 13, fontWeight: '700', color: colors.text2 },
+  addedBannerHint: { fontSize: 11, color: colors.text3, marginTop: 8 },
 
   // 件数・並び替え
   metaWrap: { marginHorizontal: 18, marginBottom: 6, position: 'relative', zIndex: 20 },
