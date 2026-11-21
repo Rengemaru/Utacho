@@ -261,6 +261,50 @@ function Content({ kind }: { kind: string }) {
           <Text style={s.settingRight}>›</Text>
         </View>
       );
+    case 'tabdelete':
+      return (
+        <View style={{ alignItems: 'center', gap: 8 }}>
+          <Row>
+            <View style={[s.chip, { backgroundColor: '#e5e7eb', borderColor: '#e5e7eb' }]}>
+              <Text style={[s.chipText, { color: colors.text3, textDecorationLine: 'line-through' }]}>アニソン</Text>
+            </View>
+            <Text style={s.arrow}>→</Text>
+            <View style={[s.chip, s.chipActive]}><Text style={[s.chipText, s.chipTextActive]}>すべて</Text></View>
+          </Row>
+          <Text style={s.cap}>タブを消しても曲は「すべて」に残る</Text>
+        </View>
+      );
+    case 'confirm':
+      return (
+        <View style={s.dialog}>
+          <Text style={s.dialogText}>⚠️ すでに登録されています</Text>
+          <Row>
+            <View style={s.dlgCancel}><Text style={s.dlgCancelText}>キャンセル</Text></View>
+            <View style={s.dlgOk}><Text style={s.dlgOkText}>それでも登録</Text></View>
+          </Row>
+        </View>
+      );
+    case 'deviceonly':
+      return (
+        <View style={{ alignItems: 'center', gap: 6 }}>
+          <Text style={{ fontSize: 26 }}>📱🔒</Text>
+          <Text style={s.cap}>データは端末内のみ・サーバー送信なし</Text>
+        </View>
+      );
+    case 'free':
+      return (
+        <View style={s.freeBadge}>
+          <Text style={s.freeText}>¥0</Text>
+          <Text style={s.freeSub}>無料</Text>
+        </View>
+      );
+    case 'restart':
+      return (
+        <View style={{ alignItems: 'center', gap: 6 }}>
+          <Text style={{ fontSize: 26 }}>🔄</Text>
+          <Text style={s.cap}>アプリを一度終了して再起動</Text>
+        </View>
+      );
     case 'settingstab':
       return (
         <View style={s.navbar}>
@@ -384,4 +428,13 @@ const s = StyleSheet.create({
   stepVal: { fontFamily: fonts.monoMedium, fontSize: 12, color: colors.text, minWidth: 30, textAlign: 'center' },
   manualBtn: { backgroundColor: colors.accentSoft, borderWidth: 1, borderColor: 'rgba(91,76,245,0.3)', borderRadius: 9, paddingHorizontal: 14, paddingVertical: 7 },
   manualBtnText: { fontSize: 11, fontWeight: '700', color: colors.accent },
+  dialog: { backgroundColor: colors.white, borderWidth: 1, borderColor: colors.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, gap: 10, alignItems: 'center' },
+  dialogText: { fontSize: 11, fontWeight: '600', color: colors.text },
+  dlgCancel: { backgroundColor: colors.surface2, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 },
+  dlgCancelText: { fontSize: 10, color: colors.text2, fontWeight: '600' },
+  dlgOk: { backgroundColor: colors.accent, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 },
+  dlgOkText: { fontSize: 10, color: colors.white, fontWeight: '700' },
+  freeBadge: { flexDirection: 'row', alignItems: 'baseline', gap: 6, backgroundColor: 'rgba(0,185,107,0.12)', borderWidth: 1, borderColor: 'rgba(0,185,107,0.3)', borderRadius: 12, paddingHorizontal: 18, paddingVertical: 8 },
+  freeText: { fontFamily: fonts.jakartaExtraBold, fontSize: 22, color: colors.green },
+  freeSub: { fontSize: 12, fontWeight: '700', color: colors.green },
 });
