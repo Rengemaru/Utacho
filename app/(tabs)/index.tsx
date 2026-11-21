@@ -22,10 +22,12 @@ import { getIntroState, markHomeTutorialDone, setIntroState, shouldShowHomeTutor
 import { RandomPickModal } from '../../src/components/RandomPickModal';
 import { ScoreBottomSheet } from '../../src/components/ScoreBottomSheet';
 import { SetlistModal } from '../../src/components/SetlistModal';
+import { SongActionDialog, type SongActionTarget } from '../../src/components/SongActionDialog';
 import { SongCard } from '../../src/components/SongCard';
 import { colors } from '../../src/constants/colors';
 import { fonts } from '../../src/constants/fonts';
 import { deleteSong, getAllSongs, getRandomSongId } from '../../src/db/songs';
+import { attachTab, detachTab } from '../../src/db/songTabs';
 import { deleteTab } from '../../src/db/tabs';
 import { getSessionSummary, getMonthlyStats, getSongIdsScoredOn, SessionSummary, MonthlyStats } from '../../src/db/scores';
 import { getSetlistSongIds, saveSetlistSongIds, getSearchHistory, pushSearchHistory, deleteSearchHistoryEntry, clearSearchHistory } from '../../src/db/settings';
@@ -160,6 +162,13 @@ export default function HomeScreen() {
 
   const swipeRefs = useRef<Map<number, Swipeable | null>>(new Map());
   const [scoringSong, setScoringsSong] = useState<SongWithStats | null>(null);
+  const [actionTarget, setActionTarget] = useState<SongActionTarget | null>(null);
+  const [detachedNotice, setDetachedNotice] = useState<{
+    songId: number;
+    songTitle: string;
+    tabId: number;
+    tabName: string;
+  } | null>(null);
   // Bug-5: reloadExtras のクロージャが古い activeTabId を参照しないよう ref で管理
   const activeTabIdRef = useRef(activeTabId);
   useEffect(() => { activeTabIdRef.current = activeTabId; }, [activeTabId]);
@@ -413,24 +422,53 @@ export default function HomeScreen() {
     });
   }
 
-  // スワイプに依存しない代替導線（#24）。カード長押しで編集・削除のアクションシートを出す。
-  async function handleSongActions(song: SongWithStats) {
+  // スワイプに依存しない代替導線（#24 / U09 #138）。カード長押しで編集・カテゴリから外す・削除のメニューを出す。
+  function handleSongActions(song: SongWithStats) {
     const inSetlist = activeTabId === SETLIST_TAB.id;
-    const r = await confirm({
-      title: song.title,
-      message: song.artist || undefined,
-      options: [
-        { label: '編集', icon: '✏️' },
-        inSetlist
-          ? { label: '今日から外す', icon: '✕' }
-          : { label: '削除', icon: '🗑', style: 'danger' },
-      ],
+    const isCategoryTab = activeTabId !== ALL_TAB.id && activeTabId !== SETLIST_TAB.id;
+    const currentTab = isCategoryTab
+      ? tabsWithAll.find((t) => t.id === activeTabId) ?? null
+      : null;
+    setActionTarget({
+      song,
+      category: currentTab ? { id: currentTab.id, name: currentTab.name } : null,
+      inSetlist,
     });
-    if (r === 0) router.push(`/song/new?songId=${song.id}`);
-    else if (r === 1) handleCardDelete(song);
   }
 
-  // 「今日」タブでの削除はセットリストから外すだけ、それ以外は歌帳から完全削除（#110 §1-a）
+  async function handleRemoveFromCategory(song: SongWithStats, category: { id: number; name: string }) {
+    if (Platform.OS === 'web') return;
+    try {
+      detachTab(song.id, category.id);
+      setDetachedNotice({
+        songId: song.id,
+        songTitle: song.title,
+        tabId: category.id,
+        tabName: category.name,
+      });
+      reload();
+      reloadTabs();
+    } catch (e) {
+      console.error(e);
+      await confirm({ title: 'エラー', message: 'カテゴリから外せませんでした', options: [{ label: 'OK', style: 'primary' }], cancelLabel: null });
+    }
+  }
+
+  async function handleUndoDetach() {
+    if (!detachedNotice || Platform.OS === 'web') return;
+    const target = detachedNotice;
+    setDetachedNotice(null);
+    try {
+      attachTab(target.songId, target.tabId);
+      reload();
+      reloadTabs();
+    } catch (e) {
+      console.error(e);
+      await confirm({ title: 'エラー', message: '元に戻せませんでした', options: [{ label: 'OK', style: 'primary' }], cancelLabel: null });
+    }
+  }
+
+  // 「今日」タブでの削除はセットリストから外すだけ、それ以外は歌帳からゴミ箱へ移動（#110 §1-a）
   function handleCardDelete(song: SongWithStats) {
     if (activeTabId === SETLIST_TAB.id) removeFromSetlist(song);
     else handleDeleteSong(song);
@@ -462,16 +500,17 @@ export default function HomeScreen() {
 
   async function handleDeleteSong(song: SongWithStats) {
     const r = await confirm({
-      title: '曲を削除',
-      message: `「${song.title}」をゴミ箱に移動しますか？\n設定＞ゴミ箱から復元できます（30日で自動削除）。`,
+      title: 'ゴミ箱へ移動',
+      message: `「${song.title}」をゴミ箱に移動しますか？\n30日以内なら点数履歴とともに復元できます。`,
       icon: '🗑',
       iconTone: 'red',
-      options: [{ label: '削除する', style: 'danger' }],
+      options: [{ label: 'ゴミ箱へ移動', style: 'danger' }],
     });
     if (r !== 0) return;
     if (Platform.OS === 'web') { reload(); return; }
     try {
       deleteSong(song.id);
+      setDetachedNotice(null);
       reload();
       reloadTabs();
       reloadExtras();
@@ -608,7 +647,10 @@ export default function HomeScreen() {
                 isSetlist && styles.tabPillSetlist,
                 isActive && isSetlist && styles.tabPillSetlistActive,
               ]}
-              onPress={() => setActiveTabId(tab.id)}
+              onPress={() => {
+                setDetachedNotice(null);
+                setActiveTabId(tab.id);
+              }}
               onLongPress={() => handleTabLongPress(tab)}
               delayLongPress={300}
             >
@@ -782,6 +824,52 @@ export default function HomeScreen() {
           )}
         />
       )}
+
+      {/* U09: カテゴリから外した後の完了トースト（元に戻す付き・Figma 105:4994 準拠） */}
+      {detachedNotice && (
+        <View style={styles.detachedBanner}>
+          <Text style={styles.detachedBannerText} numberOfLines={2}>
+            {detachedNotice.songTitle}を「{detachedNotice.tabName}」から外しました
+          </Text>
+          <TouchableOpacity
+            accessibilityRole="button"
+            style={styles.detachedUndoBtn}
+            onPress={handleUndoDetach}
+          >
+            <Text style={styles.detachedUndoText}>元に戻す</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* U09: 曲カード長押し時の操作メニュー（Figma 105:4918 準拠） */}
+      <SongActionDialog
+        target={actionTarget}
+        onClose={() => setActionTarget(null)}
+        onEdit={() => {
+          if (!actionTarget) return;
+          const id = actionTarget.song.id;
+          setActionTarget(null);
+          router.push(`/song/new?songId=${id}`);
+        }}
+        onRemoveFromCategory={() => {
+          if (!actionTarget || !actionTarget.category) return;
+          const { song, category } = actionTarget;
+          setActionTarget(null);
+          void handleRemoveFromCategory(song, category);
+        }}
+        onRemoveFromSetlist={() => {
+          if (!actionTarget) return;
+          const { song } = actionTarget;
+          setActionTarget(null);
+          void removeFromSetlist(song);
+        }}
+        onDeleteSong={() => {
+          if (!actionTarget) return;
+          const { song } = actionTarget;
+          setActionTarget(null);
+          void handleDeleteSong(song);
+        }}
+      />
 
       {scoringSong && (
         <ScoreBottomSheet
@@ -1174,4 +1262,40 @@ const styles = StyleSheet.create({
   sortOptionText: { fontSize: 14, color: colors.text },
   sortOptionTextActive: { color: colors.accent, fontWeight: '600' },
   sortOptionCheck: { fontSize: 16, color: colors.accent },
+  detachedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginHorizontal: 18,
+    marginBottom: 10,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: colors.accentSoft,
+  },
+  detachedBannerText: {
+    flex: 1,
+    fontFamily: fonts.notoSansJPBold,
+    fontSize: 11,
+    lineHeight: 16,
+    includeFontPadding: false,
+    color: colors.accent,
+  },
+  detachedUndoBtn: {
+    width: 80,
+    height: 34,
+    borderRadius: 12,
+    backgroundColor: colors.surface2,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  detachedUndoText: {
+    fontFamily: fonts.notoSansJPBold,
+    fontSize: 13,
+    lineHeight: 16,
+    includeFontPadding: false,
+    color: colors.text2,
+  },
 });
