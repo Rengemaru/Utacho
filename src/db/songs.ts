@@ -49,7 +49,8 @@ function attachTabs(songs: SongStatsRow[]): SongWithStats[] {
 }
 
 export function getAllSongsCount(): number {
-  const result = getDb().getFirstSync<{ count: number }>('SELECT COUNT(*) AS count FROM songs');
+  // 論理削除済み（ゴミ箱）は除く
+  const result = getDb().getFirstSync<{ count: number }>('SELECT COUNT(*) AS count FROM songs WHERE deleted_at IS NULL');
   return result?.count ?? 0;
 }
 
@@ -57,12 +58,12 @@ export function getAllSongsCount(): number {
 export function getRandomSongId(tabId: number | null): number | null {
   if (tabId === null) {
     const row = getDb().getFirstSync<{ id: number }>(
-      'SELECT id FROM songs ORDER BY RANDOM() LIMIT 1'
+      'SELECT id FROM songs WHERE deleted_at IS NULL ORDER BY RANDOM() LIMIT 1'
     );
     return row?.id ?? null;
   }
   const row = getDb().getFirstSync<{ id: number }>(
-    'SELECT s.id FROM songs s JOIN song_tabs st ON st.song_id = s.id WHERE st.tab_id = ? ORDER BY RANDOM() LIMIT 1',
+    'SELECT s.id FROM songs s JOIN song_tabs st ON st.song_id = s.id WHERE st.tab_id = ? AND s.deleted_at IS NULL ORDER BY RANDOM() LIMIT 1',
     [tabId]
   );
   return row?.id ?? null;
@@ -73,6 +74,7 @@ export function getAllSongs(machine?: Machine): SongWithStats[] {
     SELECT s.*, ${statsSelect(machine)}
     FROM songs s
     ${scoresJoin(machine)}
+    WHERE s.deleted_at IS NULL
     GROUP BY s.id
     ORDER BY s.created_at DESC
   `);
@@ -85,7 +87,7 @@ export function getSongsByTab(tabId: number, machine?: Machine): SongWithStats[]
     FROM songs s
     JOIN song_tabs st ON st.song_id = s.id
     ${scoresJoin(machine)}
-    WHERE st.tab_id = ?
+    WHERE st.tab_id = ? AND s.deleted_at IS NULL
     GROUP BY s.id
     ORDER BY s.created_at DESC
   `, [tabId]);
@@ -99,11 +101,32 @@ export function getSongsByIds(ids: number[], machine?: Machine): SongWithStats[]
     SELECT s.*, ${statsSelect(machine)}
     FROM songs s
     ${scoresJoin(machine)}
-    WHERE s.id IN (${placeholders})
+    WHERE s.id IN (${placeholders}) AND s.deleted_at IS NULL
     GROUP BY s.id
     ORDER BY s.created_at DESC
   `, ids);
   return attachTabs(songs);
+}
+
+/** ゴミ箱（論理削除済み）の曲を、削除日時の新しい順で返す */
+export function getDeletedSongs(): SongWithStats[] {
+  const songs = getDb().getAllSync<SongStatsRow>(`
+    SELECT s.*, ${statsSelect()}
+    FROM songs s
+    ${scoresJoin()}
+    WHERE s.deleted_at IS NOT NULL
+    GROUP BY s.id
+    ORDER BY s.deleted_at DESC
+  `);
+  return attachTabs(songs);
+}
+
+/** ゴミ箱の件数 */
+export function getDeletedCount(): number {
+  const r = getDb().getFirstSync<{ count: number }>(
+    'SELECT COUNT(*) AS count FROM songs WHERE deleted_at IS NOT NULL'
+  );
+  return r?.count ?? 0;
 }
 
 export function getSongById(id: number): SongWithStats | null {
@@ -174,8 +197,29 @@ export function updateSongSingingInfo(id: number, patch: Partial<SongSingingInfo
   getDb().runSync(`UPDATE songs SET ${sets.join(', ')} WHERE id = ?`, [...values, id]);
 }
 
+/** 論理削除（ゴミ箱に入れる）。点数・タブ紐づけは保持し、復元で元に戻せる */
 export function deleteSong(id: number): void {
+  getDb().runSync('UPDATE songs SET deleted_at = ? WHERE id = ?', [new Date().toISOString(), id]);
+}
+
+/** ゴミ箱から復元する */
+export function restoreSong(id: number): void {
+  getDb().runSync('UPDATE songs SET deleted_at = NULL WHERE id = ?', [id]);
+}
+
+/** 完全に削除する（点数・タブ紐づけも CASCADE で消える・取り消し不可） */
+export function hardDeleteSong(id: number): void {
   getDb().runSync('DELETE FROM songs WHERE id = ?', [id]);
+}
+
+/** ゴミ箱内の、削除から days 日より前の曲を完全削除する。削除件数を返す */
+export function purgeExpiredDeleted(days: number = 30): number {
+  const cutoff = new Date(Date.now() - days * 86400000).toISOString();
+  const r = getDb().runSync(
+    'DELETE FROM songs WHERE deleted_at IS NOT NULL AND deleted_at < ?',
+    [cutoff]
+  );
+  return r.changes;
 }
 
 export function findDuplicateSong(
@@ -184,14 +228,15 @@ export function findDuplicateSong(
   excludeId?: number,
 ): { id: number } | null {
   // 編集時は自分自身を比較対象から除外する（除外しないと、変更なしの保存でも警告が出る）
+  // ゴミ箱内の曲は重複判定の対象外（再登録を妨げない）
   if (excludeId != null) {
     return getDb().getFirstSync<{ id: number }>(
-      `SELECT id FROM songs WHERE LOWER(TRIM(title)) = LOWER(TRIM(?)) AND LOWER(TRIM(artist)) = LOWER(TRIM(?)) AND id != ? LIMIT 1`,
+      `SELECT id FROM songs WHERE LOWER(TRIM(title)) = LOWER(TRIM(?)) AND LOWER(TRIM(artist)) = LOWER(TRIM(?)) AND id != ? AND deleted_at IS NULL LIMIT 1`,
       [title, artist, excludeId]
     );
   }
   return getDb().getFirstSync<{ id: number }>(
-    `SELECT id FROM songs WHERE LOWER(TRIM(title)) = LOWER(TRIM(?)) AND LOWER(TRIM(artist)) = LOWER(TRIM(?)) LIMIT 1`,
+    `SELECT id FROM songs WHERE LOWER(TRIM(title)) = LOWER(TRIM(?)) AND LOWER(TRIM(artist)) = LOWER(TRIM(?)) AND deleted_at IS NULL LIMIT 1`,
     [title, artist]
   );
 }
