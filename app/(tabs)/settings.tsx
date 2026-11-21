@@ -8,6 +8,7 @@ import { fonts } from '../../src/constants/fonts';
 import { getDefaultMachine, type Machine } from '../../src/lib/machine';
 import { exportBackup, readBackupFile, restoreFromBackup, isEmptyBackup, buildBackupJson, type BackupData } from '../../src/lib/backup';
 import { deleteAllData, getDataCounts } from '../../src/db/maintenance';
+import { getDeletedCount } from '../../src/db/songs';
 import { useConfirm, type ConfirmIconTone } from '../../src/components/ConfirmProvider';
 
 export default function SettingsScreen() {
@@ -15,6 +16,7 @@ export default function SettingsScreen() {
   const [defaultMachine, setDefaultMachineState] = useState<Machine>('DAM');
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [trashCount, setTrashCount] = useState(0);
   const confirm = useConfirm();
 
   // 1ボタンの通知（完了・エラー・非対応）用のヘルパー
@@ -24,6 +26,7 @@ export default function SettingsScreen() {
   useFocusEffect(useCallback(() => {
     if (Platform.OS === 'web') return;
     getDefaultMachine().then(setDefaultMachineState);
+    try { setTrashCount(getDeletedCount()); } catch (e) { console.error(e); }
   }, []));
 
   async function handleExportBackup() {
@@ -254,6 +257,21 @@ export default function SettingsScreen() {
                 : <Text style={styles.rowChevron}>›</Text>
               }
             </TouchableOpacity>
+            <TouchableOpacity style={styles.row} onPress={() => router.push('/trash')}>
+              <View style={[styles.rowIcon, styles.iconGray]}>
+                <Text style={styles.rowEmoji}>🗑</Text>
+              </View>
+              <View style={styles.rowText}>
+                <Text style={styles.rowLabel}>ゴミ箱</Text>
+                <Text style={styles.rowSub}>削除した曲の復元・完全削除（30日で自動削除）</Text>
+              </View>
+              {trashCount > 0 && (
+                <View style={styles.trashBadge}>
+                  <Text style={styles.trashBadgeText}>{trashCount}</Text>
+                </View>
+              )}
+              <Text style={styles.rowChevron}>›</Text>
+            </TouchableOpacity>
             <TouchableOpacity style={[styles.row, styles.rowNoBorder]} onPress={handleDeleteAll}>
               <View style={[styles.rowIcon, styles.iconRed]}>
                 <Text style={styles.rowEmoji}>🗑</Text>
@@ -386,6 +404,20 @@ const styles = StyleSheet.create({
   },
   rowNoBorder: {
     borderBottomWidth: 0,
+  },
+  trashBadge: {
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 6,
+  },
+  trashBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.white,
   },
   rowIcon: {
     width: 32,
