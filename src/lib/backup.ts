@@ -36,10 +36,15 @@ export async function buildBackupJson(): Promise<string> {
     (s) => (SETTINGS_WHITELIST as readonly string[]).includes(s.key)
   );
 
+  // ゴミ箱（論理削除済み）の曲と、それに紐づく song_tabs / scores はバックアップに含めない
   const tabs = db.getAllSync('SELECT * FROM tabs ORDER BY id');
-  const songs = db.getAllSync('SELECT * FROM songs ORDER BY id');
-  const song_tabs = db.getAllSync('SELECT * FROM song_tabs ORDER BY song_id, tab_id');
-  const scores = db.getAllSync('SELECT * FROM scores ORDER BY id');
+  const songs = db.getAllSync('SELECT * FROM songs WHERE deleted_at IS NULL ORDER BY id');
+  const song_tabs = db.getAllSync(
+    'SELECT st.* FROM song_tabs st JOIN songs s ON s.id = st.song_id WHERE s.deleted_at IS NULL ORDER BY st.song_id, st.tab_id'
+  );
+  const scores = db.getAllSync(
+    'SELECT sc.* FROM scores sc JOIN songs s ON s.id = sc.song_id WHERE s.deleted_at IS NULL ORDER BY sc.id'
+  );
 
   const backup = {
     version: '1.0',
