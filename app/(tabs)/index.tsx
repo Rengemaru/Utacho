@@ -121,7 +121,7 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const isTablet = useIsTablet();
   const twoColumn = useTwoColumn();
-  const { defaultMachine, refresh: refreshMachine } = useMachine();
+  const { currentMachine, setCurrentMachine, refresh: refreshMachine } = useMachine();
   const confirm = useConfirm();
   const { tabsWithAll, reload: reloadTabs } = useTabs();
   const [activeTabId, setActiveTabId] = useState<number>(ALL_TAB.id);
@@ -146,7 +146,17 @@ export default function HomeScreen() {
   const listToolsTargetRef = useCoachTarget('list-tools');
   const [randomModalVisible, setRandomModalVisible] = useState(false);
 
-  const { songs, loading, error, reload } = useSongs(activeTabId, defaultMachine);
+  const { songs, loading, error, reload } = useSongs(activeTabId, currentMachine);
+
+  // ヘッダー右の機種ボタン（U01 #130）。押すとセッション機種を切り替え、一覧の集計もその機種に追従する
+  async function toggleMachine() {
+    if (Platform.OS === 'web') return;
+    try {
+      await setCurrentMachine(currentMachine === 'DAM' ? 'JOYSOUND' : 'DAM');
+    } catch (e) {
+      console.error(e);
+    }
+  }
 
   const swipeRefs = useRef<Map<number, Swipeable | null>>(new Map());
   const [scoringSong, setScoringsSong] = useState<SongWithStats | null>(null);
@@ -514,6 +524,17 @@ export default function HomeScreen() {
         <Text style={styles.appTitle}>歌帳</Text>
         <View style={styles.headerActions}>
           <TouchableOpacity
+            style={[styles.machineBtn, isTablet && styles.machineBtnTablet]}
+            onPress={toggleMachine}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel={`機種を切り替え（現在: ${currentMachine}）`}
+          >
+            <Text style={[styles.machineBtnText, isTablet && styles.machineBtnTextTablet]}>
+              {currentMachine}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
             style={[styles.setlistBtn, isTablet && styles.iconBtnTablet]}
             onPress={openSetlistModal}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -751,7 +772,7 @@ export default function HomeScreen() {
               >
                 <SongCard
                   song={item}
-                  machine={defaultMachine}
+                  machine={currentMachine}
                   onPressRecord={() => setScoringsSong(item)}
                   recordButtonRef={index === 0 ? songRecordTargetRef : undefined}
                 />
@@ -872,6 +893,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
+  // U01: ヘッダー右の機種切替ボタン（白ピル・紫文字・アクセント枠）。縦サイズはアイコンボタンと揃える
+  machineBtn: {
+    height: 34,
+    minWidth: 52,
+    paddingHorizontal: 12,
+    backgroundColor: colors.white,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: 'rgba(91, 76, 245, 0.3)',
+  },
+  machineBtnTablet: { height: 44, minWidth: 64, borderRadius: 13, paddingHorizontal: 16 },
+  machineBtnText: {
+    fontFamily: fonts.jakartaBold,
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+    color: colors.accent,
+  },
+  machineBtnTextTablet: { fontSize: 15 },
   setlistBtn: {
     width: 34,
     height: 34,
