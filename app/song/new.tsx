@@ -25,6 +25,7 @@ import { useTabs } from '../../src/hooks/useTabs';
 import { MOCK_SONGS } from '../../src/db/mockData';
 import { useConfirm } from '../../src/components/ConfirmProvider';
 import { DiscardChangesModal } from '../../src/components/DiscardChangesModal';
+import { DuplicateSongDialog } from '../../src/components/DuplicateSongDialog';
 import { setLastAdded } from '../../src/features/songSearch/lastAdded';
 
 import { MAX_TAB_NAME_LENGTH, truncateTabName } from '../../src/constants/tabConfig';
@@ -52,6 +53,7 @@ export default function SongFormScreen() {
   const [newTabModalVisible, setNewTabModalVisible] = useState(false);
   const [newTabName, setNewTabName] = useState('');
   const [discardVisible, setDiscardVisible] = useState(false);
+  const [duplicateSong, setDuplicateSong] = useState<ReturnType<typeof findDuplicateSong>>(null);
   // U04: 追加設定（読み・キー・テンポ・メモ）の折りたたみ。初期は閉じる
   const [showExtra, setShowExtra] = useState(false);
 
@@ -130,6 +132,7 @@ export default function SongFormScreen() {
   // Android ハードウェアバックも破棄確認に通す。最新の state を参照するため毎レンダーで ref を更新する。
   const handleBackRef = useRef<() => boolean>(() => false);
   handleBackRef.current = () => {
+    if (duplicateSong) return false; // 重複確認のModal側で、入力を保持したまま閉じる
     if (newTabModalVisible) return false; // タブ作成モーダルは自前で閉じる
     if (discardVisible) { setDiscardVisible(false); return true; } // 破棄確認を戻るで閉じる＝編集を続ける
     if (!isDirty()) return false;
@@ -182,35 +185,34 @@ export default function SongFormScreen() {
     setNewTabModalVisible(false);
   }
 
+  async function doSave() {
+    try {
+      if (isEdit) {
+        updateSong(Number(songId), title.trim(), artist.trim(), artworkUrl, titleReading.trim(), artistReading.trim());
+        // キー・テンポ・メモも編集フォーム（追加設定）から保存する
+        updateSongSingingInfo(Number(songId), { key_offset: keyOffset, tempo_offset: tempoOffset, memo });
+        syncTabs(Number(songId), selectedTabIds);
+      } else {
+        const newId = insertSong(title.trim(), artist.trim(), keyOffset, artworkUrl, memo, titleReading.trim(), artistReading.trim(), tempoOffset);
+        syncTabs(newId, selectedTabIds);
+        // U05: 追加後は「さがす」に戻り、検索状態を保ったままバナーで3択（検索継続／点数記録／曲を開く）を出す。
+        setLastAdded({ id: newId, title: title.trim() });
+        router.back();
+        return;
+      }
+      router.back();
+    } catch (e) {
+      console.error(e);
+      await confirm({ title: 'エラー', message: '保存に失敗しました', options: [{ label: 'OK', style: 'primary' }], cancelLabel: null });
+    }
+  }
+
   async function handleSave() {
     if (!title.trim()) {
       await confirm({ title: '入力エラー', message: '曲名を入力してください', options: [{ label: 'OK', style: 'primary' }], cancelLabel: null });
       return;
     }
     if (Platform.OS === 'web') { router.back(); return; }
-
-    async function doSave() {
-      try {
-        if (isEdit) {
-          updateSong(Number(songId), title.trim(), artist.trim(), artworkUrl, titleReading.trim(), artistReading.trim());
-          // キー・テンポ・メモも編集フォーム（追加設定）から保存する
-          updateSongSingingInfo(Number(songId), { key_offset: keyOffset, tempo_offset: tempoOffset, memo });
-          syncTabs(Number(songId), selectedTabIds);
-        } else {
-          const newId = insertSong(title.trim(), artist.trim(), keyOffset, artworkUrl, memo, titleReading.trim(), artistReading.trim(), tempoOffset);
-          syncTabs(newId, selectedTabIds);
-          // U05: 追加後は「さがす」に戻り、検索状態を保ったままバナーで3択（検索継続／点数記録／曲を開く）を出す。
-          setLastAdded({ id: newId, title: title.trim() });
-          router.back();
-          return;
-        }
-        router.back();
-      } catch (e) {
-        console.error(e);
-        await confirm({ title: 'エラー', message: '保存に失敗しました', options: [{ label: 'OK', style: 'primary' }], cancelLabel: null });
-      }
-    }
-
     // 重複登録チェック（新規・編集とも）。編集時は自分自身を除外する（§5.10）
     const duplicate = findDuplicateSong(
       title.trim(),
@@ -218,25 +220,8 @@ export default function SongFormScreen() {
       isEdit ? Number(songId) : undefined,
     );
     if (duplicate) {
-      const artistLabel = duplicate.artist ? `\n${duplicate.artist}` : '';
-      const r = await confirm({
-        title: 'この曲は登録済みです',
-        message: `「${duplicate.title}」${artistLabel}\n\n${isEdit
-          ? '登録済みの曲を開く場合、入力中の変更は保存されません。'
-          : '登録済みの曲で点数やメモを確認できます。'}`,
-        options: [
-          { label: '登録済みの曲を開く', style: 'primary' },
-          { label: isEdit ? 'この曲の変更を保存する' : '別バージョンとして登録する' },
-        ],
-        cancelLabel: '入力に戻る',
-      });
-      if (r === 0) {
-        Keyboard.dismiss();
-        // 登録フォームを履歴に残さず、既存曲の記録・詳細へ進む（U08）。
-        router.replace({ pathname: '/song/[id]', params: { id: String(duplicate.id) } });
-      } else if (r === 1) {
-        await doSave();
-      }
+      Keyboard.dismiss();
+      setDuplicateSong(duplicate);
       return;
     }
 
@@ -413,6 +398,22 @@ export default function SongFormScreen() {
             </>
           )}
         </ScrollView>
+
+        <DuplicateSongDialog
+          song={duplicateSong}
+          isEdit={isEdit}
+          onCancel={() => setDuplicateSong(null)}
+          onOpenExisting={() => {
+            if (!duplicateSong) return;
+            const id = duplicateSong.id;
+            setDuplicateSong(null);
+            router.replace({ pathname: '/song/[id]', params: { id: String(id) } });
+          }}
+          onSaveSeparate={() => {
+            setDuplicateSong(null);
+            void doSave();
+          }}
+        />
 
         {/* U03: 未保存の変更の破棄確認（Figma 105-2071 準拠） */}
         <DiscardChangesModal

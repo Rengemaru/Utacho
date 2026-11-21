@@ -4,6 +4,7 @@
   "main": "expo-router/entry",
   "dependencies": {
     "@expo-google-fonts/dm-mono": "^0.4.2",
+    "@expo-google-fonts/noto-sans-jp": "^0.4.4",
     "@expo-google-fonts/plus-jakarta-sans": "^0.4.2",
     "expo": "^57.0.26",
     "expo-build-properties": "~57.0.22",
