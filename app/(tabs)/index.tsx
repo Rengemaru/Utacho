@@ -453,7 +453,7 @@ export default function HomeScreen() {
   async function handleDeleteSong(song: SongWithStats) {
     const r = await confirm({
       title: '曲を削除',
-      message: `「${song.title}」を削除しますか？\nスコア履歴もすべて削除されます。`,
+      message: `「${song.title}」をゴミ箱に移動しますか？\n設定＞ゴミ箱から復元できます（30日で自動削除）。`,
       icon: '🗑',
       iconTone: 'red',
       options: [{ label: '削除する', style: 'danger' }],

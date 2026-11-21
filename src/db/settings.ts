@@ -59,7 +59,7 @@ export function getSetlistSongIds(date: string): number[] {
   // 数が食い違うため、読み取り時に掃除し、変化があれば保存し直す。
   const placeholders = ids.map(() => '?').join(',');
   const rows = getDb().getAllSync<{ id: number }>(
-    `SELECT id FROM songs WHERE id IN (${placeholders})`,
+    `SELECT id FROM songs WHERE id IN (${placeholders}) AND deleted_at IS NULL`,
     ids
   );
   const existing = new Set(rows.map((r) => r.id));

@@ -19,6 +19,7 @@ export interface SongRow {
   title_reading: string;   // 曲名の読み（手入力・任意・空可）
   artist_reading: string;  // アーティストの読み（手入力・任意・空可）
   created_at: string;
+  deleted_at: string | null; // NULL=有効、ISO日時=ゴミ箱入り（論理削除）
 }
 
 export interface TabRow {
