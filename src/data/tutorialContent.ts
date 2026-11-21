@@ -73,7 +73,19 @@ export const TUTORIALS: Tutorial[] = [
     steps: [
       { emoji: '🎚️', title: 'キー・テンポを直す', desc: '曲詳細画面で －/＋ でその場調整（すぐ保存）。', illust: 'detailedit' },
       { emoji: '✏️', title: '内容を編集する', desc: 'カードを左スワイプ→「編集」で曲名・アーティスト・読み・タブを変更。', illust: 'swipe' },
-      { emoji: '🗑', title: '削除する', desc: '左スワイプ→「削除」。点数の記録も消えるため確認が出ます。', illust: 'swipe' },
+      { emoji: '🗑', title: '削除する', desc: '左スワイプ→「削除」でゴミ箱へ移動。設定＞ゴミ箱から復元できます（30日で自動削除）。', illust: 'confirmtrash' },
+    ],
+  },
+  {
+    id: 'uc-trash',
+    category: 'A',
+    icon: '🗑',
+    title: '削除した曲を元に戻す（ゴミ箱）',
+    subtitle: '設定 → ゴミ箱 → 復元',
+    steps: [
+      { emoji: '🗑', title: '曲はまずゴミ箱へ', desc: '曲を削除してもすぐには消えず、いったんゴミ箱に移動します。', illust: 'confirmtrash' },
+      { emoji: '⚙️', title: '設定＞ゴミ箱を開く', desc: '設定の「ゴミ箱」から削除した曲を確認できます（件数バッジ付き）。', illust: 'trashentry' },
+      { emoji: '↩️', title: '復元する', desc: '各曲の「復元」で元どおりに。「🗑」は完全削除。30日が過ぎると自動で完全削除されます。', illust: 'trashrow' },
     ],
   },
   {
@@ -204,8 +216,8 @@ export const TUTORIALS: Tutorial[] = [
   },
   {
     id: 'faq-undo-delete', category: 'E', icon: '↩️',
-    title: '誤って削除した曲は元に戻せる？', subtitle: 'バックアップから復元',
-    steps: [{ emoji: '⤒', title: '復元で戻せる', desc: '削除の取り消しは不可。バックアップがあれば「読み込む」で復元できます。こまめな書き出しを。', illust: 'import' }],
+    title: '誤って削除した曲は元に戻せる？', subtitle: 'ゴミ箱から復元',
+    steps: [{ emoji: '↩️', title: 'ゴミ箱から復元', desc: '削除した曲は設定＞ゴミ箱に残ります。「復元」で元どおり（30日が過ぎると自動で完全削除）。', illust: 'trashrow' }],
   },
   {
     id: 'faq-key-offset', category: 'E', icon: '🎚️',
@@ -287,8 +299,11 @@ export const TUTORIALS: Tutorial[] = [
   },
   {
     id: 'ts-data-lost', category: 'F', icon: '😱',
-    title: 'データが消えた／前に戻したい', subtitle: 'バックアップから復元',
-    steps: [{ emoji: '⤒', title: '復元する', desc: '書き出し済みなら「読み込む」で復元。無い場合は復元できません。', illust: 'import' }],
+    title: 'データが消えた／前に戻したい', subtitle: 'ゴミ箱・バックアップから復元',
+    steps: [
+      { emoji: '↩️', title: '消した曲はゴミ箱に', desc: '曲を削除した場合は設定＞ゴミ箱から「復元」できます（30日以内）。', illust: 'trashrow' },
+      { emoji: '⤒', title: '全体はバックアップで', desc: 'それ以外は、書き出し済みなら「読み込む」で復元。無い場合は復元できません。', illust: 'import' },
+    ],
   },
   {
     id: 'ts-app-glitch', category: 'F', icon: '🔄',

@@ -296,6 +296,39 @@ function Content({ kind }: { kind: string }) {
           <Text style={s.cap}>タブを消しても曲は「すべて」に残る</Text>
         </View>
       );
+    case 'confirmtrash':
+      return (
+        <View style={s.dialog}>
+          <Text style={{ fontSize: 18 }}>🗑</Text>
+          <Text style={s.dialogText}>ゴミ箱に移動しますか？</Text>
+          <Text style={s.cap}>設定＞ゴミ箱から復元できます</Text>
+          <Row>
+            <View style={s.dlgCancel}><Text style={s.dlgCancelText}>キャンセル</Text></View>
+            <View style={[s.dlgOk, { backgroundColor: colors.red }]}><Text style={s.dlgOkText}>ゴミ箱へ移動</Text></View>
+          </Row>
+        </View>
+      );
+    case 'trashentry':
+      return (
+        <View style={s.settingRow}>
+          <Text style={s.settingIcon}>🗑</Text>
+          <Text style={s.settingLabel}>ゴミ箱</Text>
+          <View style={s.trashBadge}><Text style={s.trashBadgeText}>2</Text></View>
+          <Text style={s.settingRight}>›</Text>
+        </View>
+      );
+    case 'trashrow':
+      return (
+        <View style={s.trashRow}>
+          <View style={s.thumb}><Text style={{ fontSize: 13 }}>🎵</Text></View>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={s.miniTitle} numberOfLines={1}>夜に駆ける</Text>
+            <Text style={s.miniSub} numberOfLines={1}>YOASOBI</Text>
+          </View>
+          <HiBox><View style={s.restoreBtn}><Text style={s.restoreBtnText}>復元</Text></View></HiBox>
+          <View style={s.trashDelBtn}><Text style={{ fontSize: 13 }}>🗑</Text></View>
+        </View>
+      );
     case 'confirm':
       return (
         <View style={s.dialog}>
@@ -465,6 +498,13 @@ const s = StyleSheet.create({
   sortOptText: { fontSize: 11, color: colors.text },
   sortOptTextActive: { color: colors.accent, fontWeight: '600' },
   sortCheck: { fontSize: 13, color: colors.accent },
+  // ゴミ箱（設定導線・復元行）
+  trashBadge: { minWidth: 18, height: 18, borderRadius: 9, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 },
+  trashBadgeText: { fontSize: 10, fontWeight: '700', color: colors.white },
+  trashRow: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, width: '100%' },
+  restoreBtn: { backgroundColor: colors.accentSoft, borderWidth: 1.5, borderColor: 'rgba(91, 76, 245, 0.2)', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 },
+  restoreBtnText: { fontSize: 10, fontWeight: '700', color: colors.accent },
+  trashDelBtn: { width: 28, height: 28, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(239,68,68,0.08)', borderWidth: 1.5, borderColor: 'rgba(239,68,68,0.2)' },
   manualBtn: { backgroundColor: colors.accentSoft, borderWidth: 1, borderColor: 'rgba(91,76,245,0.3)', borderRadius: 9, paddingHorizontal: 14, paddingVertical: 7 },
   manualBtnText: { fontSize: 11, fontWeight: '700', color: colors.accent },
   dialog: { backgroundColor: colors.white, borderWidth: 1, borderColor: colors.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, gap: 10, alignItems: 'center' },
