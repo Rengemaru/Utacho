@@ -119,17 +119,26 @@ function Content({ kind }: { kind: string }) {
       );
     case 'sort':
       return (
-        <View style={{ gap: 6, width: '100%', alignItems: 'center' }}>
-          <HiBox><View style={s.iconBtnGray}><Text style={{ fontSize: 15 }}>⇅</Text></View></HiBox>
-          <View style={s.menu}>
-            <Text style={[s.menuItem, s.menuItemActive]}>🏆 最高スコア ✓</Text>
-            <Text style={s.menuItem}>🔢 記録回数</Text>
-            <Text style={s.menuItem}>🔀 シャッフル</Text>
+        <View style={s.sheetMini}>
+          <Text style={s.sortSheetTitle}>並び替え</Text>
+          <View style={s.sortDirRow}>
+            <View style={s.sortDirBtn}><Text style={s.sortDirText}>昇順 ↑</Text></View>
+            <View style={[s.sortDirBtn, s.sortDirBtnActive]}><Text style={[s.sortDirText, s.sortDirTextActive]}>降順 ↓</Text></View>
+          </View>
+          <View style={{ width: '100%' }}>
+            <View style={s.sortOpt}><Text style={[s.sortOptText, s.sortOptTextActive]}>🏆 最高スコア</Text><Text style={s.sortCheck}>✓</Text></View>
+            <View style={s.sortOpt}><Text style={s.sortOptText}>📈 スコア伸び率</Text></View>
+            <View style={[s.sortOpt, s.sortOptLast]}><Text style={s.sortOptText}>🔀 シャッフル</Text></View>
           </View>
         </View>
       );
     case 'sortdir':
-      return <Row><Chip label="昇順 ↑" /><Chip label="降順 ↓" tone="active" /></Row>;
+      return (
+        <View style={[s.sortDirRow, { width: 200 }]}>
+          <View style={s.sortDirBtn}><Text style={s.sortDirText}>昇順 ↑</Text></View>
+          <View style={[s.sortDirBtn, s.sortDirBtnActive]}><Text style={[s.sortDirText, s.sortDirTextActive]}>降順 ↓</Text></View>
+        </View>
+      );
     case 'setlist':
       return (
         <View style={{ gap: 6, width: '100%' }}>
@@ -153,9 +162,22 @@ function Content({ kind }: { kind: string }) {
       return <HiBox><View style={s.iconBtnGray}><Text style={{ fontSize: 16 }}>🎲</Text></View></HiBox>;
     case 'range':
       return (
-        <View style={{ alignItems: 'center', gap: 6 }}>
-          <Text style={s.cap}>どの中から選ぶ？</Text>
-          <Row><Chip label="すべて" tone="active" /><Chip label="J-POP" /><Chip label="アニソン" tone="muted" /></Row>
+        <View style={s.sheetMini}>
+          <View style={s.sheetHandle} />
+          <Text style={{ fontSize: 18 }}>🎲</Text>
+          <Text style={s.sheetTitle}>ランダムに選曲</Text>
+          <Text style={s.sheetSub}>どの中から選びますか？</Text>
+          <View style={{ width: '100%', gap: 6, marginTop: 2 }}>
+            {[['すべて', '12曲', false], ['J-POP', '5曲', false], ['アニソン', '0曲', true]].map(
+              ([name, count, off]) => (
+                <View key={name as string} style={[s.scopeRow, off ? { opacity: 0.4 } : null]}>
+                  <Text style={s.scopeName}>{name as string}</Text>
+                  <Text style={s.scopeCount}>{count as string}</Text>
+                  <Text style={s.scopeDice}>🎲</Text>
+                </View>
+              )
+            )}
+          </View>
         </View>
       );
     case 'recordbtn':
@@ -382,9 +404,6 @@ const s = StyleSheet.create({
   settingLabel: { flex: 1, fontSize: 11, color: colors.text, fontWeight: '600' },
   settingRight: { fontSize: 11, color: colors.text3 },
   cap: { fontSize: 10, color: colors.text3, textAlign: 'center' },
-  menu: { backgroundColor: colors.white, borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingVertical: 4, paddingHorizontal: 6, width: 160 },
-  menuItem: { fontSize: 10, color: colors.text2, paddingVertical: 3 },
-  menuItemActive: { color: colors.accent, fontWeight: '700' },
   histRow: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
   histClock: { fontSize: 11 },
   histText: { flex: 1, fontSize: 10, color: colors.text },
@@ -426,6 +445,26 @@ const s = StyleSheet.create({
   stepper: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   stepBtn: { fontSize: 15, color: colors.accent, fontWeight: '700' },
   stepVal: { fontFamily: fonts.monoMedium, fontSize: 12, color: colors.text, minWidth: 30, textAlign: 'center' },
+  // ボトムシート風（ランダム選曲・並び替え）
+  sheetMini: { width: '100%', backgroundColor: colors.white, borderWidth: 1, borderColor: colors.border, borderTopLeftRadius: 16, borderTopRightRadius: 16, paddingTop: 8, paddingBottom: 12, paddingHorizontal: 12, alignItems: 'center', gap: 3 },
+  sheetHandle: { width: 30, height: 4, borderRadius: 2, backgroundColor: colors.border, marginBottom: 4 },
+  sheetTitle: { fontFamily: fonts.jakartaBold, fontSize: 12, color: colors.text },
+  sheetSub: { fontSize: 9, color: colors.text2, marginBottom: 4 },
+  scopeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.surface, borderWidth: 1.5, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 },
+  scopeName: { flex: 1, fontSize: 11, fontWeight: '600', color: colors.text },
+  scopeCount: { fontSize: 10, color: colors.text3, fontFamily: fonts.monoMedium },
+  scopeDice: { fontSize: 13 },
+  sortSheetTitle: { fontSize: 11, fontWeight: '700', color: colors.text2, marginBottom: 6, textAlign: 'center' },
+  sortDirRow: { flexDirection: 'row', gap: 6, width: '100%', marginBottom: 6 },
+  sortDirBtn: { flex: 1, paddingVertical: 6, borderRadius: 9, borderWidth: 1.5, borderColor: colors.border, backgroundColor: colors.surface, alignItems: 'center' },
+  sortDirBtnActive: { backgroundColor: colors.accentSoft, borderColor: 'rgba(91, 76, 245, 0.3)' },
+  sortDirText: { fontSize: 11, fontWeight: '600', color: colors.text2 },
+  sortDirTextActive: { color: colors.accent },
+  sortOpt: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.border },
+  sortOptLast: { borderBottomWidth: 0 },
+  sortOptText: { fontSize: 11, color: colors.text },
+  sortOptTextActive: { color: colors.accent, fontWeight: '600' },
+  sortCheck: { fontSize: 13, color: colors.accent },
   manualBtn: { backgroundColor: colors.accentSoft, borderWidth: 1, borderColor: 'rgba(91,76,245,0.3)', borderRadius: 9, paddingHorizontal: 14, paddingVertical: 7 },
   manualBtnText: { fontSize: 11, fontWeight: '700', color: colors.accent },
   dialog: { backgroundColor: colors.white, borderWidth: 1, borderColor: colors.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, gap: 10, alignItems: 'center' },
