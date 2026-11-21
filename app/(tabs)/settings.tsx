@@ -291,14 +291,14 @@ export default function SettingsScreen() {
           <View style={styles.group}>
             <TouchableOpacity
               style={[styles.row, styles.rowNoBorder]}
-              onPress={() => router.push('/help')}
+              onPress={() => router.push('/guide')}
             >
               <View style={[styles.rowIcon, styles.iconPurple]}>
                 <Text style={styles.rowEmoji}>❓</Text>
               </View>
               <View style={styles.rowText}>
-                <Text style={styles.rowLabel}>ヘルプ</Text>
-                <Text style={styles.rowSub}>使い方・よくある質問・お問い合わせ</Text>
+                <Text style={styles.rowLabel}>ヘルプ（機能ガイド）</Text>
+                <Text style={styles.rowSub}>使い方・よくある質問・お問い合わせを図解で</Text>
               </View>
               <Text style={styles.rowChevron}>›</Text>
             </TouchableOpacity>

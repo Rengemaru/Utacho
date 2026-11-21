@@ -528,7 +528,7 @@ export default function HomeScreen() {
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.helpBtn, isTablet && styles.iconBtnTablet]}
-            onPress={() => router.push('/help')}
+            onPress={() => router.push('/guide')}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             accessibilityLabel="ヘルプ"
           >
