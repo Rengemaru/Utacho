@@ -70,6 +70,17 @@ export const MIGRATIONS: Migration[] = [
       }
     },
   },
+  {
+    version: 6,
+    description: 'add deleted_at column to songs (logical delete / trash)',
+    up: async (db) => {
+      const cols = await db.getAllAsync<{ name: string }>('PRAGMA table_info(songs)');
+      // NULL=有効、ISO日時=ゴミ箱入り。既存行は NULL のままなので非破壊
+      if (!cols.some((c) => c.name === 'deleted_at')) {
+        await db.execAsync(`ALTER TABLE songs ADD COLUMN deleted_at TEXT`);
+      }
+    },
+  },
 ];
 
 export async function runMigrations(db: SQLite.SQLiteDatabase): Promise<void> {

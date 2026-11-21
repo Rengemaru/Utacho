@@ -14,7 +14,8 @@ export const schema = `
     memo        TEXT    NOT NULL DEFAULT '',
     title_reading  TEXT NOT NULL DEFAULT '',
     artist_reading TEXT NOT NULL DEFAULT '',
-    created_at  TEXT    NOT NULL
+    created_at  TEXT    NOT NULL,
+    deleted_at  TEXT
   );
   CREATE TABLE IF NOT EXISTS song_tabs (
     song_id INTEGER NOT NULL REFERENCES songs(id) ON DELETE CASCADE,
