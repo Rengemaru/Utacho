@@ -1,6 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
+  BackHandler,
   Image,
   Keyboard,
   KeyboardAvoidingView,
@@ -23,6 +24,7 @@ import { syncTabs } from '../../src/db/songTabs';
 import { useTabs } from '../../src/hooks/useTabs';
 import { MOCK_SONGS } from '../../src/db/mockData';
 import { useConfirm } from '../../src/components/ConfirmProvider';
+import { DiscardChangesModal } from '../../src/components/DiscardChangesModal';
 
 import { MAX_TAB_NAME_LENGTH, truncateTabName } from '../../src/constants/tabConfig';
 
@@ -48,7 +50,36 @@ export default function SongFormScreen() {
   const [selectedTabIds, setSelectedTabIds] = useState<number[]>([]);
   const [newTabModalVisible, setNewTabModalVisible] = useState(false);
   const [newTabName, setNewTabName] = useState('');
+  const [discardVisible, setDiscardVisible] = useState(false);
 
+  // U03: 未保存の変更がある場合だけ破棄確認を出すため、初期値のスナップショットを保持する。
+  // null の間（編集データ読み込み前）は dirty 判定を行わない。
+  const baselineRef = useRef<string | null>(null);
+
+  function snapshot(): string {
+    return JSON.stringify({
+      title,
+      artist,
+      keyOffset,
+      tempoOffset,
+      artworkUrl,
+      memo,
+      titleReading,
+      artistReading,
+      tabIds: [...selectedTabIds].sort((a, b) => a - b),
+    });
+  }
+
+  function isDirty(): boolean {
+    return baselineRef.current !== null && snapshot() !== baselineRef.current;
+  }
+
+  useEffect(() => {
+    if (isEdit) return;
+    // 新規：初期状態（さがすで選んだ候補 or 空）を基準に記録する
+    baselineRef.current = snapshot();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!isEdit) return;
@@ -62,11 +93,47 @@ export default function SongFormScreen() {
       setArtworkUrl(song.artwork_url);
       setTitleReading(song.title_reading ?? '');
       setArtistReading(song.artist_reading ?? '');
-      setSelectedTabIds(song.tabs?.map((t) => t.id) ?? []);
+      const tabIds = song.tabs?.map((t) => t.id) ?? [];
+      setSelectedTabIds(tabIds);
+      // 読み込んだ曲の値を基準にする（キー・テンポ・メモは編集フォームに出ないので初期値のまま）
+      baselineRef.current = JSON.stringify({
+        title: song.title,
+        artist: song.artist,
+        keyOffset: null,
+        tempoOffset: null,
+        artworkUrl: song.artwork_url,
+        memo: '',
+        titleReading: song.title_reading ?? '',
+        artistReading: song.artist_reading ?? '',
+        tabIds: [...tabIds].sort((a, b) => a - b),
+      });
     } catch (e) {
       console.error(e);
     }
   }, [songId, isEdit]);
+
+  // U03: 離脱経路（✕・Android戻る）を一貫させる。変更があれば破棄確認、なければそのまま閉じる。
+  function handleClose() {
+    if (!isDirty()) {
+      router.back();
+      return;
+    }
+    setDiscardVisible(true);
+  }
+
+  // Android ハードウェアバックも破棄確認に通す。最新の state を参照するため毎レンダーで ref を更新する。
+  const handleBackRef = useRef<() => boolean>(() => false);
+  handleBackRef.current = () => {
+    if (newTabModalVisible) return false; // タブ作成モーダルは自前で閉じる
+    if (discardVisible) { setDiscardVisible(false); return true; } // 破棄確認を戻るで閉じる＝編集を続ける
+    if (!isDirty()) return false;
+    setDiscardVisible(true);
+    return true;
+  };
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => handleBackRef.current());
+    return () => sub.remove();
+  }, []);
 
   // Bug-1: タブが削除・追加されたとき、存在しないタブIDをselectedTabIdsから除去する。
   // ただしタブ一覧のロード完了前（tabsLoading中・tabs=[]）は絞り込まない。
@@ -169,7 +236,7 @@ export default function SongFormScreen() {
       <View style={[styles.screen, { paddingTop: insets.top + 6 }]}>
         {/* ヘッダー */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()}>
+          <TouchableOpacity onPress={handleClose}>
             <Text style={styles.closeBtn}>✕</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>{isEdit ? '曲を編集' : '曲を追加'}</Text>
@@ -314,6 +381,13 @@ export default function SongFormScreen() {
             </>
           )}
         </ScrollView>
+
+        {/* U03: 未保存の変更の破棄確認（Figma 105-2071 準拠） */}
+        <DiscardChangesModal
+          visible={discardVisible}
+          onKeepEditing={() => setDiscardVisible(false)}
+          onDiscard={() => { setDiscardVisible(false); router.back(); }}
+        />
 
         {/* 新規タブ作成モーダル */}
         <Modal visible={newTabModalVisible} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setNewTabModalVisible(false)}>
