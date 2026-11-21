@@ -218,16 +218,25 @@ export default function SongFormScreen() {
       isEdit ? Number(songId) : undefined,
     );
     if (duplicate) {
-      const artistLabel = artist.trim() ? `（${artist.trim()}）` : '';
+      const artistLabel = duplicate.artist ? `\n${duplicate.artist}` : '';
       const r = await confirm({
-        title: '重複登録',
-        message: `「${title.trim()}」${artistLabel}はすでに登録されています。それでも${isEdit ? '保存' : '追加'}しますか？`,
-        icon: '⚠️',
-        iconTone: 'red',
-        options: [{ label: `それでも${isEdit ? '保存' : '登録'}する`, style: 'danger' }],
-        cancelLabel: '戻る',
+        title: 'この曲は登録済みです',
+        message: `「${duplicate.title}」${artistLabel}\n\n${isEdit
+          ? '登録済みの曲を開く場合、入力中の変更は保存されません。'
+          : '登録済みの曲で点数やメモを確認できます。'}`,
+        options: [
+          { label: '登録済みの曲を開く', style: 'primary' },
+          { label: isEdit ? 'この曲の変更を保存する' : '別バージョンとして登録する' },
+        ],
+        cancelLabel: '入力に戻る',
       });
-      if (r === 0) await doSave();
+      if (r === 0) {
+        Keyboard.dismiss();
+        // 登録フォームを履歴に残さず、既存曲の記録・詳細へ進む（U08）。
+        router.replace({ pathname: '/song/[id]', params: { id: String(duplicate.id) } });
+      } else if (r === 1) {
+        await doSave();
+      }
       return;
     }
 
