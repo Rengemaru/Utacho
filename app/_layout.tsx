@@ -5,6 +5,7 @@ import { router, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useFonts } from 'expo-font';
+import { NotoSansJP_400Regular, NotoSansJP_700Bold } from '@expo-google-fonts/noto-sans-jp';
 import {
   PlusJakartaSans_700Bold,
   PlusJakartaSans_800ExtraBold,
@@ -22,6 +23,8 @@ import { isOnboardingCompleted } from '../src/lib/machine';
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
+    NotoSansJP_400Regular,
+    NotoSansJP_700Bold,
     PlusJakartaSans_700Bold,
     PlusJakartaSans_800ExtraBold,
     DMMono_400Regular,

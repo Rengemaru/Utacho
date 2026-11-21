@@ -226,17 +226,17 @@ export function findDuplicateSong(
   title: string,
   artist: string,
   excludeId?: number,
-): { id: number } | null {
+): Pick<SongRow, 'id' | 'title' | 'artist'> | null {
   // 編集時は自分自身を比較対象から除外する（除外しないと、変更なしの保存でも警告が出る）
   // ゴミ箱内の曲は重複判定の対象外（再登録を妨げない）
   if (excludeId != null) {
-    return getDb().getFirstSync<{ id: number }>(
-      `SELECT id FROM songs WHERE LOWER(TRIM(title)) = LOWER(TRIM(?)) AND LOWER(TRIM(artist)) = LOWER(TRIM(?)) AND id != ? AND deleted_at IS NULL LIMIT 1`,
+    return getDb().getFirstSync<Pick<SongRow, 'id' | 'title' | 'artist'>>(
+      `SELECT id, title, artist FROM songs WHERE LOWER(TRIM(title)) = LOWER(TRIM(?)) AND LOWER(TRIM(artist)) = LOWER(TRIM(?)) AND id != ? AND deleted_at IS NULL LIMIT 1`,
       [title, artist, excludeId]
     );
   }
-  return getDb().getFirstSync<{ id: number }>(
-    `SELECT id FROM songs WHERE LOWER(TRIM(title)) = LOWER(TRIM(?)) AND LOWER(TRIM(artist)) = LOWER(TRIM(?)) AND deleted_at IS NULL LIMIT 1`,
+  return getDb().getFirstSync<Pick<SongRow, 'id' | 'title' | 'artist'>>(
+    `SELECT id, title, artist FROM songs WHERE LOWER(TRIM(title)) = LOWER(TRIM(?)) AND LOWER(TRIM(artist)) = LOWER(TRIM(?)) AND deleted_at IS NULL LIMIT 1`,
     [title, artist]
   );
 }
