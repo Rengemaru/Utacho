@@ -162,13 +162,24 @@ export default function SongDetailScreen() {
     );
   }
 
-  // 選択中の機種だけで最高点・記録回数・前回比・グラフを出す（DAM/JOYSOUND 完全分離 #71）。
-  // scores は scored_at DESC 順。機種で絞った先頭2件で前回比を計算する。
+  // 選択中の機種だけで最高点・最新点・記録回数・前回比・グラフを出す（DAM/JOYSOUND 完全分離 #71 / U10 #139）。
+  // scores は scored_at DESC 順。機種で絞った先頭が最新点、先頭2件の差が前回比。
   const machineScores = scores.filter((s) => s.machine === selectedMachine);
   const bestForMachine = machineScores.length > 0 ? Math.max(...machineScores.map((s) => s.score)) : null;
+  const latestForMachine = machineScores.length > 0 ? machineScores[0].score : null;
   const countForMachine = machineScores.length;
   const diff = machineScores.length >= 2 ? machineScores[0].score - machineScores[1].score : null;
-  const diffMachine = selectedMachine === 'DAM' ? 'DAM' : 'JOY';
+  const machineLabel = selectedMachine === 'DAM' ? 'DAM' : 'JOYSOUND';
+  const diffLabel =
+    diff == null
+      ? '—'
+      : diff > 0
+        ? `+${diff.toFixed(3)}`
+        : diff < 0
+          ? `−${Math.abs(diff).toFixed(3)}`
+          : '±0.000';
+  // 最新点が最高点と同じ（かつ複数記録またはベスト更新状態）で前回比がプラスのときは緑で強調（Figma 105:2773 / 105:2369 準拠）
+  const isPositiveLatest = diff != null && diff > 0 && latestForMachine != null && latestForMachine === bestForMachine;
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
@@ -245,34 +256,41 @@ export default function SongDetailScreen() {
               })}
             </View>
 
-            {/* 最高スコアカード（選択中の機種） */}
+            {/* 最高スコアカード（選択中の機種・U10 #139: 最高点・最新点・同一機種の前回比を区別、高さ104px維持） */}
             <LinearGradient
               colors={['#ede9fe', '#f5f3ff']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.bestCard}
             >
-              <View>
-                <Text style={styles.bestLabel}>{diffMachine} 最高スコア</Text>
-                <Text style={styles.bestValue}>
-                  {bestForMachine != null && bestForMachine > 0 ? bestForMachine.toFixed(3) : '—'}
-                </Text>
-                {diff != null && (
-                  <Text style={[styles.bestDiff, { color: diff >= 0 ? colors.green : colors.red }]}>
-                    {diff >= 0 ? `↑ ${diff.toFixed(3)}pt` : `↓ ${Math.abs(diff).toFixed(3)}pt`} 前回比
+              <View style={styles.bestTopRow}>
+                <View style={styles.bestLeft}>
+                  <Text style={styles.bestLabel}>{machineLabel} 最高スコア</Text>
+                  <Text style={[styles.bestValue, latestForMachine != null && styles.bestValueCompact]}>
+                    {bestForMachine != null && bestForMachine > 0 ? bestForMachine.toFixed(3) : '—'}
                   </Text>
-                )}
+                </View>
+                <View style={styles.bestRight}>
+                  <Text style={styles.bestLabel}>記録回数</Text>
+                  <Text style={[styles.countValue, latestForMachine != null && styles.countValueCompact]}>
+                    {countForMachine}回
+                  </Text>
+                </View>
               </View>
-              <View>
-                <Text style={styles.bestLabel}>記録回数</Text>
-                <Text style={styles.countValue}>{countForMachine}回</Text>
-              </View>
+              {latestForMachine != null && (
+                <Text
+                  style={[styles.latestDiffRow, isPositiveLatest && styles.latestDiffRowPositive]}
+                  numberOfLines={1}
+                >
+                  {`最新 ${latestForMachine > 0 ? latestForMachine.toFixed(3) : '—'}  ｜ 前回比 ${diffLabel}`}
+                </Text>
+              )}
             </LinearGradient>
 
             {/* グラフ（選択中の機種の記録が2件以上あるとき表示） */}
             {machineScores.length >= 2 && (
               <View style={styles.chartSection}>
-                <Text style={styles.sectionLabel}>点数推移（{diffMachine}）</Text>
+                <Text style={styles.sectionLabel}>点数推移（{machineLabel}）</Text>
                 <ScoreChart scores={machineScores} />
               </View>
             )}
@@ -513,35 +531,66 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
   bestCard: {
+    height: 104,
     borderWidth: 1.5,
     borderColor: 'rgba(91, 76, 245, 0.15)',
     borderRadius: 16,
-    padding: 15,
+    padding: 14,
+    justifyContent: 'center',
+    gap: 6,
+  },
+  bestTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  bestLeft: {
+    gap: 3,
+  },
+  bestRight: {
+    alignItems: 'flex-end',
+    gap: 3,
+  },
   bestLabel: {
+    fontFamily: fonts.notoSansJPRegular,
     fontSize: 10,
+    lineHeight: 13,
+    includeFontPadding: false,
     color: colors.text2,
-    letterSpacing: 0.8,
-    marginBottom: 4,
+    letterSpacing: 0.4,
   },
   bestValue: {
     fontFamily: fonts.jakartaExtraBold,
     fontSize: 34,
     color: colors.accent,
     lineHeight: 40,
+    includeFontPadding: false,
   },
-  bestDiff: {
-    fontSize: 11,
-    marginTop: 3,
+  bestValueCompact: {
+    fontSize: 30,
+    lineHeight: 36,
   },
   countValue: {
     fontFamily: fonts.monoMedium,
     fontSize: 22,
     color: colors.text,
     textAlign: 'right',
+    includeFontPadding: false,
+  },
+  countValueCompact: {
+    fontFamily: fonts.notoSansJPBold,
+    fontSize: 18,
+    lineHeight: 24,
+  },
+  latestDiffRow: {
+    fontFamily: fonts.notoSansJPBold,
+    fontSize: 11,
+    lineHeight: 15,
+    includeFontPadding: false,
+    color: colors.text2,
+  },
+  latestDiffRowPositive: {
+    color: colors.green,
   },
   chartSection: {
     gap: 6,
