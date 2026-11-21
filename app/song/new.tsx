@@ -18,7 +18,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyStepper, TEMPO_HELPER_TEXT } from '../../src/components/KeyStepper';
 import { colors } from '../../src/constants/colors';
-import { insertSong, updateSong, getSongById, findDuplicateSong } from '../../src/db/songs';
+import { insertSong, updateSong, updateSongSingingInfo, getSongById, findDuplicateSong } from '../../src/db/songs';
 import { insertTab, findDuplicateTab } from '../../src/db/tabs';
 import { syncTabs } from '../../src/db/songTabs';
 import { useTabs } from '../../src/hooks/useTabs';
@@ -51,6 +51,8 @@ export default function SongFormScreen() {
   const [newTabModalVisible, setNewTabModalVisible] = useState(false);
   const [newTabName, setNewTabName] = useState('');
   const [discardVisible, setDiscardVisible] = useState(false);
+  // U04: 追加設定（読み・キー・テンポ・メモ）の折りたたみ。初期は閉じる
+  const [showExtra, setShowExtra] = useState(false);
 
   // U03: 未保存の変更がある場合だけ破棄確認を出すため、初期値のスナップショットを保持する。
   // null の間（編集データ読み込み前）は dirty 判定を行わない。
@@ -93,16 +95,19 @@ export default function SongFormScreen() {
       setArtworkUrl(song.artwork_url);
       setTitleReading(song.title_reading ?? '');
       setArtistReading(song.artist_reading ?? '');
+      setKeyOffset(song.key_offset);
+      setTempoOffset(song.tempo_offset);
+      setMemo(song.memo ?? '');
       const tabIds = song.tabs?.map((t) => t.id) ?? [];
       setSelectedTabIds(tabIds);
-      // 読み込んだ曲の値を基準にする（キー・テンポ・メモは編集フォームに出ないので初期値のまま）
+      // 読み込んだ曲の値を基準にする（キー・テンポ・メモも編集対象に含める）
       baselineRef.current = JSON.stringify({
         title: song.title,
         artist: song.artist,
-        keyOffset: null,
-        tempoOffset: null,
+        keyOffset: song.key_offset,
+        tempoOffset: song.tempo_offset,
         artworkUrl: song.artwork_url,
-        memo: '',
+        memo: song.memo ?? '',
         titleReading: song.title_reading ?? '',
         artistReading: song.artist_reading ?? '',
         tabIds: [...tabIds].sort((a, b) => a - b),
@@ -187,6 +192,8 @@ export default function SongFormScreen() {
       try {
         if (isEdit) {
           updateSong(Number(songId), title.trim(), artist.trim(), artworkUrl, titleReading.trim(), artistReading.trim());
+          // キー・テンポ・メモも編集フォーム（追加設定）から保存する
+          updateSongSingingInfo(Number(songId), { key_offset: keyOffset, tempo_offset: tempoOffset, memo });
           syncTabs(Number(songId), selectedTabIds);
         } else {
           const newId = insertSong(title.trim(), artist.trim(), keyOffset, artworkUrl, memo, titleReading.trim(), artistReading.trim(), tempoOffset);
@@ -249,9 +256,9 @@ export default function SongFormScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* 曲名（サジェストなしのテキスト欄・§5.8/5.9） */}
+          {/* 曲名（必須・サジェストなしのテキスト欄・§5.8/5.9） */}
           <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>曲名</Text>
+            <Text style={styles.fieldLabel}>曲名（必須）</Text>
             <TextInput
               style={styles.fieldInput}
               value={title}
@@ -263,7 +270,7 @@ export default function SongFormScreen() {
             />
           </View>
 
-          {/* 曲名の読み（任意・ローカル検索用 #42） */}
+          {/* 曲名の読み（任意・ローカル検索用 #42）。入力を促すため基本表示に出す */}
           <View style={styles.fieldGroup}>
             <Text style={styles.fieldLabel}>曲名の読み（任意）</Text>
             <TextInput
@@ -277,9 +284,9 @@ export default function SongFormScreen() {
             />
           </View>
 
-          {/* アーティスト名（サジェストなしのテキスト欄） */}
+          {/* アーティスト名（任意・サジェストなしのテキスト欄） */}
           <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>アーティスト名</Text>
+            <Text style={styles.fieldLabel}>アーティスト名（任意）</Text>
             <TextInput
               style={styles.fieldInput}
               value={artist}
@@ -291,7 +298,7 @@ export default function SongFormScreen() {
             />
           </View>
 
-          {/* アーティストの読み（任意・ローカル検索用 #42） */}
+          {/* アーティストの読み（任意・ローカル検索用 #42）。入力を促すため基本表示に出す */}
           <View style={styles.fieldGroup}>
             <Text style={styles.fieldLabel}>アーティストの読み（任意）</Text>
             <TextInput
@@ -301,7 +308,7 @@ export default function SongFormScreen() {
               maxLength={MAX_NAME_LENGTH}
               placeholder="れい：よあそび"
               placeholderTextColor={colors.text3}
-              returnKeyType="done"
+              returnKeyType="next"
             />
           </View>
 
@@ -346,13 +353,27 @@ export default function SongFormScreen() {
             </View>
           </View>
 
-          {/* キー・テンポ・メモは「歌い方」の情報。新規登録時はここで入力し、
-              登録後は曲詳細画面でその場で調整する（編集画面には出さない） */}
-          {isEdit ? (
-            <View style={styles.movedNote}>
-              <Text style={styles.movedNoteText}>💡 キー・テンポ・メモは曲詳細画面からすぐ変更できます</Text>
+          {/* U04: 追加設定（任意）を折りたたむ（#133）。読みは入力を促すため基本表示に残し、
+              折りたたむのはキー・テンポ・メモのみ。折りたたんでも state は保持される。
+              新規・編集とも同じ折りたたみでキー・テンポ・メモを編集できる。 */}
+          <TouchableOpacity
+            style={styles.extraHeader}
+            onPress={() => setShowExtra((v) => !v)}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: showExtra }}
+          >
+            <View style={styles.extraHeaderInfo}>
+              <Text style={styles.extraHeaderTitle}>追加設定（任意）</Text>
+              {!showExtra && <Text style={styles.extraHeaderSub}>キー・テンポ・メモ</Text>}
             </View>
-          ) : (
+            <Text style={[styles.extraChevron, showExtra && styles.extraChevronOpen]}>›</Text>
+          </TouchableOpacity>
+
+          {!showExtra && (
+            <Text style={styles.extraHint}>あとから曲の詳細や編集で変更できます。</Text>
+          )}
+
+          {showExtra && (
             <>
               <View style={styles.fieldGroup}>
                 <Text style={styles.fieldLabel}>キー（音域）</Text>
@@ -503,6 +524,41 @@ const styles = StyleSheet.create({
   movedNoteText: {
     fontSize: 11,
     color: colors.accent,
+  },
+  // U04: 追加設定（折りたたみ）ヘッダー
+  extraHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface2,
+    borderRadius: 11,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+  },
+  extraHeaderInfo: {
+    flex: 1,
+    gap: 3,
+  },
+  extraHeaderTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  extraHeaderSub: {
+    fontSize: 11,
+    color: colors.text3,
+  },
+  extraChevron: {
+    fontSize: 20,
+    color: colors.text2,
+    marginLeft: 8,
+  },
+  extraChevronOpen: {
+    transform: [{ rotate: '90deg' }],
+  },
+  extraHint: {
+    fontSize: 11,
+    color: colors.text3,
+    marginTop: -8,
   },
   // アルバムアート行
   songRow: {
