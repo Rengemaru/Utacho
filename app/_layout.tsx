@@ -15,6 +15,7 @@ import {
 } from '@expo-google-fonts/dm-mono';
 import { initDatabase } from '../src/db/client';
 import { seedIfEmpty } from '../src/db/seed';
+import { purgeExpiredDeleted } from '../src/db/songs';
 import { MachineProvider } from '../src/contexts/MachineContext';
 import { ConfirmProvider } from '../src/components/ConfirmProvider';
 import { isOnboardingCompleted } from '../src/lib/machine';
@@ -34,6 +35,8 @@ export default function RootLayout() {
     (async () => {
       await initDatabase();
       if (__DEV__) seedIfEmpty();
+      // ゴミ箱に入れて30日が過ぎた曲を自動で完全削除する
+      try { purgeExpiredDeleted(30); } catch (e) { console.error(e); }
       setDbReady(true);
     })();
   }, []);
