@@ -75,6 +75,19 @@ export default function TrashScreen() {
           削除した曲は一時的にここへ移動します。{AUTO_DELETE_DAYS}日が過ぎた曲は自動的に完全削除されます。
         </Text>
 
+        {songs.length > 0 && (
+          <View style={styles.topBar}>
+            <TouchableOpacity
+              onPress={handleEmpty}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel="ゴミ箱を空にする"
+            >
+              <Text style={styles.emptyLink}>ゴミ箱を空にする</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {songs.length === 0 ? (
           <EmptyState emoji="🗑" title="ゴミ箱は空です" subtitle="削除した曲がここに表示されます" />
         ) : (
@@ -111,10 +124,6 @@ export default function TrashScreen() {
                 </TouchableOpacity>
               </View>
             ))}
-
-            <TouchableOpacity style={styles.emptyBtn} onPress={handleEmpty}>
-              <Text style={styles.emptyBtnText}>ゴミ箱を空にする</Text>
-            </TouchableOpacity>
           </>
         )}
       </ScrollView>
@@ -126,6 +135,8 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   content: { paddingHorizontal: 18, paddingTop: 16, gap: 10 },
   intro: { fontSize: 11, color: colors.text2, lineHeight: 17, marginBottom: 4 },
+  topBar: { alignItems: 'flex-end', marginTop: -2, marginBottom: 2 },
+  emptyLink: { fontSize: 12, fontWeight: '600', color: colors.red, paddingVertical: 4 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -162,10 +173,4 @@ const styles = StyleSheet.create({
     borderWidth: 1.5, borderColor: 'rgba(239,68,68,0.2)',
   },
   deleteBtnText: { fontSize: 15 },
-  emptyBtn: {
-    marginTop: 8,
-    alignItems: 'center',
-    paddingVertical: 12,
-  },
-  emptyBtnText: { fontSize: 13, fontWeight: '700', color: colors.red },
 });
