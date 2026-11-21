@@ -45,7 +45,15 @@ export default function GuideScreen() {
                     <Text style={styles.subtitle} numberOfLines={1}>{t.subtitle}</Text>
                   </View>
                   <View style={styles.badge}>
-                    <Text style={styles.badgeText}>全{t.steps.length}手順</Text>
+                    <Text style={styles.badgeText}>
+                      {t.steps.length > 1
+                        ? `全${t.steps.length}手順`
+                        : t.category === 'E'
+                          ? '回答'
+                          : t.category === 'F'
+                            ? '対処'
+                            : '図解'}
+                    </Text>
                   </View>
                   <Text style={styles.chevron}>›</Text>
                 </Pressable>
