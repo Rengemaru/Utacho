@@ -19,6 +19,9 @@ const KEY_LEGACY_COACH = 'coach_mark_shown';
  */
 export type IntroState = 'pending' | 'search' | 'done' | null;
 
+/** 個別再生できるコーチマークのパート種別 */
+export type TutorialPartId = 'intro' | 'home' | 'detail';
+
 /**
  * オンボーディングが終わっているか。終わる前（新規インストール直後）は、ホームがオンボーディング画面の
  * 裏で描画されているだけなので、どのチュートリアルも出さない（見えない部品を測って位置がずれるため）
@@ -38,9 +41,21 @@ export function setIntroState(state: Exclude<IntroState, null>): void {
   setSettingSync(KEY_INTRO, state);
 }
 
-/** ホームのパートを出すべきか（既存ユーザーは旧カードで説明済みのため出さない） */
+/**
+ * ホームのパートを出すべきか。
+ * - 明示的に再再生を要求された場合（pending）は既存ユーザーでも表示する
+ * - 初回自動表示では、既存ユーザー（旧カードで説明済み）には出さない
+ */
 export function shouldShowHomeTutorial(): boolean {
-  return isOnboardingDone() && getSettingSync(KEY_HOME) !== 'done' && getSettingSync(KEY_LEGACY_COACH) !== 'true';
+  if (!isOnboardingDone()) return false;
+  const status = getSettingSync(KEY_HOME);
+  if (status === 'pending') return true;
+  return status !== 'done' && getSettingSync(KEY_LEGACY_COACH) !== 'true';
+}
+
+/** 機能ガイド等からホームチュートリアルの再再生が要求されているか */
+export function isHomeTutorialReplayPending(): boolean {
+  return isOnboardingDone() && getSettingSync(KEY_HOME) === 'pending';
 }
 
 export function markHomeTutorialDone(): void {
@@ -53,4 +68,17 @@ export function shouldShowDetailTutorial(): boolean {
 
 export function markDetailTutorialDone(): void {
   setSettingSync(KEY_DETAIL, 'done');
+}
+
+/** 指定パートのチュートリアルを個別に再再生予約する */
+export function requestTutorialReplay(part: TutorialPartId): void {
+  if (part === 'intro') {
+    setSettingSync(KEY_INTRO, 'pending');
+  } else if (part === 'home') {
+    // intro が未完了だと intro が優先されるため、home 単体再生時は intro を完了扱いに揃える
+    setSettingSync(KEY_INTRO, 'done');
+    setSettingSync(KEY_HOME, 'pending');
+  } else {
+    setSettingSync(KEY_DETAIL, 'pending');
+  }
 }

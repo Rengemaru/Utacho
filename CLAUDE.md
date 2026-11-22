@@ -1167,7 +1167,7 @@ eas submit --platform android --profile production
 | 復元のアンドゥ・全削除の3択（#19） | バックアップ復元・全データ削除の操作に確認/取り消しの導線 |
 | キー上限・下限（±7） | KeyStepper のキー調整に上限下限（±7）を設定 |
 | タブ名の重複チェック | タブの追加・リネーム時に同名を弾く |
-| コーチマーク（チュートリアル） | 機能を初めて使う場面で対象を照らして説明（はじめに／曲を追加したら／曲詳細の3パート。`CoachMarkTour.tsx`・文言は `src/data/tutorialSteps.ts`・進み具合は settings の `tutorial_intro` / `tutorial_home` / `tutorial_detail`） |
+| コーチマーク（チュートリアル） | 機能を初めて使う場面で対象を照らして説明（はじめに／曲を追加したら／曲詳細の3パート。`CoachMarkTour.tsx`・文言は `src/data/tutorialSteps.ts`・進み具合は settings の `tutorial_intro` / `tutorial_home` / `tutorial_detail`）。機能ガイド（`app/guide.tsx`）上部の「チュートリアル」セクションから各パートを個別に再再生可能（`requestTutorialReplay`） |
 | ヘルプ画面 | アプリ内ヘルプ（`app/help.tsx` ＋ `src/data/helpContent.ts`）。v1.0 から実機に存在 |
 
 ## 12. 今後の対応候補
