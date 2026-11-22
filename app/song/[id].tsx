@@ -232,8 +232,9 @@ export default function SongDetailScreen() {
                 )}
               </View>
               <View style={styles.artInfo}>
-                <Text style={styles.artTitle} numberOfLines={2}>{song.title}</Text>
-                <Text style={styles.artArtist} numberOfLines={1}>{song.artist || '—'}</Text>
+                {/* U13: 一覧カードは1行省略のまま保ち、詳細画面では曲名・アーティスト名を全文表示する */}
+                <Text style={styles.artTitle} selectable>{song.title}</Text>
+                <Text style={styles.artArtist} selectable>{song.artist || '—'}</Text>
               </View>
             </View>
 
