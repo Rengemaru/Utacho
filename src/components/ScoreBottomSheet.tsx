@@ -29,8 +29,12 @@ import {
   todayDateString,
   replaceDatePart,
 } from '../lib/datetime';
-
-const MAX_SCORE = 100;
+import {
+  applyScoreKey,
+  clearScoreInput,
+  hasScoreInput,
+  parseScoreInput,
+} from '../lib/scoreInput';
 
 interface Props {
   visible: boolean;
@@ -93,19 +97,11 @@ export function ScoreBottomSheet({ visible, song, editingScore, onClose, onSaved
   }
 
   function handleKey(key: string) {
-    if (key === '⌫') {
-      setInput((prev) => prev.slice(0, -1));
-      return;
-    }
-    if (key === '.') {
-      if (input === '' || input.includes('.')) return;
-      setInput((prev) => prev + '.');
-      return;
-    }
-    const next = input + key;
-    if (parseFloat(next) > MAX_SCORE) return;
-    if (next.includes('.') && next.split('.')[1].length > 3) return;
-    setInput(next);
+    setInput((prev) => applyScoreKey(prev, key));
+  }
+
+  function handleClear() {
+    setInput(clearScoreInput());
   }
 
   function showPBBanner(score: number) {
@@ -124,8 +120,8 @@ export function ScoreBottomSheet({ visible, song, editingScore, onClose, onSaved
 
   async function handleSave() {
     if (isSaving) return;
-    const score = parseFloat(input);
-    if (isNaN(score) || score < 0 || score > MAX_SCORE) {
+    const score = parseScoreInput(input);
+    if (score === null) {
       await confirm({ title: '入力エラー', message: '0〜100の数値を入力してください', options: [{ label: 'OK', style: 'primary' }], cancelLabel: null });
       return;
     }
@@ -166,6 +162,7 @@ export function ScoreBottomSheet({ visible, song, editingScore, onClose, onSaved
   }
 
   const isEdit = !!editingScore;
+  const hasInput = hasScoreInput(input);
   const nextDayIsFuture = isFutureDatePart(shiftDatePart(scoredAt, 1));
   const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', '⌫'];
 
@@ -204,8 +201,23 @@ export function ScoreBottomSheet({ visible, song, editingScore, onClose, onSaved
 
             {/* スコア表示 */}
             <View style={styles.scoreDisplay}>
-              <Text style={styles.scoreNum}>{input || '0'}</Text>
-              <Text style={styles.scoreUnit}>点</Text>
+              <View style={styles.scoreValueGroup}>
+                <Text style={[styles.scoreNum, !hasInput && styles.scoreNumEmpty]}>
+                  {hasInput ? input : '—'}
+                </Text>
+                <Text style={[styles.scoreUnit, !hasInput && styles.scoreUnitEmpty]}>点</Text>
+              </View>
+              {hasInput && (
+                <TouchableOpacity
+                  style={styles.clearBtn}
+                  onPress={handleClear}
+                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                  accessibilityRole="button"
+                  accessibilityLabel="入力した点数をクリア"
+                >
+                  <Text style={styles.clearBtnText}>クリア</Text>
+                </TouchableOpacity>
+              )}
             </View>
 
             {/* 機種トグル */}
@@ -374,14 +386,22 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 9,
+    minHeight: 56,
     flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 4,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
     marginBottom: 9,
     shadowColor: colors.accent,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.08,
     shadowRadius: 3,
+  },
+  scoreValueGroup: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 4,
+    flexShrink: 1,
   },
   scoreNum: {
     fontFamily: fonts.jakartaExtraBold,
@@ -389,8 +409,30 @@ const styles = StyleSheet.create({
     color: colors.accent,
     letterSpacing: -0.4,
   },
+  scoreNumEmpty: {
+    color: colors.text3,
+  },
   scoreUnit: {
     fontSize: 12,
+    color: colors.text2,
+  },
+  scoreUnitEmpty: {
+    color: colors.text3,
+  },
+  clearBtn: {
+    backgroundColor: colors.surface2,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    height: 32,
+    minWidth: 64,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  clearBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
     color: colors.text2,
   },
   toggleRow: {
