@@ -20,7 +20,8 @@ import { CoachPart, HOME_PART, INTRO_HOME_PART, MOVED_ADD_PART } from '../../src
 import { useCoachTarget } from '../../src/lib/coachTargets';
 import { getIntroState, markHomeTutorialDone, setIntroState, shouldShowHomeTutorial } from '../../src/lib/tutorial';
 import { RandomPickModal } from '../../src/components/RandomPickModal';
-import { ScoreBottomSheet } from '../../src/components/ScoreBottomSheet';
+import { ScoreBottomSheet, formatScoreSavedMessage } from '../../src/components/ScoreBottomSheet';
+import { SaveToast, SAVE_TOAST_DURATION_MS } from '../../src/components/SaveToast';
 import { SetlistModal } from '../../src/components/SetlistModal';
 import { SongActionDialog, type SongActionTarget } from '../../src/components/SongActionDialog';
 import { SongCard } from '../../src/components/SongCard';
@@ -143,6 +144,21 @@ export default function HomeScreen() {
   const [allSongsForTabPicker, setAllSongsForTabPicker] = useState<SongWithStats[]>([]);
   const [sessionSummary, setSessionSummary] = useState<SessionSummary | null>(null);
   const [monthlyStats, setMonthlyStats] = useState<MonthlyStats | null>(null);
+  const [saveToastMessage, setSaveToastMessage] = useState<string | null>(null);
+  const saveToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => {
+    if (saveToastTimerRef.current) clearTimeout(saveToastTimerRef.current);
+  }, []);
+
+  function showSaveToast(message: string) {
+    if (saveToastTimerRef.current) clearTimeout(saveToastTimerRef.current);
+    setSaveToastMessage(message);
+    saveToastTimerRef.current = setTimeout(() => {
+      setSaveToastMessage(null);
+      saveToastTimerRef.current = null;
+    }, SAVE_TOAST_DURATION_MS);
+  }
   // チュートリアル（コーチマーク）。表示中のパートと、画面が前面にあるか
   const { activePart, startTour } = useCoachMark();
   const [isFocused, setIsFocused] = useState(false);
@@ -967,13 +983,19 @@ export default function HomeScreen() {
           song={scoringSong}
           editingScore={null}
           onClose={() => setScoringsSong(null)}
-          onSaved={() => {
+          onSaved={(info) => {
             setScoringsSong(null);
             reload();
             reloadExtras();
+            if (info && !info.isNewPB) {
+              showSaveToast(formatScoreSavedMessage(info));
+            }
           }}
         />
       )}
+
+      {/* U24: 通常保存の軽量完了トースト（操作を妨げない） */}
+      <SaveToast message={saveToastMessage} bottomOffset={14} />
 
       {/* ソート選択モーダル */}
       <Modal

@@ -37,12 +37,23 @@ import {
   validateScoreInput,
 } from '../lib/scoreInput';
 
+export interface SavedScoreInfo {
+  score: number;
+  machine: Machine;
+  isEdit: boolean;
+  isNewPB: boolean;
+}
+
+export function formatScoreSavedMessage(info: SavedScoreInfo): string {
+  return `${info.machine} ${info.score.toFixed(3)}点を保存しました`;
+}
+
 interface Props {
   visible: boolean;
   song: SongWithStats;
   editingScore: ScoreRow | null;
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: (info?: SavedScoreInfo) => void;
 }
 
 export function ScoreBottomSheet({ visible, song, editingScore, onClose, onSaved }: Props) {
@@ -105,7 +116,7 @@ export function ScoreBottomSheet({ visible, song, editingScore, onClose, onSaved
     setInput(clearScoreInput());
   }
 
-  function showPBBanner(score: number) {
+  function showPBBanner(score: number, savedMachine: Machine) {
     setPbScore(score);
     pbAnim.setValue(0);
     Animated.sequence([
@@ -115,7 +126,7 @@ export function ScoreBottomSheet({ visible, song, editingScore, onClose, onSaved
     ]).start(() => {
       setPbScore(null);
       setIsSaving(false); // Bug-4: PBバナー終了後にリセット（finallyより遅らせる）
-      onSaved();
+      onSaved({ score, machine: savedMachine, isEdit: false, isNewPB: true });
     });
   }
 
@@ -130,7 +141,7 @@ export function ScoreBottomSheet({ visible, song, editingScore, onClose, onSaved
       return;
     }
     if (Platform.OS === 'web') {
-      onSaved();
+      onSaved({ score, machine, isEdit: !!editingScore, isNewPB: false });
       return;
     }
     let pbTriggered = false;
@@ -138,7 +149,7 @@ export function ScoreBottomSheet({ visible, song, editingScore, onClose, onSaved
       setIsSaving(true);
       if (editingScore) {
         updateScore(editingScore.id, score, machine, scoredAt);
-        onSaved();
+        onSaved({ score, machine, isEdit: true, isNewPB: false });
       } else {
         // 自己ベストは「記録した機種」の最高点と比較する（DAM/JOYSOUND 完全分離 #71）
         const prevBest = getBestScore(song.id, machine);
@@ -148,9 +159,9 @@ export function ScoreBottomSheet({ visible, song, editingScore, onClose, onSaved
         const isNewPB = prevBest === null || score > prevBest;
         if (isNewPB) {
           pbTriggered = true; // finally での isSaving リセットをスキップ
-          showPBBanner(score);
+          showPBBanner(score, machine);
         } else {
-          onSaved();
+          onSaved({ score, machine, isEdit: false, isNewPB: false });
         }
       }
     } catch (e) {
