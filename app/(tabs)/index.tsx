@@ -169,6 +169,13 @@ export default function HomeScreen() {
 
   const { songs, loading, error, reload } = useSongs(activeTabId, currentMachine);
 
+  // U25: 曲一覧の読み込み失敗時にその場から再読み込みを行う
+  function handleRetryLoad() {
+    reload();
+    reloadTabs();
+    reloadExtras();
+  }
+
   // ヘッダー右の機種ボタン（U01 #130）。押すとセッション機種を切り替え、一覧の集計もその機種に追従する
   async function toggleMachine() {
     if (Platform.OS === 'web') return;
@@ -808,7 +815,26 @@ export default function HomeScreen() {
       {/* 曲一覧 */}
       {error ? (
         <View style={styles.center}>
-          <EmptyState emoji="⚠️" title="データを取得できませんでした" subtitle={error} />
+          <View style={styles.emptyCategoryCard}>
+            <Text style={styles.emptyCategoryTitle}>一覧を読み込めませんでした</Text>
+            <Text style={styles.emptyCategoryBody}>
+              再読み込みをお試しください。{'\n'}操作しても、曲や点数は削除されません。
+            </Text>
+            <TouchableOpacity
+              accessibilityRole="button"
+              style={styles.emptyCategoryPrimaryBtn}
+              onPress={handleRetryLoad}
+            >
+              <Text style={styles.emptyCategoryPrimaryText}>再読み込み</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              accessibilityRole="button"
+              style={styles.emptyCategorySecondaryBtn}
+              onPress={() => router.push('/guide')}
+            >
+              <Text style={styles.emptyCategorySecondaryText}>ヘルプを見る</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       ) : loading ? (
         <View style={styles.center}>
