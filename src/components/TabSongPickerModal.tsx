@@ -176,7 +176,7 @@ export function TabSongPickerModal({ visible, tabName, songs, selectedIds, onSav
                 style={styles.sortMenuItem}
                 onPress={() => handleSelectSort(opt.key)}
               >
-                <Text style={[styles.sortMenuText, sortKey === opt.key && styles.sortMenuTextCur]}>{opt.label}</Text>
+                <Text style={[styles.sortMenuText, sortKey === opt.key && styles.sortMenuTextCur]}>{opt.menuLabel}</Text>
                 {sortKey === opt.key && <Text style={styles.sortMenuCheck}>✓</Text>}
               </TouchableOpacity>
             ))}
@@ -262,7 +262,7 @@ const styles = StyleSheet.create({
   },
   footerBtnText: { fontSize: 14, fontWeight: '700', color: colors.white },
   sortMenu: {
-    position: 'absolute', right: 12, top: 62, width: 160, backgroundColor: colors.white,
+    position: 'absolute', right: 12, top: 62, width: 176, backgroundColor: colors.white,
     borderRadius: 12, borderWidth: 1, borderColor: colors.border,
     shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.18, shadowRadius: 30, elevation: 10,
     overflow: 'hidden',

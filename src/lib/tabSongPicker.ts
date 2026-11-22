@@ -8,12 +8,16 @@ export type TabSongSortKey =
   | 'title'
   | 'artist';
 
-export const TAB_SONG_SORT_OPTIONS: readonly { key: TabSongSortKey; label: string }[] = [
-  { key: 'selected_first', label: '選択中を上' },
-  { key: 'unselected_first', label: '未選択を上' },
-  { key: 'created_at', label: '登録日' },
-  { key: 'title', label: '曲名' },
-  { key: 'artist', label: 'アーティスト' },
+export const TAB_SONG_SORT_OPTIONS: readonly {
+  key: TabSongSortKey;
+  label: string;
+  menuLabel: string;
+}[] = [
+  { key: 'selected_first', label: '選択中を上', menuLabel: '✅ 選択中を上' },
+  { key: 'unselected_first', label: '未選択を上', menuLabel: '⬜ 未選択を上' },
+  { key: 'created_at', label: '登録日', menuLabel: '🗓 登録日' },
+  { key: 'title', label: '曲名', menuLabel: '🔤 曲名' },
+  { key: 'artist', label: 'アーティスト', menuLabel: '🎤 アーティスト' },
 ];
 
 const jaCollator = new Intl.Collator('ja');
