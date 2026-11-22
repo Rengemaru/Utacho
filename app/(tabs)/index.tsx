@@ -712,7 +712,13 @@ export default function HomeScreen() {
           <Text style={styles.searchIcon}>🔍</Text>
           <TextInput
             style={styles.searchInput}
-            placeholder="曲名・アーティスト名で検索"
+            placeholder={
+              activeCategoryTab
+                ? 'このカテゴリの持ち歌を検索'
+                : activeTabId === SETLIST_TAB.id
+                  ? '今日のリスト内を検索'
+                  : '曲名・アーティスト名で検索'
+            }
             placeholderTextColor={colors.text3}
             value={query}
             onChangeText={setQuery}
