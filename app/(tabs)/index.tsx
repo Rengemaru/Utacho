@@ -187,6 +187,7 @@ export default function HomeScreen() {
   }
 
   const swipeRefs = useRef<Map<number, Swipeable | null>>(new Map());
+  const listRef = useRef<FlatList<SongWithStats>>(null);
   const [scoringSong, setScoringsSong] = useState<SongWithStats | null>(null);
   const [actionTarget, setActionTarget] = useState<SongActionTarget | null>(null);
   const [detachedNotice, setDetachedNotice] = useState<{
@@ -259,6 +260,7 @@ export default function HomeScreen() {
       if (Platform.OS !== 'web' && isHomeTutorialReplayPending()) {
         setActiveTabId(ALL_TAB.id);
         setQuery('');
+        listRef.current?.scrollToOffset({ offset: 0, animated: false });
       }
       reloadTabs();
       reload();
@@ -897,6 +899,7 @@ export default function HomeScreen() {
         </View>
       ) : (
         <FlatList
+          ref={listRef}
           data={filtered}
           keyExtractor={(item) => String(item.id)}
           // numColumns は動的に変えられないので、列数が変わったら key で作り直す

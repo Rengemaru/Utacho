@@ -1,6 +1,6 @@
 import Constants from 'expo-constants';
 import { Stack, router } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../src/constants/colors';
@@ -47,9 +47,11 @@ export default function GuideScreen() {
   const insets = useSafeAreaInsets();
   const confirm = useConfirm();
   const [selected, setSelected] = useState<Tutorial | null>(null);
+  const replayingRef = useRef(false);
 
   async function handleReplayTutorial(part: TutorialPartId) {
-    if (Platform.OS === 'web') return;
+    if (Platform.OS === 'web' || replayingRef.current) return;
+    replayingRef.current = true;
     try {
       if (part === 'intro') {
         requestTutorialReplay('intro');
@@ -83,6 +85,8 @@ export default function GuideScreen() {
         options: [{ label: 'OK', style: 'primary' }],
         cancelLabel: null,
       });
+    } finally {
+      replayingRef.current = false;
     }
   }
 
