@@ -37,7 +37,7 @@ export function SongCard({ song, machine, onPressRecord, recordButtonRef }: Prop
         <View style={styles.scoreWrap}>
           <Text style={styles.scoreLabel}>{bestLabel}</Text>
           <Text style={styles.score}>
-            {score != null && score > 0 ? score.toFixed(3) : '—'}
+            {score != null ? score.toFixed(3) : '—'}
           </Text>
         </View>
         <View ref={recordButtonRef} collapsable={false}>
