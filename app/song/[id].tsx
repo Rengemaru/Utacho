@@ -149,6 +149,11 @@ export default function SongDetailScreen() {
     }
   }
 
+  // U28: メモ保存は SingingInfoCard 内でエラー・再試行を扱うため成否のみ返す
+  function handleSaveMemo(memo: string): boolean {
+    return updateSinging({ memo });
+  }
+
   async function handleDeleteScore(score: ScoreRow) {
     const r = await confirm({
       title: 'スコアを削除',
@@ -384,7 +389,7 @@ export default function SongDetailScreen() {
               memo={song.memo}
               onChangeKey={(v) => handleSingingChange({ key_offset: v })}
               onChangeTempo={(v) => handleSingingChange({ tempo_offset: v })}
-              onChangeMemo={(v) => handleSingingChange({ memo: v })}
+              onChangeMemo={handleSaveMemo}
             />
             </View>
 
