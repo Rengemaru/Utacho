@@ -172,13 +172,16 @@ export default function HomeScreen() {
     tabId: number;
     tabName: string;
   } | null>(null);
-  // Bug-5: reloadExtras のクロージャが古い activeTabId を参照しないよう ref で管理
+  // Bug-5: reloadExtras のクロージャが古い activeTabId / currentMachine を参照しないよう ref で管理
   const activeTabIdRef = useRef(activeTabId);
   useEffect(() => { activeTabIdRef.current = activeTabId; }, [activeTabId]);
+  const currentMachineRef = useRef(currentMachine);
+  useEffect(() => { currentMachineRef.current = currentMachine; }, [currentMachine]);
 
-  function reloadExtras() {
+  function reloadExtras(machineOverride?: typeof currentMachine) {
     if (Platform.OS === 'web') return;
     try {
+      const targetMachine = machineOverride ?? currentMachineRef.current;
       const today = localDateString();
       const ids = getSetlistSongIds(today);
       setSetlistIds(ids);
@@ -188,10 +191,10 @@ export default function HomeScreen() {
         setActiveTabId(ALL_TAB.id);
       }
 
-      const summary = getSessionSummary(today);
+      const summary = getSessionSummary(today, targetMachine);
       setSessionSummary(summary.song_count > 0 ? summary : null);
 
-      const monthly = getMonthlyStats(currentYearMonth());
+      const monthly = getMonthlyStats(currentYearMonth(), targetMachine);
       setMonthlyStats(monthly.record_count > 0 ? monthly : null);
 
       setSearchHistory(getSearchHistory('search_history_home'));
@@ -199,6 +202,12 @@ export default function HomeScreen() {
       console.error(e);
     }
   }
+
+  // U22: U01 の機種切替に連動して今日・今月サマリーを即座に切り替え
+  useEffect(() => {
+    reloadExtras(currentMachine);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentMachine]);
 
   // 持ち歌フィルタの検索履歴操作（#91）
   function recordSearchHistory(term: string) {
@@ -631,10 +640,10 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {/* セッションサマリーバナー */}
+      {/* セッションサマリーバナー（U22: 選択中機種別） */}
       {sessionSummary && (
         <View style={styles.sessionBanner}>
-          <Text style={styles.sessionBannerText}>🎤 今日の記録</Text>
+          <Text style={styles.sessionBannerText}>今日 {currentMachine}</Text>
           <View style={styles.sessionBannerStats}>
             <Text style={styles.sessionBannerNum}>{sessionSummary.song_count}</Text>
             <Text style={styles.sessionBannerLabel}>曲</Text>
@@ -652,12 +661,12 @@ export default function HomeScreen() {
         </View>
       )}
 
-      {/* 月次統計バー */}
+      {/* 月次統計バー（U22: 選択中機種別） */}
       {monthlyStats && (
         <View style={styles.monthlyBar}>
           <Text style={styles.monthlyText}>
-            📅 今月 {monthlyStats.record_count}回記録
-            {monthlyStats.pb_count > 0 ? ` · ベスト更新${monthlyStats.pb_count}曲` : ''}
+            今月 {currentMachine} {monthlyStats.record_count}回記録
+            {monthlyStats.pb_count > 0 ? ` · 更新${monthlyStats.pb_count}曲` : ''}
           </Text>
         </View>
       )}
