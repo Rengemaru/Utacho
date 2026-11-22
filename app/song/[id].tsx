@@ -61,6 +61,16 @@ export default function SongDetailScreen() {
   const [sheetVisible, setSheetVisible] = useState(false);
   const [editingScore, setEditingScore] = useState<ScoreRow | null>(null);
   const [artworkError, setArtworkError] = useState(false);
+  // U13: 長い曲名・アーティスト名を初期2行に折りたたみ、タップで全文展開する
+  const [infoExpanded, setInfoExpanded] = useState(false);
+  const [canExpandTitle, setCanExpandTitle] = useState(false);
+  const [canExpandArtist, setCanExpandArtist] = useState(false);
+
+  useEffect(() => {
+    setInfoExpanded(false);
+    setCanExpandTitle(false);
+    setCanExpandArtist(false);
+  }, [song?.id, song?.title, song?.artist]);
 
   // U05: 登録直後の「点数を記録」導線から来たとき（?record=1）、点数記録シートを自動で開く。一度だけ。
   const autoRecordDoneRef = useRef(false);
@@ -232,9 +242,59 @@ export default function SongDetailScreen() {
                 )}
               </View>
               <View style={styles.artInfo}>
-                {/* U13: 一覧カードは1行省略のまま保ち、詳細画面では曲名・アーティスト名を全文表示する */}
-                <Text style={styles.artTitle} selectable>{song.title}</Text>
-                <Text style={styles.artArtist} selectable>{song.artist || '—'}</Text>
+                {/* U13: 曲名・アーティスト名とも初期は2行で折りたたみ、3行以上になる場合だけタップで全文展開する */}
+                {/* Android では onTextLayout が環境により発火しない場合があるため、
+                    非表示テキストの onLayout 実測高さ（2行分を超えるか）で確実に判定する */}
+                <Text
+                  style={[styles.artTitle, styles.measureHidden]}
+                  pointerEvents="none"
+                  accessible={false}
+                  onLayout={(e) => {
+                    const over = e.nativeEvent.layout.height > 46;
+                    setCanExpandTitle((prev) => (prev === over ? prev : over));
+                  }}
+                >
+                  {song.title}
+                </Text>
+                <Text
+                  style={[styles.artArtist, styles.measureHidden]}
+                  pointerEvents="none"
+                  accessible={false}
+                  onLayout={(e) => {
+                    const over = e.nativeEvent.layout.height > 34;
+                    setCanExpandArtist((prev) => (prev === over ? prev : over));
+                  }}
+                >
+                  {song.artist || '—'}
+                </Text>
+
+                <TouchableOpacity
+                  activeOpacity={canExpandTitle || canExpandArtist ? 0.7 : 1}
+                  disabled={!(canExpandTitle || canExpandArtist)}
+                  onPress={() => setInfoExpanded((v) => !v)}
+                  accessibilityRole={canExpandTitle || canExpandArtist ? 'button' : undefined}
+                  accessibilityState={canExpandTitle || canExpandArtist ? { expanded: infoExpanded } : undefined}
+                >
+                  <Text
+                    style={styles.artTitle}
+                    numberOfLines={infoExpanded ? undefined : 2}
+                    selectable={infoExpanded}
+                  >
+                    {song.title}
+                  </Text>
+                  <Text
+                    style={styles.artArtist}
+                    numberOfLines={infoExpanded ? undefined : 2}
+                    selectable={infoExpanded}
+                  >
+                    {song.artist || '—'}
+                  </Text>
+                  {(canExpandTitle || canExpandArtist) && (
+                    <Text style={styles.expandToggleText}>
+                      {infoExpanded ? '折りたたむ ▴' : 'すべて表示 ▾'}
+                    </Text>
+                  )}
+                </TouchableOpacity>
               </View>
             </View>
 
@@ -530,6 +590,20 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.text2,
     marginTop: 3,
+  },
+  expandToggleText: {
+    fontFamily: fonts.notoSansJPBold,
+    fontSize: 11,
+    lineHeight: 15,
+    includeFontPadding: false,
+    color: colors.accent,
+    marginTop: 4,
+  },
+  measureHidden: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    opacity: 0,
   },
   bestCard: {
     height: 104,
