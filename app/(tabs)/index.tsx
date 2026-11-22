@@ -18,7 +18,7 @@ import { useCoachMark } from '../../src/contexts/CoachMarkContext';
 import { EmptyState } from '../../src/components/EmptyState';
 import { CoachPart, HOME_PART, INTRO_HOME_PART, MOVED_ADD_PART } from '../../src/data/tutorialSteps';
 import { useCoachTarget } from '../../src/lib/coachTargets';
-import { getIntroState, markHomeTutorialDone, setIntroState, shouldShowHomeTutorial } from '../../src/lib/tutorial';
+import { getIntroState, isHomeTutorialReplayPending, markHomeTutorialDone, setIntroState, shouldShowHomeTutorial } from '../../src/lib/tutorial';
 import { RandomPickModal } from '../../src/components/RandomPickModal';
 import { ScoreBottomSheet, formatScoreSavedMessage } from '../../src/components/ScoreBottomSheet';
 import { SaveToast, SAVE_TOAST_DURATION_MS } from '../../src/components/SaveToast';
@@ -256,6 +256,10 @@ export default function HomeScreen() {
   useFocusEffect(
     useCallback(() => {
       refreshMachine(); // デフォルト機種が設定で変わっていれば反映（一覧・カードが追従）
+      if (Platform.OS !== 'web' && isHomeTutorialReplayPending()) {
+        setActiveTabId(ALL_TAB.id);
+        setQuery('');
+      }
       reloadTabs();
       reload();
       reloadExtras();
