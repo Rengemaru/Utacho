@@ -1,12 +1,40 @@
 import Constants from 'expo-constants';
-import { Stack } from 'expo-router';
+import { Stack, router } from 'expo-router';
 import { useState } from 'react';
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../src/constants/colors';
-import { fonts } from '../src/constants/fonts';
+import { useConfirm } from '../src/components/ConfirmProvider';
 import { TutorialModal } from '../src/components/TutorialModal';
 import { TUTORIALS, CATEGORIES, type Tutorial } from '../src/data/tutorialContent';
+import { getAllSongs } from '../src/db/songs';
+import { requestTutorialReplay, type TutorialPartId } from '../src/lib/tutorial';
+
+const REPLAYABLE_TUTORIALS: readonly {
+  id: TutorialPartId;
+  icon: string;
+  title: string;
+  subtitle: string;
+}[] = [
+  {
+    id: 'intro',
+    icon: '✨',
+    title: 'はじめに（曲の探し方）',
+    subtitle: '「さがす」からの曲検索・手入力での追加方法',
+  },
+  {
+    id: 'home',
+    icon: '🎤',
+    title: 'ホームの使い方',
+    subtitle: '点数記録・曲詳細・スワイプ編集・選曲ツール',
+  },
+  {
+    id: 'detail',
+    icon: '📊',
+    title: '曲詳細の使い方',
+    subtitle: 'DAM/JOYSOUND切替・キー・テンポ・メモ調整',
+  },
+];
 
 const CONTACT_FORM_URL =
   'https://docs.google.com/forms/d/e/1FAIpQLSf3TQNxt8K_TyOfBKiAt0Kty42A6T8TADIvLtAzhDy9htXHOQ/viewform';
@@ -17,7 +45,46 @@ const APP_VERSION =
 
 export default function GuideScreen() {
   const insets = useSafeAreaInsets();
+  const confirm = useConfirm();
   const [selected, setSelected] = useState<Tutorial | null>(null);
+
+  async function handleReplayTutorial(part: TutorialPartId) {
+    if (Platform.OS === 'web') return;
+    try {
+      if (part === 'intro') {
+        requestTutorialReplay('intro');
+        router.navigate('/(tabs)');
+        return;
+      }
+
+      const songs = getAllSongs();
+      if (songs.length === 0) {
+        const targetLabel = part === 'home' ? 'ホーム' : '曲詳細';
+        await confirm({
+          title: '曲がまだありません',
+          message: `先に1曲追加すると、${targetLabel}のチュートリアルを再生できます。`,
+          options: [{ label: 'OK', style: 'primary' }],
+          cancelLabel: null,
+        });
+        return;
+      }
+
+      requestTutorialReplay(part);
+      if (part === 'home') {
+        router.navigate('/(tabs)');
+      } else {
+        router.replace(`/song/${songs[0].id}`);
+      }
+    } catch (e) {
+      console.error(e);
+      await confirm({
+        title: 'エラー',
+        message: 'チュートリアルの開始に失敗しました',
+        options: [{ label: 'OK', style: 'primary' }],
+        cancelLabel: null,
+      });
+    }
+  }
 
   return (
     <>
@@ -28,8 +95,34 @@ export default function GuideScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.intro}>
-          「やりたいこと」から選べます。項目をタップすると、手順にそったチュートリアルが開きます。
+          実際の画面で操作を体験できるチュートリアルや、「やりたいこと」別の図解ガイドを確認できます。
         </Text>
+
+        {/* コーチマークの個別再再生 */}
+        <View style={styles.group}>
+          <Text style={styles.catLabel}>チュートリアル</Text>
+          {REPLAYABLE_TUTORIALS.map((item) => (
+            <Pressable
+              key={item.id}
+              style={styles.row}
+              onPress={() => handleReplayTutorial(item.id)}
+              accessibilityRole="button"
+              accessibilityLabel={`${item.title}のチュートリアルを再生`}
+            >
+              <View style={styles.iconWrap}>
+                <Text style={styles.icon}>{item.icon}</Text>
+              </View>
+              <View style={styles.body}>
+                <Text style={styles.title} numberOfLines={1}>{item.title}</Text>
+                <Text style={styles.subtitle} numberOfLines={1}>{item.subtitle}</Text>
+              </View>
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>再生</Text>
+              </View>
+              <Text style={styles.chevron}>›</Text>
+            </Pressable>
+          ))}
+        </View>
 
         {CATEGORIES.map((cat) => {
           const items = TUTORIALS.filter((t) => t.category === cat.key);
