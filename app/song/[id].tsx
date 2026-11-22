@@ -332,7 +332,7 @@ export default function SongDetailScreen() {
                 <View style={styles.bestLeft}>
                   <Text style={styles.bestLabel}>{machineLabel} 最高スコア</Text>
                   <Text style={[styles.bestValue, latestForMachine != null && styles.bestValueCompact]}>
-                    {bestForMachine != null && bestForMachine > 0 ? bestForMachine.toFixed(3) : '—'}
+                    {bestForMachine != null ? bestForMachine.toFixed(3) : '—'}
                   </Text>
                 </View>
                 <View style={styles.bestRight}>
@@ -347,7 +347,7 @@ export default function SongDetailScreen() {
                   style={[styles.latestDiffRow, isPositiveLatest && styles.latestDiffRowPositive]}
                   numberOfLines={1}
                 >
-                  {`最新 ${latestForMachine > 0 ? latestForMachine.toFixed(3) : '—'}  ｜ 前回比 ${diffLabel}`}
+                  {`最新 ${latestForMachine.toFixed(3)}  ｜ 前回比 ${diffLabel}`}
                 </Text>
               )}
             </LinearGradient>

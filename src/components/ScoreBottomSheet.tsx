@@ -33,7 +33,8 @@ import {
   applyScoreKey,
   clearScoreInput,
   hasScoreInput,
-  parseScoreInput,
+  SCORE_CONSTRAINT_HINT,
+  validateScoreInput,
 } from '../lib/scoreInput';
 
 interface Props {
@@ -120,9 +121,8 @@ export function ScoreBottomSheet({ visible, song, editingScore, onClose, onSaved
 
   async function handleSave() {
     if (isSaving) return;
-    const score = parseScoreInput(input);
-    if (score === null) {
-      await confirm({ title: '入力エラー', message: '0〜100の数値を入力してください', options: [{ label: 'OK', style: 'primary' }], cancelLabel: null });
+    const { status, score } = validateScoreInput(input);
+    if (status !== 'valid' || score === null) {
       return;
     }
     if (isFutureDatePart(scoredAt)) {
@@ -163,6 +163,14 @@ export function ScoreBottomSheet({ visible, song, editingScore, onClose, onSaved
 
   const isEdit = !!editingScore;
   const hasInput = hasScoreInput(input);
+  const validation = validateScoreInput(input);
+  const isInvalid = validation.status === 'invalid';
+  const canSave = validation.status === 'valid' && !isSaving;
+  const saveButtonLabel = isInvalid
+    ? '点数を確認してください'
+    : isEdit
+      ? '変更を保存する'
+      : '記録する';
   const nextDayIsFuture = isFutureDatePart(shiftDatePart(scoredAt, 1));
   const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', '⌫'];
 
@@ -200,9 +208,17 @@ export function ScoreBottomSheet({ visible, song, editingScore, onClose, onSaved
             </Text>
 
             {/* スコア表示 */}
-            <View style={styles.scoreDisplay}>
+            <View style={[styles.scoreDisplay, isInvalid && styles.scoreDisplayError]}>
               <View style={styles.scoreValueGroup}>
-                <Text style={[styles.scoreNum, !hasInput && styles.scoreNumEmpty]}>
+                <Text
+                  style={[
+                    styles.scoreNum,
+                    !hasInput && styles.scoreNumEmpty,
+                    isInvalid && styles.scoreNumError,
+                  ]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                >
                   {hasInput ? input : '—'}
                 </Text>
                 <Text style={[styles.scoreUnit, !hasInput && styles.scoreUnitEmpty]}>点</Text>
@@ -219,6 +235,12 @@ export function ScoreBottomSheet({ visible, song, editingScore, onClose, onSaved
                 </TouchableOpacity>
               )}
             </View>
+            <Text
+              style={[styles.scoreHint, isInvalid && styles.scoreHintError]}
+              accessibilityLiveRegion="polite"
+            >
+              {validation.errorMessage ?? SCORE_CONSTRAINT_HINT}
+            </Text>
 
             {/* 機種トグル */}
             <View style={styles.toggleRow}>
@@ -310,10 +332,19 @@ export function ScoreBottomSheet({ visible, song, editingScore, onClose, onSaved
             </View>
 
             {/* 保存ボタン */}
-            <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={isSaving}>
+            <TouchableOpacity
+              style={[styles.saveBtn, !canSave && styles.saveBtnDisabled]}
+              onPress={handleSave}
+              disabled={!canSave}
+              accessibilityState={{ disabled: !canSave }}
+            >
               {isSaving
                 ? <ActivityIndicator color={colors.white} />
-                : <Text style={styles.saveBtnText}>{isEdit ? '変更を保存する' : '記録する'}</Text>
+                : (
+                  <Text style={[styles.saveBtnText, !canSave && styles.saveBtnTextDisabled]}>
+                    {saveButtonLabel}
+                  </Text>
+                )
               }
             </TouchableOpacity>
 
@@ -391,11 +422,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 8,
-    marginBottom: 9,
+    marginBottom: 5,
     shadowColor: colors.accent,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.08,
     shadowRadius: 3,
+  },
+  scoreDisplayError: {
+    borderColor: colors.red,
+    shadowColor: colors.red,
   },
   scoreValueGroup: {
     flexDirection: 'row',
@@ -412,12 +447,24 @@ const styles = StyleSheet.create({
   scoreNumEmpty: {
     color: colors.text3,
   },
+  scoreNumError: {
+    color: colors.red,
+  },
   scoreUnit: {
     fontSize: 12,
     color: colors.text2,
   },
   scoreUnitEmpty: {
     color: colors.text3,
+  },
+  scoreHint: {
+    fontSize: 11,
+    color: colors.text3,
+    marginBottom: 8,
+    paddingLeft: 2,
+  },
+  scoreHintError: {
+    color: colors.red,
   },
   clearBtn: {
     backgroundColor: colors.surface2,
@@ -596,10 +643,18 @@ const styles = StyleSheet.create({
     shadowRadius: 14,
     elevation: 4,
   },
+  saveBtnDisabled: {
+    backgroundColor: colors.surface2,
+    shadowOpacity: 0,
+    elevation: 0,
+  },
   saveBtnText: {
     fontSize: 13,
     fontWeight: '700',
     color: colors.white,
+  },
+  saveBtnTextDisabled: {
+    color: colors.text2,
   },
   pbBanner: {
     position: 'absolute',
