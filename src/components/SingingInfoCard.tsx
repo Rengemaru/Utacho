@@ -2,12 +2,11 @@
 // キー・テンポは －／＋ で即保存、メモはダイアログで書き換える。
 // 曲名・アルバムアート・タブなど「曲そのもの」の情報は編集画面で扱う。
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   Keyboard,
   KeyboardAvoidingView,
   Modal,
-  Platform,
   StyleSheet,
   Text,
   TextInput,
@@ -17,6 +16,12 @@ import {
 } from 'react-native';
 import { colors } from '../constants/colors';
 import { MAX_MEMO_LENGTH } from '../constants/songFields';
+import {
+  executeMemoSave,
+  getMemoSaveButtonLabel,
+  isMemoDraftDirty,
+} from '../lib/memoEditor';
+import { DiscardChangesModal } from './DiscardChangesModal';
 import { KeyStepper } from './KeyStepper';
 
 interface Props {
@@ -25,26 +30,62 @@ interface Props {
   memo: string;
   onChangeKey: (value: number | null) => void;
   onChangeTempo: (value: number | null) => void;
-  onChangeMemo: (value: string) => void;
+  onChangeMemo: (value: string) => Promise<boolean> | boolean;
 }
 
 export function SingingInfoCard({ keyOffset, tempoOffset, memo, onChangeKey, onChangeTempo, onChangeMemo }: Props) {
   const [memoEditing, setMemoEditing] = useState(false);
   const [memoDraft, setMemoDraft] = useState('');
+  const [memoSaving, setMemoSaving] = useState(false);
+  const [memoSaveError, setMemoSaveError] = useState<string | null>(null);
+  const [discardConfirmVisible, setDiscardConfirmVisible] = useState(false);
+  const savingRef = useRef(false);
 
   function openMemoEditor() {
     setMemoDraft(memo);
+    setMemoSaveError(null);
+    setDiscardConfirmVisible(false);
     setMemoEditing(true);
   }
 
-  function closeMemoEditor() {
+  function forceCloseMemoEditor() {
     Keyboard.dismiss();
+    setDiscardConfirmVisible(false);
+    setMemoSaveError(null);
     setMemoEditing(false);
   }
 
-  function saveMemo() {
-    onChangeMemo(memoDraft.trim());
-    closeMemoEditor();
+  function requestCloseMemoEditor() {
+    if (savingRef.current) return;
+    if (isMemoDraftDirty(memo, memoDraft)) {
+      Keyboard.dismiss();
+      setDiscardConfirmVisible(true);
+      return;
+    }
+    forceCloseMemoEditor();
+  }
+
+  function handleMemoDraftChange(text: string) {
+    setMemoDraft(text);
+    if (memoSaveError) setMemoSaveError(null);
+  }
+
+  async function saveMemo() {
+    if (savingRef.current) return;
+    savingRef.current = true;
+    setMemoSaving(true);
+    setMemoSaveError(null);
+    try {
+      const result = await executeMemoSave(memoDraft, onChangeMemo);
+      if (result.ok) {
+        forceCloseMemoEditor();
+      } else {
+        setMemoSaveError(result.error);
+      }
+    } finally {
+      savingRef.current = false;
+      setMemoSaving(false);
+    }
   }
 
   return (
@@ -81,36 +122,65 @@ export function SingingInfoCard({ keyOffset, tempoOffset, memo, onChangeKey, onC
         )}
       </TouchableOpacity>
 
-      {/* メモ編集ダイアログ */}
-      <Modal visible={memoEditing} transparent animationType="fade" statusBarTranslucent onRequestClose={closeMemoEditor}>
+      {/* メモ編集ダイアログ（U28: 保存成功を待って閉じ、失敗時は下書き保持＋再試行） */}
+      <Modal
+        visible={memoEditing}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={requestCloseMemoEditor}
+      >
         <KeyboardAvoidingView style={styles.flex} behavior="padding">
-          <TouchableWithoutFeedback onPress={closeMemoEditor}>
+          <TouchableWithoutFeedback onPress={requestCloseMemoEditor}>
             <View style={styles.modalOverlay} />
           </TouchableWithoutFeedback>
           <View style={styles.modalBox}>
             <Text style={styles.modalTitle}>メモ</Text>
             <TextInput
-              style={styles.modalInput}
+              style={[styles.modalInput, memoSaveError ? styles.modalInputError : null]}
               value={memoDraft}
-              onChangeText={setMemoDraft}
+              onChangeText={handleMemoDraftChange}
               maxLength={MAX_MEMO_LENGTH}
               placeholder="メモ（自由入力）"
               placeholderTextColor={colors.text3}
               multiline
               textAlignVertical="top"
+              editable={!memoSaving}
               autoFocus
             />
+            {memoSaveError && (
+              <Text style={styles.modalErrorText}>{memoSaveError}</Text>
+            )}
             <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.modalCancel} onPress={closeMemoEditor}>
+              <TouchableOpacity
+                style={[styles.modalCancel, memoSaving && styles.modalBtnDisabled]}
+                onPress={requestCloseMemoEditor}
+                disabled={memoSaving}
+                accessibilityRole="button"
+              >
                 <Text style={styles.modalCancelText}>キャンセル</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.modalConfirm} onPress={saveMemo}>
-                <Text style={styles.modalConfirmText}>保存</Text>
+              <TouchableOpacity
+                style={[styles.modalConfirm, memoSaving && styles.modalBtnDisabled]}
+                onPress={saveMemo}
+                disabled={memoSaving}
+                accessibilityRole="button"
+              >
+                <Text style={styles.modalConfirmText}>
+                  {getMemoSaveButtonLabel(memoSaving, memoSaveError !== null)}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* 未保存メモの破棄確認（U03 / U28） */}
+      <DiscardChangesModal
+        visible={discardConfirmVisible}
+        onKeepEditing={() => setDiscardConfirmVisible(false)}
+        onDiscard={forceCloseMemoEditor}
+      />
     </View>
   );
 }
@@ -210,21 +280,47 @@ const styles = StyleSheet.create({
     shadowRadius: 24,
     elevation: 8,
   },
-  modalTitle: { fontSize: 15, fontWeight: '700', color: colors.text },
+  modalTitle: { fontSize: 16, fontWeight: '700', color: colors.text },
   modalInput: {
     backgroundColor: colors.surface,
     borderWidth: 1.5,
     borderColor: colors.border,
-    borderRadius: 10,
+    borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 13,
+    lineHeight: 20,
     color: colors.text,
-    minHeight: 110,
+    minHeight: 120,
   },
-  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10 },
-  modalCancel: { paddingHorizontal: 16, paddingVertical: 8 },
-  modalCancelText: { fontSize: 13, color: colors.text2 },
-  modalConfirm: { backgroundColor: colors.accent, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
-  modalConfirmText: { fontSize: 13, fontWeight: '700', color: colors.white },
+  modalInputError: {
+    borderColor: colors.red,
+  },
+  modalErrorText: {
+    fontSize: 12,
+    lineHeight: 18,
+    color: colors.red,
+  },
+  modalActions: { flexDirection: 'row', gap: 10 },
+  modalCancel: {
+    flex: 1,
+    minHeight: 44,
+    borderRadius: 12,
+    backgroundColor: colors.surface2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+  },
+  modalCancelText: { fontSize: 14, fontWeight: '700', color: colors.text2 },
+  modalConfirm: {
+    flex: 1,
+    minHeight: 44,
+    borderRadius: 12,
+    backgroundColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+  },
+  modalConfirmText: { fontSize: 14, fontWeight: '700', color: colors.white },
+  modalBtnDisabled: { opacity: 0.6 },
 });
