@@ -75,9 +75,6 @@ export function TabSongPickerModal({ visible, tabName, songs, selectedIds, onSav
   );
 
   const sortLabel = TAB_SONG_SORT_OPTIONS.find((o) => o.key === sortKey)?.label ?? '';
-  const subtitleText = hiddenSelectedCount > 0
-    ? `${tabName} ・ 合計${checked.size}曲選択中（検索外${hiddenSelectedCount}曲）`
-    : `${tabName} ・ ${checked.size}曲選択中`;
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
@@ -89,7 +86,7 @@ export function TabSongPickerModal({ visible, tabName, songs, selectedIds, onSav
           </TouchableOpacity>
           <View style={styles.headerCenter}>
             <Text style={styles.title} numberOfLines={1}>対応曲を変更</Text>
-            <Text style={styles.subtitle} numberOfLines={1}>{subtitleText}</Text>
+            <Text style={styles.subtitle} numberOfLines={1}>{tabName} ・ {checked.size}曲選択中</Text>
           </View>
           <TouchableOpacity style={styles.saveBtn} onPress={() => { onSave(Array.from(checked)); }}>
             <Text style={styles.saveText}>設定</Text>
@@ -122,6 +119,15 @@ export function TabSongPickerModal({ visible, tabName, songs, selectedIds, onSav
             <Text style={[styles.sortChipText, sortMenuOpen && styles.sortChipTextOpen]}>{sortLabel} ▾</Text>
           </TouchableOpacity>
         </View>
+
+        {/* 検索外の選択合計ヒント */}
+        {hiddenSelectedCount > 0 && (
+          <View style={styles.hiddenSelectionNote}>
+            <Text style={styles.hiddenSelectionNoteText}>
+              検索外の {hiddenSelectedCount} 曲も選択中（合計 {checked.size} 曲）
+            </Text>
+          </View>
+        )}
 
         {/* 曲リスト */}
         <FlatList
@@ -163,7 +169,7 @@ export function TabSongPickerModal({ visible, tabName, songs, selectedIds, onSav
 
         {/* 並べ替えメニュー */}
         {sortMenuOpen && (
-          <View style={[styles.sortMenu, { top: insets.top + 114 }]}>
+          <View style={[styles.sortMenu, { top: insets.top + 128 }]}>
             {TAB_SONG_SORT_OPTIONS.map((opt) => (
               <TouchableOpacity
                 key={opt.key}
@@ -216,6 +222,15 @@ const styles = StyleSheet.create({
   sortChipOpen: { borderColor: 'rgba(91, 76, 245, 0.4)' },
   sortChipText: { fontSize: 11, color: colors.text, fontWeight: '600' },
   sortChipTextOpen: { color: colors.accent },
+  hiddenSelectionNote: {
+    marginHorizontal: 14,
+    marginTop: -4,
+    marginBottom: 8,
+  },
+  hiddenSelectionNoteText: {
+    fontSize: 11,
+    color: colors.text2,
+  },
   list: { paddingHorizontal: 12, gap: 6 },
   row: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
