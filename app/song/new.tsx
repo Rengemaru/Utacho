@@ -48,6 +48,7 @@ export default function SongFormScreen() {
   const [keyOffset, setKeyOffset] = useState<number | null>(null);
   const [tempoOffset, setTempoOffset] = useState<number | null>(null);
   const [artworkUrl, setArtworkUrl] = useState<string | null>(isEdit ? null : params.artworkUrl || null);
+  const [initialArtworkUrl, setInitialArtworkUrl] = useState<string | null>(isEdit ? null : params.artworkUrl || null);
   const [memo, setMemo] = useState('');
   const [titleReading, setTitleReading] = useState('');
   const [artistReading, setArtistReading] = useState('');
@@ -99,6 +100,7 @@ export default function SongFormScreen() {
       setTitle(song.title);
       setArtist(song.artist);
       setArtworkUrl(song.artwork_url);
+      setInitialArtworkUrl(song.artwork_url);
       setTitleReading(song.title_reading ?? '');
       setArtistReading(song.artist_reading ?? '');
       setKeyOffset(song.key_offset);
@@ -323,8 +325,12 @@ export default function SongFormScreen() {
             )}
             <View style={styles.songRowInfo}>
               <Text style={styles.songRowLabel}>アルバムアート</Text>
-              <Text style={styles.songRowSub}>
-                {artworkUrl ? (isEdit ? '登録済みの画像' : '選択済みの画像') : '未設定'}
+              <Text style={[styles.songRowSub, artworkUrl !== initialArtworkUrl && styles.songRowSubChanged]}>
+                {artworkUrl !== initialArtworkUrl
+                  ? '変更あり・未保存'
+                  : artworkUrl
+                    ? (isEdit ? '登録済みの画像' : '選択済みの画像')
+                    : '未設定'}
               </Text>
             </View>
             <TouchableOpacity
@@ -484,6 +490,7 @@ export default function SongFormScreen() {
         <ArtworkPickerModal
           visible={artworkPickerVisible}
           initialQuery={buildArtworkInitialQuery(title, artist)}
+          artistHint={artist}
           currentArtworkUrl={artworkUrl}
           onSelect={(nextUrl) => {
             setArtworkUrl(nextUrl);
@@ -638,6 +645,10 @@ const styles = StyleSheet.create({
   songRowSub: {
     fontSize: 11,
     color: colors.text2,
+  },
+  songRowSubChanged: {
+    color: colors.accent,
+    fontWeight: '600',
   },
   artworkChangeBtn: {
     backgroundColor: colors.surface2,
