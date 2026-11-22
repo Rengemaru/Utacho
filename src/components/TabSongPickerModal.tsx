@@ -13,17 +13,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../constants/colors';
 import { fonts } from '../constants/fonts';
 import { SongWithStats } from '../types';
-import { normalizeForSearch } from '../lib/text';
-
-type SortKey = 'created_at' | 'title' | 'artist';
-
-const SORT_OPTIONS: { key: SortKey; label: string }[] = [
-  { key: 'created_at', label: '登録日' },
-  { key: 'title', label: '曲名' },
-  { key: 'artist', label: 'アーティスト' },
-];
-
-const jaCollator = new Intl.Collator('ja');
+import {
+  countHiddenSelectedSongs,
+  filterAndSortTabPickerSongs,
+  TAB_SONG_SORT_OPTIONS,
+  TabSongSortKey,
+} from '../lib/tabSongPicker';
 
 interface Props {
   visible: boolean;
@@ -38,16 +33,18 @@ interface Props {
 export function TabSongPickerModal({ visible, tabName, songs, selectedIds, onSave, onClose }: Props) {
   const insets = useSafeAreaInsets();
   const [checked, setChecked] = useState<Set<number>>(new Set(selectedIds));
+  const [sortAnchorIds, setSortAnchorIds] = useState<Set<number>>(new Set(selectedIds));
   const [query, setQuery] = useState('');
-  const [sortKey, setSortKey] = useState<SortKey>('created_at');
+  const [sortKey, setSortKey] = useState<TabSongSortKey>('selected_first');
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
 
   // 開くたびに選択状態・検索・並びを最新へ同期する
   useEffect(() => {
     if (visible) {
       setChecked(new Set(selectedIds));
+      setSortAnchorIds(new Set(selectedIds));
       setQuery('');
-      setSortKey('created_at');
+      setSortKey('selected_first');
       setSortMenuOpen(false);
     }
   }, [visible, selectedIds]);
@@ -61,32 +58,23 @@ export function TabSongPickerModal({ visible, tabName, songs, selectedIds, onSav
     });
   }
 
-  const visibleSongs = useMemo(() => {
-    const q = normalizeForSearch(query);
-    const base = q
-      ? songs.filter((s) => {
-          const fields = [s.title, s.artist, s.title_reading, s.artist_reading].map(normalizeForSearch);
-          return fields.some((f) => f.includes(q));
-        })
-      : songs;
-    const sorted = [...base];
-    if (sortKey === 'title') {
-      sorted.sort((a, b) => jaCollator.compare(
-        normalizeForSearch(a.title_reading || a.title),
-        normalizeForSearch(b.title_reading || b.title),
-      ));
-    } else if (sortKey === 'artist') {
-      sorted.sort((a, b) => jaCollator.compare(
-        normalizeForSearch(a.artist_reading || a.artist),
-        normalizeForSearch(b.artist_reading || b.artist),
-      ));
-    } else {
-      sorted.sort((a, b) => b.created_at.localeCompare(a.created_at));
-    }
-    return sorted;
-  }, [songs, query, sortKey]);
+  function handleSelectSort(nextKey: TabSongSortKey) {
+    setSortAnchorIds(new Set(checked));
+    setSortKey(nextKey);
+    setSortMenuOpen(false);
+  }
 
-  const sortLabel = SORT_OPTIONS.find((o) => o.key === sortKey)?.label ?? '';
+  const visibleSongs = useMemo(
+    () => filterAndSortTabPickerSongs(songs, query, sortKey, sortAnchorIds),
+    [songs, query, sortKey, sortAnchorIds],
+  );
+
+  const hiddenSelectedCount = useMemo(
+    () => (query.trim().length > 0 ? countHiddenSelectedSongs(visibleSongs, checked) : 0),
+    [query, visibleSongs, checked],
+  );
+
+  const sortLabel = TAB_SONG_SORT_OPTIONS.find((o) => o.key === sortKey)?.label ?? '';
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
@@ -132,6 +120,15 @@ export function TabSongPickerModal({ visible, tabName, songs, selectedIds, onSav
           </TouchableOpacity>
         </View>
 
+        {/* 検索外の選択合計ヒント */}
+        {hiddenSelectedCount > 0 && (
+          <View style={styles.hiddenSelectionNote}>
+            <Text style={styles.hiddenSelectionNoteText}>
+              検索外の {hiddenSelectedCount} 曲も選択中（合計 {checked.size} 曲）
+            </Text>
+          </View>
+        )}
+
         {/* 曲リスト */}
         <FlatList
           data={visibleSongs}
@@ -172,14 +169,14 @@ export function TabSongPickerModal({ visible, tabName, songs, selectedIds, onSav
 
         {/* 並べ替えメニュー */}
         {sortMenuOpen && (
-          <View style={styles.sortMenu}>
-            {SORT_OPTIONS.map((opt) => (
+          <View style={[styles.sortMenu, { top: insets.top + 128 }]}>
+            {TAB_SONG_SORT_OPTIONS.map((opt) => (
               <TouchableOpacity
                 key={opt.key}
                 style={styles.sortMenuItem}
-                onPress={() => { setSortKey(opt.key); setSortMenuOpen(false); }}
+                onPress={() => handleSelectSort(opt.key)}
               >
-                <Text style={[styles.sortMenuText, sortKey === opt.key && styles.sortMenuTextCur]}>{opt.label}</Text>
+                <Text style={[styles.sortMenuText, sortKey === opt.key && styles.sortMenuTextCur]}>{opt.menuLabel}</Text>
                 {sortKey === opt.key && <Text style={styles.sortMenuCheck}>✓</Text>}
               </TouchableOpacity>
             ))}
@@ -225,6 +222,15 @@ const styles = StyleSheet.create({
   sortChipOpen: { borderColor: 'rgba(91, 76, 245, 0.4)' },
   sortChipText: { fontSize: 11, color: colors.text, fontWeight: '600' },
   sortChipTextOpen: { color: colors.accent },
+  hiddenSelectionNote: {
+    marginHorizontal: 14,
+    marginTop: -4,
+    marginBottom: 8,
+  },
+  hiddenSelectionNoteText: {
+    fontSize: 11,
+    color: colors.text2,
+  },
   list: { paddingHorizontal: 12, gap: 6 },
   row: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
@@ -256,7 +262,7 @@ const styles = StyleSheet.create({
   },
   footerBtnText: { fontSize: 14, fontWeight: '700', color: colors.white },
   sortMenu: {
-    position: 'absolute', right: 12, top: 62, width: 160, backgroundColor: colors.white,
+    position: 'absolute', right: 12, top: 62, width: 176, backgroundColor: colors.white,
     borderRadius: 12, borderWidth: 1, borderColor: colors.border,
     shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.18, shadowRadius: 30, elevation: 10,
     overflow: 'hidden',
