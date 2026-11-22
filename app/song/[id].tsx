@@ -21,7 +21,8 @@ import { useSongDetail } from '../../src/hooks/useSongDetail';
 import { useMachine } from '../../src/contexts/MachineContext';
 import { MACHINES, type Machine } from '../../src/lib/machine';
 import { ScoreRow } from '../../src/types';
-import { ScoreBottomSheet } from '../../src/components/ScoreBottomSheet';
+import { ScoreBottomSheet, formatScoreSavedMessage } from '../../src/components/ScoreBottomSheet';
+import { SaveToast, SAVE_TOAST_DURATION_MS } from '../../src/components/SaveToast';
 import { ScoreChart } from '../../src/components/ScoreChart';
 import { EmptyState } from '../../src/components/EmptyState';
 import { SingingInfoCard } from '../../src/components/SingingInfoCard';
@@ -62,6 +63,21 @@ export default function SongDetailScreen() {
   }, [defaultMachine]);
   const [sheetVisible, setSheetVisible] = useState(false);
   const [editingScore, setEditingScore] = useState<ScoreRow | null>(null);
+  const [saveToastMessage, setSaveToastMessage] = useState<string | null>(null);
+  const saveToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => {
+    if (saveToastTimerRef.current) clearTimeout(saveToastTimerRef.current);
+  }, []);
+
+  function showSaveToast(message: string) {
+    if (saveToastTimerRef.current) clearTimeout(saveToastTimerRef.current);
+    setSaveToastMessage(message);
+    saveToastTimerRef.current = setTimeout(() => {
+      setSaveToastMessage(null);
+      saveToastTimerRef.current = null;
+    }, SAVE_TOAST_DURATION_MS);
+  }
   const [artworkError, setArtworkError] = useState(false);
   // U13: 長い曲名・アーティスト名を初期2行に折りたたみ、タップで全文展開する
   const [infoExpanded, setInfoExpanded] = useState(false);
@@ -416,11 +432,17 @@ export default function SongDetailScreen() {
         song={song}
         editingScore={editingScore}
         onClose={() => setSheetVisible(false)}
-        onSaved={() => {
+        onSaved={(info) => {
           setSheetVisible(false);
           reload();
+          if (info && !info.isNewPB) {
+            showSaveToast(formatScoreSavedMessage(info));
+          }
         }}
       />
+
+      {/* U24: 通常保存の軽量完了トースト（記録ボタンの上・操作を妨げない） */}
+      <SaveToast message={saveToastMessage} bottomOffset={insets.bottom + 124} />
     </View>
   );
 }
