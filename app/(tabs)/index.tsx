@@ -24,10 +24,11 @@ import { ScoreBottomSheet } from '../../src/components/ScoreBottomSheet';
 import { SetlistModal } from '../../src/components/SetlistModal';
 import { SongActionDialog, type SongActionTarget } from '../../src/components/SongActionDialog';
 import { SongCard } from '../../src/components/SongCard';
+import { TabSongPickerModal } from '../../src/components/TabSongPickerModal';
 import { colors } from '../../src/constants/colors';
 import { fonts } from '../../src/constants/fonts';
 import { deleteSong, getAllSongs, getRandomSongId } from '../../src/db/songs';
-import { attachTab, detachTab } from '../../src/db/songTabs';
+import { attachTab, detachTab, setSongsForTab } from '../../src/db/songTabs';
 import { deleteTab } from '../../src/db/tabs';
 import { getSessionSummary, getMonthlyStats, getSongIdsScoredOn, SessionSummary, MonthlyStats } from '../../src/db/scores';
 import { getSetlistSongIds, saveSetlistSongIds, getSearchHistory, pushSearchHistory, deleteSearchHistoryEntry, clearSearchHistory } from '../../src/db/settings';
@@ -138,6 +139,8 @@ export default function HomeScreen() {
   const [setlistIds, setSetlistIds] = useState<number[]>([]);
   const [setlistModalVisible, setSetlistModalVisible] = useState(false);
   const [allSongsForSetlist, setAllSongsForSetlist] = useState<SongWithStats[]>([]);
+  const [tabPickerVisible, setTabPickerVisible] = useState(false);
+  const [allSongsForTabPicker, setAllSongsForTabPicker] = useState<SongWithStats[]>([]);
   const [sessionSummary, setSessionSummary] = useState<SessionSummary | null>(null);
   const [monthlyStats, setMonthlyStats] = useState<MonthlyStats | null>(null);
   // チュートリアル（コーチマーク）。表示中のパートと、画面が前面にあるか
@@ -416,6 +419,33 @@ export default function HomeScreen() {
     reload();
   }
 
+  function openCategorySongPicker() {
+    if (Platform.OS !== 'web') {
+      setAllSongsForTabPicker(getAllSongs());
+    }
+    setTabPickerVisible(true);
+  }
+
+  async function handleSaveCategorySongs(songIds: number[]) {
+    if (Platform.OS === 'web') {
+      setTabPickerVisible(false);
+      return;
+    }
+    if (activeTabId === ALL_TAB.id || activeTabId === SETLIST_TAB.id) {
+      setTabPickerVisible(false);
+      return;
+    }
+    try {
+      setSongsForTab(activeTabId, songIds);
+      setTabPickerVisible(false);
+      reloadTabs();
+      reload();
+    } catch (e) {
+      console.error(e);
+      await confirm({ title: 'エラー', message: '曲の設定に失敗しました', options: [{ label: 'OK', style: 'primary' }], cancelLabel: null });
+    }
+  }
+
   function closeOtherSwipeables(currentId: number) {
     swipeRefs.current.forEach((ref, id) => {
       if (id !== currentId) ref?.close();
@@ -555,6 +585,10 @@ export default function HomeScreen() {
       : (SORT_OPTIONS.find((o) => o.key === sortKey)?.label ?? '') + (sortDir === 'asc' ? ' ↑' : ' ↓');
   // 登録曲が1件もないときはランダム選曲ボタンを出さない
   const hasAnySong = (tabsWithAll.find((t) => t.id === ALL_TAB.id)?.song_count ?? 0) > 0;
+  const activeCategoryTab =
+    activeTabId !== ALL_TAB.id && activeTabId !== SETLIST_TAB.id
+      ? tabsWithAll.find((t) => t.id === activeTabId) ?? null
+      : null;
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
@@ -751,13 +785,38 @@ export default function HomeScreen() {
         </View>
       ) : filtered.length === 0 ? (
         <View style={styles.center}>
-          <EmptyState
-            emoji="🎵"
-            title={query ? '検索結果がありません' : 'まだ曲がありません'}
-            subtitle={query ? '別のキーワードで試してみてください' : 'カラオケで歌った曲を追加しましょう'}
-            actionLabel={query ? undefined : '🔍 曲をさがして追加する'}
-            onAction={query ? undefined : () => router.navigate('/search')}
-          />
+          {!query && activeCategoryTab && hasAnySong ? (
+            <View style={styles.emptyCategoryCard}>
+              <Text style={styles.emptyCategoryTitle}>
+                「{activeCategoryTab.name}」にはまだ曲がありません
+              </Text>
+              <Text style={styles.emptyCategoryBody}>
+                登録済みの持ち歌から、{'\n'}このカテゴリに入れる曲を選べます。
+              </Text>
+              <TouchableOpacity
+                accessibilityRole="button"
+                style={styles.emptyCategoryPrimaryBtn}
+                onPress={openCategorySongPicker}
+              >
+                <Text style={styles.emptyCategoryPrimaryText}>持ち歌から選ぶ</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                accessibilityRole="button"
+                style={styles.emptyCategorySecondaryBtn}
+                onPress={() => router.navigate('/search')}
+              >
+                <Text style={styles.emptyCategorySecondaryText}>新しい曲を探す</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <EmptyState
+              emoji="🎵"
+              title={query ? '検索結果がありません' : 'まだ曲がありません'}
+              subtitle={query ? '別のキーワードで試してみてください' : 'カラオケで歌った曲を追加しましょう'}
+              actionLabel={query ? undefined : '＋ 最初の曲を追加する'}
+              onAction={query ? undefined : () => router.navigate('/search')}
+            />
+          )}
         </View>
       ) : (
         <FlatList
@@ -946,6 +1005,16 @@ export default function HomeScreen() {
         selectedIds={setlistIds}
         onSave={handleSaveSetlist}
         onClose={() => setSetlistModalVisible(false)}
+      />
+
+      {/* U11: 空カテゴリから持ち歌を選んで追加するモーダル */}
+      <TabSongPickerModal
+        visible={tabPickerVisible}
+        tabName={activeCategoryTab?.name ?? ''}
+        songs={allSongsForTabPicker}
+        selectedIds={songs.map((s) => s.id)}
+        onSave={handleSaveCategorySongs}
+        onClose={() => setTabPickerVisible(false)}
       />
 
 
@@ -1292,6 +1361,54 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   detachedUndoText: {
+    fontFamily: fonts.notoSansJPBold,
+    fontSize: 13,
+    lineHeight: 16,
+    includeFontPadding: false,
+    color: colors.text2,
+  },
+  emptyCategoryCard: {
+    width: '100%',
+    maxWidth: 324,
+    paddingHorizontal: 18,
+    gap: 14,
+  },
+  emptyCategoryTitle: {
+    fontFamily: fonts.notoSansJPBold,
+    fontSize: 17,
+    lineHeight: 22,
+    includeFontPadding: false,
+    color: colors.text,
+  },
+  emptyCategoryBody: {
+    fontFamily: fonts.notoSansJPRegular,
+    fontSize: 13,
+    lineHeight: 18,
+    includeFontPadding: false,
+    color: colors.text2,
+  },
+  emptyCategoryPrimaryBtn: {
+    minHeight: 44,
+    borderRadius: 12,
+    backgroundColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyCategoryPrimaryText: {
+    fontFamily: fonts.notoSansJPBold,
+    fontSize: 13,
+    lineHeight: 16,
+    includeFontPadding: false,
+    color: colors.white,
+  },
+  emptyCategorySecondaryBtn: {
+    minHeight: 42,
+    borderRadius: 12,
+    backgroundColor: colors.surface2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyCategorySecondaryText: {
     fontFamily: fonts.notoSansJPBold,
     fontSize: 13,
     lineHeight: 16,
