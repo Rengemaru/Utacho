@@ -791,7 +791,23 @@ export default function HomeScreen() {
         </View>
       ) : filtered.length === 0 ? (
         <View style={styles.center}>
-          {!query && activeCategoryTab && hasAnySong ? (
+          {query && (activeCategoryTab || activeTabId === SETLIST_TAB.id) ? (
+            <View style={styles.emptyCategoryCard}>
+              <Text style={styles.emptyCategoryTitle}>
+                「{activeCategoryTab ? activeCategoryTab.name : '今日'}」に一致する曲はありません
+              </Text>
+              <TouchableOpacity
+                accessibilityRole="button"
+                style={styles.emptyCategoryPrimaryBtn}
+                onPress={() => {
+                  setDetachedNotice(null);
+                  setActiveTabId(ALL_TAB.id);
+                }}
+              >
+                <Text style={styles.emptyCategoryPrimaryText}>すべての持ち歌で探す</Text>
+              </TouchableOpacity>
+            </View>
+          ) : !query && activeCategoryTab && hasAnySong ? (
             <View style={styles.emptyCategoryCard}>
               <Text style={styles.emptyCategoryTitle}>
                 「{activeCategoryTab.name}」にはまだ曲がありません
