@@ -18,7 +18,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyStepper, TEMPO_HELPER_TEXT } from '../../src/components/KeyStepper';
 import { colors } from '../../src/constants/colors';
-import { insertSong, updateSong, updateSongSingingInfo, getSongById, findDuplicateSong } from '../../src/db/songs';
+import { insertSong, updateSong, updateSongSingingInfo, getSongById, findDuplicateSong, getAllArtworkUrls } from '../../src/db/songs';
 import { insertTab, findDuplicateTab } from '../../src/db/tabs';
 import { syncTabs } from '../../src/db/songTabs';
 import { useTabs } from '../../src/hooks/useTabs';
@@ -26,7 +26,10 @@ import { MOCK_SONGS } from '../../src/db/mockData';
 import { useConfirm } from '../../src/components/ConfirmProvider';
 import { DiscardChangesModal } from '../../src/components/DiscardChangesModal';
 import { DuplicateSongDialog } from '../../src/components/DuplicateSongDialog';
+import { ArtworkPickerModal } from '../../src/components/ArtworkPickerModal';
 import { setLastAdded } from '../../src/features/songSearch/lastAdded';
+import { buildArtworkInitialQuery } from '../../src/lib/artworkSearch';
+import { cleanupUnusedLocalArtworks, commitLocalArtwork } from '../../src/lib/localArtwork';
 
 import { MAX_TAB_NAME_LENGTH, truncateTabName } from '../../src/constants/tabConfig';
 
@@ -46,12 +49,14 @@ export default function SongFormScreen() {
   const [keyOffset, setKeyOffset] = useState<number | null>(null);
   const [tempoOffset, setTempoOffset] = useState<number | null>(null);
   const [artworkUrl, setArtworkUrl] = useState<string | null>(isEdit ? null : params.artworkUrl || null);
+  const [initialArtworkUrl, setInitialArtworkUrl] = useState<string | null>(isEdit ? null : params.artworkUrl || null);
   const [memo, setMemo] = useState('');
   const [titleReading, setTitleReading] = useState('');
   const [artistReading, setArtistReading] = useState('');
   const [selectedTabIds, setSelectedTabIds] = useState<number[]>([]);
   const [newTabModalVisible, setNewTabModalVisible] = useState(false);
   const [newTabName, setNewTabName] = useState('');
+  const [artworkPickerVisible, setArtworkPickerVisible] = useState(false);
   const [discardVisible, setDiscardVisible] = useState(false);
   const [duplicateSong, setDuplicateSong] = useState<ReturnType<typeof findDuplicateSong>>(null);
   // U04: 追加設定（読み・キー・テンポ・メモ）の折りたたみ。初期は閉じる
@@ -96,6 +101,7 @@ export default function SongFormScreen() {
       setTitle(song.title);
       setArtist(song.artist);
       setArtworkUrl(song.artwork_url);
+      setInitialArtworkUrl(song.artwork_url);
       setTitleReading(song.title_reading ?? '');
       setArtistReading(song.artist_reading ?? '');
       setKeyOffset(song.key_offset);
@@ -133,6 +139,7 @@ export default function SongFormScreen() {
   const handleBackRef = useRef<() => boolean>(() => false);
   handleBackRef.current = () => {
     if (duplicateSong) return false; // 重複確認のModal側で、入力を保持したまま閉じる
+    if (artworkPickerVisible) return false; // 画像変更モーダルは自前で閉じる
     if (newTabModalVisible) return false; // タブ作成モーダルは自前で閉じる
     if (discardVisible) { setDiscardVisible(false); return true; } // 破棄確認を戻るで閉じる＝編集を続ける
     if (!isDirty()) return false;
@@ -187,13 +194,15 @@ export default function SongFormScreen() {
 
   async function doSave() {
     try {
+      const savedArtworkUrl = commitLocalArtwork(artworkUrl);
       if (isEdit) {
-        updateSong(Number(songId), title.trim(), artist.trim(), artworkUrl, titleReading.trim(), artistReading.trim());
+        updateSong(Number(songId), title.trim(), artist.trim(), savedArtworkUrl, titleReading.trim(), artistReading.trim());
         // キー・テンポ・メモも編集フォーム（追加設定）から保存する
         updateSongSingingInfo(Number(songId), { key_offset: keyOffset, tempo_offset: tempoOffset, memo });
         syncTabs(Number(songId), selectedTabIds);
+        cleanupUnusedLocalArtworks(getAllArtworkUrls());
       } else {
-        const newId = insertSong(title.trim(), artist.trim(), keyOffset, artworkUrl, memo, titleReading.trim(), artistReading.trim(), tempoOffset);
+        const newId = insertSong(title.trim(), artist.trim(), keyOffset, savedArtworkUrl, memo, titleReading.trim(), artistReading.trim(), tempoOffset);
         syncTabs(newId, selectedTabIds);
         // U05: 追加後は「さがす」に戻り、検索状態を保ったままバナーで3択（検索継続／点数記録／曲を開く）を出す。
         setLastAdded({ id: newId, title: title.trim() });
@@ -308,7 +317,7 @@ export default function SongFormScreen() {
             />
           </View>
 
-          {/* アルバムアート（別の曲にしたい場合は、さがすタブから新しく追加する） */}
+          {/* アルバムアート（U17: 画像あり・なしの両方から画像だけ差し替え可能） */}
           <View style={styles.songRow}>
             {artworkUrl ? (
               <Image source={{ uri: artworkUrl }} style={styles.songArt} />
@@ -319,8 +328,26 @@ export default function SongFormScreen() {
             )}
             <View style={styles.songRowInfo}>
               <Text style={styles.songRowLabel}>アルバムアート</Text>
-              <Text style={styles.songRowSub}>{artworkUrl ? '検索で選んだ曲のもの' : '未設定'}</Text>
+              <Text style={[styles.songRowSub, artworkUrl !== initialArtworkUrl && styles.songRowSubChanged]}>
+                {artworkUrl !== initialArtworkUrl
+                  ? '変更あり・未保存'
+                  : artworkUrl
+                    ? (isEdit ? '登録済みの画像' : '選択済みの画像')
+                    : '未設定'}
+              </Text>
             </View>
+            <TouchableOpacity
+              style={styles.artworkChangeBtn}
+              onPress={() => {
+                Keyboard.dismiss();
+                setArtworkPickerVisible(true);
+              }}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              accessibilityRole="button"
+              accessibilityLabel="アルバムアートを変更"
+            >
+              <Text style={styles.artworkChangeBtnText}>画像を変更</Text>
+            </TouchableOpacity>
           </View>
 
           {/* タブ選択 */}
@@ -462,6 +489,19 @@ export default function SongFormScreen() {
           </KeyboardAvoidingView>
         </Modal>
 
+        {/* U17: アルバムアート差し替えモーダル */}
+        <ArtworkPickerModal
+          visible={artworkPickerVisible}
+          initialQuery={buildArtworkInitialQuery(title, artist)}
+          artistHint={artist}
+          currentArtworkUrl={artworkUrl}
+          onSelect={(nextUrl) => {
+            setArtworkUrl(nextUrl);
+            setArtworkPickerVisible(false);
+          }}
+          onClose={() => setArtworkPickerVisible(false)}
+        />
+
         {/* 保存ボタン */}
         <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
           <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
@@ -572,21 +612,21 @@ const styles = StyleSheet.create({
     color: colors.text3,
     marginTop: -8,
   },
-  // アルバムアート行
+  // アルバムアート行（Figma 105:3047 準拠）
   songRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
     backgroundColor: colors.surface,
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 11,
-    padding: 10,
+    borderRadius: 12,
+    padding: 12,
   },
   songArt: {
-    width: 48,
-    height: 48,
-    borderRadius: 8,
+    width: 44,
+    height: 44,
+    borderRadius: 10,
   },
   songArtPlaceholder: {
     backgroundColor: colors.surface2,
@@ -594,20 +634,39 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   songArtPlaceholderText: {
-    fontSize: 20,
+    fontSize: 18,
   },
   songRowInfo: {
     flex: 1,
+    gap: 2,
   },
   songRowLabel: {
-    fontSize: 11,
-    color: colors.text2,
-    fontWeight: '500',
+    fontSize: 12,
+    color: colors.text,
+    fontWeight: '700',
   },
   songRowSub: {
-    fontSize: 10,
-    color: colors.text3,
-    marginTop: 2,
+    fontSize: 11,
+    color: colors.text2,
+  },
+  songRowSubChanged: {
+    color: colors.accent,
+    fontWeight: '600',
+  },
+  artworkChangeBtn: {
+    backgroundColor: colors.surface2,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    height: 34,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  artworkChangeBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.text2,
   },
   tabSelector: {
     flexDirection: 'row',

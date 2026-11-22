@@ -2,6 +2,8 @@ import * as DocumentPicker from 'expo-document-picker';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { getDb } from '../db/client';
+import { getAllArtworkUrls } from '../db/songs';
+import { cleanupUnusedLocalArtworks, resolveRestoredArtworkUrl } from './localArtwork';
 
 const SETTINGS_WHITELIST = ['default_machine', 'onboarding_completed'] as const;
 
@@ -173,7 +175,7 @@ export function restoreFromBackup(data: BackupData): void {
           (song.key_offset as number | null) ?? null,
           // 旧バックアップ（テンポ列なし）は NULL（未設定）フォールバック
           (song.tempo_offset as number | null | undefined) ?? null,
-          (song.artwork_url as string | null) ?? null,
+          resolveRestoredArtworkUrl((song.artwork_url as string | null) ?? null),
           (song.memo as string) ?? '',
           // 旧バックアップ（読み列なし）は '' フォールバック
           (song.title_reading as string | undefined) ?? '',
@@ -215,6 +217,7 @@ export function restoreFromBackup(data: BackupData): void {
     }
 
     db.execSync('COMMIT');
+    cleanupUnusedLocalArtworks(getAllArtworkUrls());
   } catch (e) {
     db.execSync('ROLLBACK');
     throw e;
