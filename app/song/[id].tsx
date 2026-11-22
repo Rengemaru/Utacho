@@ -30,6 +30,7 @@ import { useCoachMark } from '../../src/contexts/CoachMarkContext';
 import { CoachStep, DETAIL_PART } from '../../src/data/tutorialSteps';
 import { measureCoachTarget, useCoachTarget } from '../../src/lib/coachTargets';
 import { markDetailTutorialDone, shouldShowDetailTutorial } from '../../src/lib/tutorial';
+import { useIsTablet } from '../../src/lib/responsive';
 
 // 下部固定の「点数を記録する」ボタンの領域（チュートリアルで照らす対象が隠れないようにする）
 const RECORD_AREA_HEIGHT = 140;
@@ -37,6 +38,7 @@ import { useConfirm } from '../../src/components/ConfirmProvider';
 
 export default function SongDetailScreen() {
   const insets = useSafeAreaInsets();
+  const isTablet = useIsTablet();
   const { id, record } = useLocalSearchParams<{ id: string; record?: string }>();
   const songId = Number(id);
   const { song, scores, loading, error, reload, updateSinging } = useSongDetail(songId);
@@ -290,9 +292,11 @@ export default function SongDetailScreen() {
                     {song.artist || '—'}
                   </Text>
                   {(canExpandTitle || canExpandArtist) && (
-                    <Text style={styles.expandToggleText}>
-                      {infoExpanded ? '折りたたむ ▴' : 'すべて表示 ▾'}
-                    </Text>
+                    <View style={[styles.expandTogglePill, isTablet && styles.expandTogglePillTablet]}>
+                      <Text style={[styles.expandToggleText, isTablet && styles.expandToggleTextTablet]}>
+                        {infoExpanded ? '折りたたむ ▴' : 'すべて表示 ▾'}
+                      </Text>
+                    </View>
                   )}
                 </TouchableOpacity>
               </View>
@@ -591,13 +595,28 @@ const styles = StyleSheet.create({
     color: colors.text2,
     marginTop: 3,
   },
+  expandTogglePill: {
+    alignSelf: 'flex-start',
+    marginTop: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    backgroundColor: colors.accentSoft,
+  },
+  expandTogglePillTablet: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+  },
   expandToggleText: {
     fontFamily: fonts.notoSansJPBold,
-    fontSize: 11,
-    lineHeight: 15,
+    fontSize: 12,
+    lineHeight: 16,
     includeFontPadding: false,
     color: colors.accent,
-    marginTop: 4,
+  },
+  expandToggleTextTablet: {
+    fontSize: 13,
+    lineHeight: 18,
   },
   measureHidden: {
     position: 'absolute',
