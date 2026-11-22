@@ -1,4 +1,5 @@
 import { getDb } from './client';
+import { cleanupUnusedLocalArtworks } from '../lib/localArtwork';
 
 /** 各テーブルの件数 */
 export interface DataCounts {
@@ -34,6 +35,7 @@ export function deleteAllData(): void {
     db.execSync('DELETE FROM songs');
     db.execSync('DELETE FROM tabs');
     db.execSync('COMMIT');
+    cleanupUnusedLocalArtworks([]);
   } catch (e) {
     db.execSync('ROLLBACK');
     throw e;

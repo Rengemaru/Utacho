@@ -1,6 +1,7 @@
 import { getDb } from './client';
 import { SongRow, SongWithStats, TabRow } from '../types';
 import type { Machine } from '../lib/machine';
+import { cleanupUnusedLocalArtworks } from '../lib/localArtwork';
 
 // machine を渡すとその機種だけで集計する（DAM/JOYSOUND 完全分離 #71）。
 // SQL へ直接埋め込むため、実行時にも 'DAM'|'JOYSOUND' 以外を弾く（#76: as Machine 等の混入対策）。
@@ -207,9 +208,18 @@ export function restoreSong(id: number): void {
   getDb().runSync('UPDATE songs SET deleted_at = NULL WHERE id = ?', [id]);
 }
 
+/** ゴミ箱内の曲も含め、DBで参照中の全 artwork_url を取得する（未使用ローカル画像の掃除用） */
+export function getAllArtworkUrls(): string[] {
+  const rows = getDb().getAllSync<{ artwork_url: string }>(
+    'SELECT artwork_url FROM songs WHERE artwork_url IS NOT NULL'
+  );
+  return rows.map((r) => r.artwork_url);
+}
+
 /** 完全に削除する（点数・タブ紐づけも CASCADE で消える・取り消し不可） */
 export function hardDeleteSong(id: number): void {
   getDb().runSync('DELETE FROM songs WHERE id = ?', [id]);
+  cleanupUnusedLocalArtworks(getAllArtworkUrls());
 }
 
 /** ゴミ箱内の、削除から days 日より前の曲を完全削除する。削除件数を返す */
@@ -219,6 +229,9 @@ export function purgeExpiredDeleted(days: number = 30): number {
     'DELETE FROM songs WHERE deleted_at IS NOT NULL AND deleted_at < ?',
     [cutoff]
   );
+  if (r.changes > 0) {
+    cleanupUnusedLocalArtworks(getAllArtworkUrls());
+  }
   return r.changes;
 }
 

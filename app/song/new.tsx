@@ -18,7 +18,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyStepper, TEMPO_HELPER_TEXT } from '../../src/components/KeyStepper';
 import { colors } from '../../src/constants/colors';
-import { insertSong, updateSong, updateSongSingingInfo, getSongById, findDuplicateSong } from '../../src/db/songs';
+import { insertSong, updateSong, updateSongSingingInfo, getSongById, findDuplicateSong, getAllArtworkUrls } from '../../src/db/songs';
 import { insertTab, findDuplicateTab } from '../../src/db/tabs';
 import { syncTabs } from '../../src/db/songTabs';
 import { useTabs } from '../../src/hooks/useTabs';
@@ -29,6 +29,7 @@ import { DuplicateSongDialog } from '../../src/components/DuplicateSongDialog';
 import { ArtworkPickerModal } from '../../src/components/ArtworkPickerModal';
 import { setLastAdded } from '../../src/features/songSearch/lastAdded';
 import { buildArtworkInitialQuery } from '../../src/lib/artworkSearch';
+import { cleanupUnusedLocalArtworks, commitLocalArtwork } from '../../src/lib/localArtwork';
 
 import { MAX_TAB_NAME_LENGTH, truncateTabName } from '../../src/constants/tabConfig';
 
@@ -193,13 +194,15 @@ export default function SongFormScreen() {
 
   async function doSave() {
     try {
+      const savedArtworkUrl = commitLocalArtwork(artworkUrl);
       if (isEdit) {
-        updateSong(Number(songId), title.trim(), artist.trim(), artworkUrl, titleReading.trim(), artistReading.trim());
+        updateSong(Number(songId), title.trim(), artist.trim(), savedArtworkUrl, titleReading.trim(), artistReading.trim());
         // キー・テンポ・メモも編集フォーム（追加設定）から保存する
         updateSongSingingInfo(Number(songId), { key_offset: keyOffset, tempo_offset: tempoOffset, memo });
         syncTabs(Number(songId), selectedTabIds);
+        cleanupUnusedLocalArtworks(getAllArtworkUrls());
       } else {
-        const newId = insertSong(title.trim(), artist.trim(), keyOffset, artworkUrl, memo, titleReading.trim(), artistReading.trim(), tempoOffset);
+        const newId = insertSong(title.trim(), artist.trim(), keyOffset, savedArtworkUrl, memo, titleReading.trim(), artistReading.trim(), tempoOffset);
         syncTabs(newId, selectedTabIds);
         // U05: 追加後は「さがす」に戻り、検索状態を保ったままバナーで3択（検索継続／点数記録／曲を開く）を出す。
         setLastAdded({ id: newId, title: title.trim() });
